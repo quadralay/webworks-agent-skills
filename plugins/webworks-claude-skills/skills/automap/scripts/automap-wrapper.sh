@@ -328,12 +328,16 @@ detect_automap_executable() {
         local unix_path
         unix_path=$(cygpath "$AUTOMAP_EXE_PATH" 2>/dev/null || echo "$AUTOMAP_EXE_PATH")
 
-        if [[ -f "$unix_path" ]]; then
+        if [[ -f "$unix_path" && -x "$unix_path" ]]; then
             log_verbose "Using AutoMap executable from AUTOMAP_EXE_PATH"
             echo "$AUTOMAP_EXE_PATH"
             return 0
         else
-            log_error "AUTOMAP_EXE_PATH is set but executable not found: $AUTOMAP_EXE_PATH"
+            if [[ ! -f "$unix_path" ]]; then
+                log_error "AUTOMAP_EXE_PATH is set but file not found: $AUTOMAP_EXE_PATH"
+            else
+                log_error "AUTOMAP_EXE_PATH is set but file is not executable: $AUTOMAP_EXE_PATH"
+            fi
             log_error "Unset AUTOMAP_EXE_PATH or set it to a valid executable path"
             return 1
         fi
