@@ -42,7 +42,7 @@ Job files inherit format configuration from Stationery projects (.wxsp), enablin
 - Automatically detects the AutoMap installation
 - Handles path conversion between Unix and Windows formats
 - Provides consistent error handling and exit codes
-- Supports environment variable caching via `AUTOMAP_PATH`
+- Supports environment variable override via `AUTOMAP_EXE_PATH`
 - Provides minimal token usage impact by default
 
 Do NOT use `detect-installation.sh` to find the CLI path and call it directly. The wrapper is the execution interface.
@@ -95,12 +95,16 @@ When no target is specified:
 - **Multi-target projects**: Prompts for selection (interactive mode)
 - **CI/CD (non-interactive)**: Requires `-t`, `--target=`, or `--all-targets`
 
-### Caching for Multiple Builds
+### Environment Variable Override
 
-To cache the installation path for multiple consecutive builds:
+Use `AUTOMAP_EXE_PATH` to bypass auto-detection:
 
 ```bash
-export AUTOMAP_PATH=$(./scripts/detect-installation.sh)
+# Cache detected path for multiple builds
+export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
+
+# Or point to a development/debug build
+export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
 ```
 
 ### Verify Installation (Optional)
@@ -313,7 +317,7 @@ fi
 
 ```bash
 # Cache installation path for efficiency
-export AUTOMAP_PATH=$(./scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
 
 for project in projects/*.wep; do
     # --all-targets required in non-interactive (CI) mode

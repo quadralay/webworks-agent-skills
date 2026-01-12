@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "webworks-claude-skills",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Claude Code skills for WebWorks ePublisher platform: Markdown++ authoring, project management, AutoMap automation, and Reverb output testing",
   "owner": {
     "name": "Quadralay Corporation",

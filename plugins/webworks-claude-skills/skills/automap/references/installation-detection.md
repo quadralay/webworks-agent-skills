@@ -174,9 +174,9 @@ detect_automap() {
 }
 
 # Usage
-AUTOMAP_PATH=$(detect_automap)
+AUTOMAP_EXE_PATH=$(detect_automap)
 if [ $? -eq 0 ]; then
-    echo "Found AutoMap at: $AUTOMAP_PATH"
+    echo "Found AutoMap at: $AUTOMAP_EXE_PATH"
 else
     echo "AutoMap installation not found"
 fi
