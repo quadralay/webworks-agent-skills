@@ -46,14 +46,14 @@ Complete reference for WebWorks ePublisher AutoMap command-line interface option
 
 | Variable | Description |
 |----------|-------------|
-| `AUTOMAP_PATH` | Path to AutoMap CLI executable. If set, skips installation detection. |
+| `AUTOMAP_EXE_PATH` | Path to AutoMap CLI executable. Bypasses installation detection when set. |
 
 ### Caching for Batch Builds
 
 For multiple consecutive builds, cache the installation path to avoid repeated detection:
 
 ```bash
-export AUTOMAP_PATH=$(./scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
 
 # All subsequent builds skip detection
 ./scripts/automap-wrapper.sh -c -n --skip-reports project1.wep
@@ -61,10 +61,19 @@ export AUTOMAP_PATH=$(./scripts/detect-installation.sh)
 ./scripts/automap-wrapper.sh -c -n --skip-reports project3.wep
 ```
 
-### Clearing the Cache
+### Development Builds
+
+Point to a debug build for testing:
 
 ```bash
-unset AUTOMAP_PATH
+export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
+./scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+```
+
+### Clearing the Override
+
+```bash
+unset AUTOMAP_EXE_PATH
 ```
 
 ## Safe Defaults
@@ -464,7 +473,7 @@ Save time by building only the target(s) you're working on:
 
 When building multiple projects, cache the installation path:
 ```bash
-export AUTOMAP_PATH=$(./scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
 
 ./scripts/automap-wrapper.sh --all-targets project1.wep
 ./scripts/automap-wrapper.sh --all-targets project2.wep
@@ -504,7 +513,7 @@ The wrapper is the primary execution interface:
 
 Use `detect-installation.sh` only for:
 - Verifying AutoMap is installed
-- Caching the path via `AUTOMAP_PATH` for batch builds
+- Caching the path via `AUTOMAP_EXE_PATH` for batch builds
 - Debugging installation detection issues
 
 ## Related Documentation

@@ -266,7 +266,9 @@ OTHER OPTIONS:
     --help                   Show this help message
 
 ENVIRONMENT:
-    AUTOMAP_PATH           If set, use this path instead of auto-detection
+    AUTOMAP_EXE_PATH       Path to AutoMap executable (bypasses auto-detection)
+                           Use for dev builds: export AUTOMAP_EXE_PATH="/path/to/debug/WebWorks.Automap.exe"
+                           Or cache detected path: export AUTOMAP_EXE_PATH=\$(./scripts/detect-installation.sh)
 
 EXIT CODES:
     0    Build succeeded
@@ -320,20 +322,23 @@ validate_project_file() {
 detect_automap_executable() {
     log_verbose "Detecting AutoMap installation..."
 
-    # Check for cached/override path first (AUTOMAP_PATH environment variable)
-    if [[ -n "${AUTOMAP_PATH:-}" ]]; then
-        log_verbose "Found AUTOMAP_PATH environment variable: $AUTOMAP_PATH"
-        # Validate the cached path exists
+    # Check for executable path override (supports both dev builds and caching)
+    if [[ -n "${AUTOMAP_EXE_PATH:-}" ]]; then
+        log_verbose "Found AUTOMAP_EXE_PATH environment variable: $AUTOMAP_EXE_PATH"
         local unix_path
-        unix_path=$(cygpath "$AUTOMAP_PATH" 2>/dev/null || echo "$AUTOMAP_PATH")
+        unix_path=$(cygpath "$AUTOMAP_EXE_PATH" 2>/dev/null || echo "$AUTOMAP_EXE_PATH")
 
-        if [[ -f "$unix_path" ]]; then
-            log_verbose "Using AutoMap from AUTOMAP_PATH: $AUTOMAP_PATH"
-            echo "$AUTOMAP_PATH"
+        if [[ -f "$unix_path" && -x "$unix_path" ]]; then
+            log_verbose "Using AutoMap executable from AUTOMAP_EXE_PATH"
+            echo "$AUTOMAP_EXE_PATH"
             return 0
         else
-            log_error "AUTOMAP_PATH is set but executable not found: $AUTOMAP_PATH"
-            log_error "Unset AUTOMAP_PATH or set it to a valid path"
+            if [[ ! -f "$unix_path" ]]; then
+                log_error "AUTOMAP_EXE_PATH is set but file not found: $AUTOMAP_EXE_PATH"
+            else
+                log_error "AUTOMAP_EXE_PATH is set but file is not executable: $AUTOMAP_EXE_PATH"
+            fi
+            log_error "Unset AUTOMAP_EXE_PATH or set it to a valid executable path"
             return 1
         fi
     fi
