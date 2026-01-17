@@ -36,7 +36,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 
 **After customizing themes:** Use the automap skill to rebuild:
 ```bash
-./automap-wrapper.sh -c -n -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -c -n -t "WebWorks Reverb 2.0" project.wep
 ```
 
 </related_skills>
@@ -86,7 +86,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 ### Run Test
 
 ```bash
-node scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
+node ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
 ```
 
 ### What It Checks
@@ -133,7 +133,7 @@ node scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
 ### Parse url_maps.xml
 
 ```bash
-./scripts/parse-url-maps.sh <url-maps-file> [format]
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/parse-url-maps.sh <url-maps-file> [format]
 ```
 
 Format: `json` (default) or `table`
@@ -177,7 +177,7 @@ $neo_page_color: #fefefe;           // Page background
 ### Extract Current Values
 
 ```bash
-./scripts/extract-scss-variables.sh <project-dir> [category]
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh <project-dir> [category]
 ```
 
 Categories: `neo`, `layout`, `toolbar`, `header`, `footer`, `menu`, `sizes`
@@ -185,7 +185,7 @@ Categories: `neo`, `layout`, `toolbar`, `header`, `footer`, `menu`, `sizes`
 ### Generate Color Override
 
 ```bash
-./scripts/generate-color-override.sh <output-path> \
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-color-override.sh <output-path> \
   --main-color "#E63946" \
   --main-text "#FFFFFF" \
   --secondary-color "#F1FAEE" \
@@ -224,7 +224,7 @@ Installs Node.js dependencies for browser testing.
 
 ```bash
 # Install dependencies (run once)
-./scripts/setup-dependencies.sh
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/setup-dependencies.sh
 ```
 
 **Prerequisites:**
@@ -253,7 +253,7 @@ Installs `puppeteer-core` for headless Chrome automation.
 
 Browser testing requires Chrome. Detect with:
 ```bash
-./scripts/detect-chrome.sh
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-chrome.sh
 ```
 </dependencies>
 
@@ -265,26 +265,26 @@ Browser testing requires Chrome. Detect with:
 
 ```bash
 # 1. Detect entry point
-PROJECT_INFO=$(./scripts/detect-entry-point.sh project.wep)
+PROJECT_INFO=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-entry-point.sh project.wep)
 
 # 2. Run browser test
-TEST_RESULTS=$(node scripts/browser-test.js "$CHROME" "$ENTRY_URL")
+TEST_RESULTS=$(node ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/browser-test.js "$CHROME" "$ENTRY_URL")
 
 # 3. Parse CSH
-CSH_DATA=$(./scripts/parse-url-maps.sh output/url_maps.xml)
+CSH_DATA=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/parse-url-maps.sh output/url_maps.xml)
 
 # 4. Generate report
-./scripts/generate-report.sh project.wep "$PROJECT_INFO" "$CSH_DATA" "$TEST_RESULTS"
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-report.sh project.wep "$PROJECT_INFO" "$CSH_DATA" "$TEST_RESULTS"
 ```
 
 ### Apply Brand Colors
 
 ```bash
 # 1. Check current colors
-./scripts/extract-scss-variables.sh /path/to/project neo
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh /path/to/project neo
 
 # 2. Generate override
-./scripts/generate-color-override.sh \
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-color-override.sh \
   /path/to/project/Formats/WebWorks\ Reverb\ 2.0/Pages/sass/_colors.scss \
   --main-color "#0052CC" --main-text "#FFFFFF"
 

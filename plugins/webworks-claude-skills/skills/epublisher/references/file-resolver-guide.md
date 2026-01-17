@@ -556,7 +556,7 @@ When upgrading ePublisher:
 Python script for validated file copying with parallel structure enforcement:
 
 ```bash
-./scripts/copy-customization.py \
+python ${CLAUDE_PLUGIN_ROOT}/skills/epublisher/scripts/copy-customization.py \
     --source "C:\Program Files\WebWorks\ePublisher\2024.1\Formats\WebWorks Reverb 2.0\Pages\Connect.asp" \
     --destination "C:\projects\my-proj\Formats\WebWorks Reverb 2.0\Pages\Connect.asp"
 ```

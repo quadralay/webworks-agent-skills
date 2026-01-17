@@ -67,13 +67,13 @@ Do NOT use `detect-installation.sh` to find the CLI path and call it directly. T
 
 ```bash
 # Build single target (safe defaults: clean, no-deploy, skip-reports)
-./scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 
 # CI/CD: Build all targets explicitly
-./scripts/automap-wrapper.sh --all-targets project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
 
 # Production: Deploy with reports
-./scripts/automap-wrapper.sh --deploy --with-reports -t "Target" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --with-reports -t "Target" project.wep
 ```
 
 The wrapper automatically detects the AutoMap installation and applies safe defaults.
@@ -101,7 +101,7 @@ Use `AUTOMAP_EXE_PATH` to bypass auto-detection:
 
 ```bash
 # Cache detected path for multiple builds
-export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
 
 # Or point to a development/debug build
 export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
@@ -112,7 +112,7 @@ export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
 To check if AutoMap is installed and where:
 
 ```bash
-./scripts/detect-installation.sh --verbose
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh --verbose
 ```
 </quick_start>
 
@@ -140,38 +140,38 @@ The skill will guide you through:
 
 ```bash
 # Parse Stationery to see available formats and settings
-python scripts/parse-stationery.py stationery.wxsp
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp
 
 # Create job file interactively
-python scripts/create-job.py --stationery stationery.wxsp
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --stationery stationery.wxsp
 
 # Create job from config file
-python scripts/create-job.py --config config.json --output job.waj
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --config config.json --output job.waj
 
 # Generate a config template from Stationery
-python scripts/create-job.py --template --stationery stationery.wxsp > template.json
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --template --stationery stationery.wxsp > template.json
 ```
 
 ### Working with Existing Job Files
 
 ```bash
 # Parse job file to view configuration
-python scripts/parse-job.py job.waj
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-job.py job.waj
 
 # Export to editable config format
-python scripts/parse-job.py --config job.waj > job-config.json
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-job.py --config job.waj > job-config.json
 
 # Validate job file before building
-python scripts/validate-job.py job.waj
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py job.waj
 
 # Validate with full checks
-python scripts/validate-job.py --check-documents --check-stationery job.waj
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py --check-documents --check-stationery job.waj
 
 # List targets with build status
-python scripts/list-job-targets.py job.waj
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/list-job-targets.py job.waj
 
 # Show only enabled targets
-python scripts/list-job-targets.py --enabled job.waj
+python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/list-job-targets.py --enabled job.waj
 ```
 
 ### Stationery Relationship
@@ -189,7 +189,7 @@ Job files reference Stationery via `<Project path="..."/>`:
 ### Basic Syntax
 
 ```bash
-./scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
 ```
 
 ### Target Selection
@@ -236,13 +236,13 @@ Job files reference Stationery via `<Project path="..."/>`:
 ### Installation Detection
 
 ```bash
-./detect-installation.sh
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh
 ```
 
 ### Build Wrapper
 
 ```bash
-./automap-wrapper.sh [options] <project-or-job-file> [-t <target-name>]
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <project-or-job-file> [-t <target-name>]
 ```
 
 Supports both project files (.wep) and job files (.waj). For multiple targets use `--target="Name1", "Name2"`.
@@ -304,7 +304,7 @@ pip install defusedxml
 ```bash
 #!/bin/bash
 # Build all targets (safe defaults applied automatically)
-if ./scripts/automap-wrapper.sh --all-targets project.wep; then
+if bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep; then
     echo "Build successful"
     # Deploy output...
 else
@@ -317,11 +317,11 @@ fi
 
 ```bash
 # Cache installation path for efficiency
-export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
 
 for project in projects/*.wep; do
     # --all-targets required in non-interactive (CI) mode
-    ./scripts/automap-wrapper.sh --all-targets "$project" || echo "Failed: $project"
+    bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets "$project" || echo "Failed: $project"
 done
 ```
 
@@ -329,10 +329,10 @@ done
 
 ```bash
 # No target specified - prompts for selection if multiple targets exist
-./scripts/automap-wrapper.sh project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh project.wep
 
 # Incremental build (skip clean)
-./scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 ```
 </common_workflows>
 
@@ -377,7 +377,7 @@ Error: Stationery file not found: ..\stationery\main.wxsp
 ```
 - Check `<Project path="..."/>` in job file
 - Verify path is relative to job file location
-- Run: `python validate-job.py job.waj`
+- Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py job.waj`
 
 **Invalid target format**
 ```
@@ -385,7 +385,7 @@ Error: Format "Unknown Format" not found in Stationery
 ```
 - Target `format` attribute must match format name in Stationery
 - Format names are case-sensitive
-- Run: `python parse-stationery.py stationery.wxsp` to list available formats
+- Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp` to list available formats
 
 **Document path errors**
 ```
@@ -393,7 +393,7 @@ Warning: Document not found: Source\missing.md
 ```
 - Document paths are relative to job file location
 - Check for typos in path
-- Run: `python validate-job.py --check-documents job.waj`
+- Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py --check-documents job.waj`
 
 </troubleshooting>
 

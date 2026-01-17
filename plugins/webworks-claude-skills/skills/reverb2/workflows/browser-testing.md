@@ -14,7 +14,7 @@ Ensure Chrome and Node.js dependencies are available:
 
 ```bash
 # Detect Chrome installation
-./scripts/detect-chrome.sh
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-chrome.sh
 ```
 
 If Chrome not found, report to user with manual installation instructions.
@@ -30,7 +30,7 @@ npm install
 Find the output location from the project file:
 
 ```bash
-./scripts/detect-entry-point.sh <project.wep>
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-entry-point.sh <project.wep>
 ```
 
 This returns JSON with:
@@ -44,7 +44,7 @@ If no project file provided, ask user for the path to the Reverb output's `index
 Execute the headless browser test:
 
 ```bash
-node scripts/browser-test.js "<chrome-path>" "<entry-url>" [format-settings-json]
+node ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/browser-test.js "<chrome-path>" "<entry-url>" [format-settings-json]
 ```
 
 Arguments:
