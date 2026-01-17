@@ -11,7 +11,7 @@ Find the CSH mapping file in the Reverb output:
 
 ```bash
 # If project file available
-./scripts/detect-entry-point.sh <project.wep>
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-entry-point.sh <project.wep>
 # Then look for url_maps.xml in the output directory
 ```
 
@@ -24,7 +24,7 @@ If not found, ask user for the path to the Reverb output directory.
 Extract CSH topic information:
 
 ```bash
-./scripts/parse-url-maps.sh <url-maps-file> [format]
+bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/parse-url-maps.sh <url-maps-file> [format]
 ```
 
 Format options:

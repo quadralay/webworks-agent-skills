@@ -4,7 +4,6 @@ Complete reference for WebWorks ePublisher AutoMap command-line interface option
 
 ## Table of Contents
 
-- [Migration from Previous Versions](#migration-from-previous-versions)
 - [Environment Variables](#environment-variables)
 - [Safe Defaults](#safe-defaults)
 - [Basic Command Pattern](#basic-command-pattern)
@@ -13,34 +12,6 @@ Complete reference for WebWorks ePublisher AutoMap command-line interface option
 - [Output Monitoring](#output-monitoring)
 - [Common Errors](#common-errors)
 - [Best Practices](#best-practices)
-
-## Migration from Previous Versions
-
-### Breaking Changes in v2.4.0
-
-**Safe Defaults**: The wrapper now applies `-c -n --skip-reports` by default.
-
-| Previous Command | New Equivalent |
-|-----------------|----------------|
-| `./wrapper.sh project.wep` | `./wrapper.sh --deploy --with-reports --no-clean project.wep` |
-| `./wrapper.sh -c -n project.wep` | `./wrapper.sh project.wep` |
-| `./wrapper.sh -c -n --skip-reports project.wep` | `./wrapper.sh project.wep` |
-
-**Interactive Target Selection**: Building all targets now requires explicit confirmation or `--all-targets` flag.
-
-| Previous Command | New Equivalent |
-|-----------------|----------------|
-| `./wrapper.sh -c -n project.wep` (CI) | `./wrapper.sh --all-targets project.wep` |
-
-**CI/CD Migration**: Add `--all-targets` to pipelines that build all targets:
-
-```bash
-# Before (v2.3.x and earlier)
-./automap-wrapper.sh -c -n --skip-reports project.wep
-
-# After (v2.4.0+)
-./automap-wrapper.sh --all-targets project.wep
-```
 
 ## Environment Variables
 
@@ -53,12 +24,12 @@ Complete reference for WebWorks ePublisher AutoMap command-line interface option
 For multiple consecutive builds, cache the installation path to avoid repeated detection:
 
 ```bash
-export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
 
 # All subsequent builds skip detection
-./scripts/automap-wrapper.sh -c -n --skip-reports project1.wep
-./scripts/automap-wrapper.sh -c -n --skip-reports project2.wep
-./scripts/automap-wrapper.sh -c -n --skip-reports project3.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project1.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project2.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project3.wep
 ```
 
 ### Development Builds
@@ -67,7 +38,7 @@ Point to a debug build for testing:
 
 ```bash
 export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
-./scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ### Clearing the Override
@@ -97,10 +68,10 @@ When no target is specified:
 
 ```bash
 # Interactive mode - shows numbered list for selection
-./scripts/automap-wrapper.sh project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh project.wep
 
 # CI/CD mode - explicit all-targets flag required
-./scripts/automap-wrapper.sh --all-targets project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
 ```
 
 ## Basic Command Pattern
@@ -108,7 +79,7 @@ When no target is specified:
 Always use the wrapper script to execute builds:
 
 ```bash
-./scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
 ```
 
 **Components:**
@@ -148,15 +119,15 @@ Always use the wrapper script to execute builds:
   - Single target: `-t "WebWorks Reverb 2.0"`
   - Multiple targets: `--target="WebWorks Reverb 2.0", "PDF - XSL-FO"`
 - **Examples**:
-  - Single target: `./scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep`
-  - Multiple targets: `./scripts/automap-wrapper.sh --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep`
+  - Single target: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep`
+  - Multiple targets: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep`
 - **Note**: Target names must exactly match `TargetName` in project file (case-sensitive)
 
 **`--all-targets`**
 - **Purpose**: Build all targets in the project
 - **Use When**: CI/CD pipelines, batch builds, or when you want all outputs
 - **Impact**: Bypasses interactive target selection
-- **Example**: `./scripts/automap-wrapper.sh --all-targets project.wep`
+- **Example**: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep`
 - **Note**: Required in non-interactive mode when no specific target is specified
 
 ### Deployment Control
@@ -185,7 +156,7 @@ Always use the wrapper script to execute builds:
 - **Purpose**: Show all build output including progress messages
 - **Use When**: Debugging build issues or monitoring progress manually
 - **Impact**: Full output with progress indicators and informational messages
-- **Example**: `./automap-wrapper.sh --verbose -c -n project.wep`
+- **Example**: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep`
 
 **Default output:**
 ```
@@ -204,38 +175,38 @@ Always use the wrapper script to execute builds:
 
 ### Basic Builds
 
-**Clean build all targets (no deploy, skip reports):**
+**Build all targets:**
 ```bash
-./scripts/automap-wrapper.sh -c -n --skip-reports project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
 ```
 
-**Clean build with deployment:**
+**Build with deployment:**
 ```bash
-./scripts/automap-wrapper.sh -c -l --skip-reports project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --all-targets project.wep
 ```
 
 ### Target-Specific Builds
 
 **Build single target:**
 ```bash
-./scripts/automap-wrapper.sh -c -n --skip-reports -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 ```
 
 **Build multiple targets:**
 ```bash
-./scripts/automap-wrapper.sh -c -n --skip-reports --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep
 ```
 
 ### Custom Deployment
 
 **Deploy to network share:**
 ```bash
-./scripts/automap-wrapper.sh -c -l --skip-reports --deployfolder "\\\\WebServer\\wwwroot\\docs" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --deployfolder "\\\\WebServer\\wwwroot\\docs" project.wep
 ```
 
 **Deploy to local test folder:**
 ```bash
-./scripts/automap-wrapper.sh -c --skip-reports --deployfolder "C:\\TestOutput" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --deployfolder "C:\\TestOutput" project.wep
 ```
 
 ## Execution Guidelines
@@ -261,12 +232,12 @@ Set appropriate timeout based on project size when using the Bash tool:
 
 **Save output to log file:**
 ```bash
-./scripts/automap-wrapper.sh -c -n --skip-reports project.wep > build.log 2>&1
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep > build.log 2>&1
 ```
 
 **Verbose mode for debugging:**
 ```bash
-./scripts/automap-wrapper.sh --verbose -c -n project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ### Exit Code Handling
@@ -283,7 +254,7 @@ The wrapper provides consistent exit codes:
 
 **Check build status:**
 ```bash
-if ./scripts/automap-wrapper.sh --all-targets project.wep; then
+if bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep; then
     echo "Build succeeded"
 else
     echo "Build failed with exit code: $?"
@@ -439,66 +410,57 @@ Error: Target 'Invalid Target Name' not found in project
 
 ## Best Practices
 
-### 1. Safe Defaults Are Applied Automatically
-
-The wrapper now applies `-c -n --skip-reports` by default (v2.4.0+):
-```bash
-# These are equivalent:
-./scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
-./scripts/automap-wrapper.sh -c -n --skip-reports -t "WebWorks Reverb 2.0" project.wep
-```
-
-### 2. Production Builds with Deployment
+### 1. Production Builds with Deployment
 
 For production releases, opt-out of safe defaults:
 ```bash
-./scripts/automap-wrapper.sh --deploy --with-reports -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --with-reports -t "WebWorks Reverb 2.0" project.wep
 ```
 
-### 3. Use --all-targets for CI/CD
+### 2. Use --all-targets for CI/CD
 
 Non-interactive environments require explicit target specification:
 ```bash
-./scripts/automap-wrapper.sh --all-targets project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
 ```
 
-### 4. Build Specific Targets When Testing
+### 3. Build Specific Targets When Testing
 
 Save time by building only the target(s) you're working on:
 ```bash
-./scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 ```
 
-### 5. Cache Installation Path for Batch Builds
+### 4. Cache Installation Path for Batch Builds
 
 When building multiple projects, cache the installation path:
 ```bash
-export AUTOMAP_EXE_PATH=$(./scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
 
-./scripts/automap-wrapper.sh --all-targets project1.wep
-./scripts/automap-wrapper.sh --all-targets project2.wep
-./scripts/automap-wrapper.sh --all-targets project3.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project1.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project2.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project3.wep
 ```
 
-### 6. Use Verbose Mode for Debugging
+### 5. Use Verbose Mode for Debugging
 
 When troubleshooting build issues:
 ```bash
-./scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
 ```
 
-### 7. Capture Build Logs
+### 6. Capture Build Logs
 
 Save output for troubleshooting:
 ```bash
-./scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep 2>&1 | tee build.log
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep 2>&1 | tee build.log
 ```
 
-### 8. Incremental Builds During Development
+### 7. Incremental Builds During Development
 
 Use `--no-clean` for faster iterative builds:
 ```bash
-./scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
+bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ## Script Reference

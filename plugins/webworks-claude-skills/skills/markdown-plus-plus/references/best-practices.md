@@ -103,7 +103,7 @@ Later: See [Authentication](#api-authentication) for details.
 
 **Generate aliases automatically:**
 ```bash
-python scripts/add-aliases.py document.md --levels 1,2,3
+python ${CLAUDE_PLUGIN_ROOT}/skills/markdown-plus-plus/scripts/add-aliases.py document.md --levels 1,2,3
 ```
 
 ### Conditions
@@ -414,7 +414,7 @@ Ensure include chains never loop back.
 
 1. Run the validation script before publishing:
    ```bash
-   python scripts/validate-mdpp.py document.md
+   python ${CLAUDE_PLUGIN_ROOT}/skills/markdown-plus-plus/scripts/validate-mdpp.py document.md
    ```
 
 2. Test with different condition combinations
