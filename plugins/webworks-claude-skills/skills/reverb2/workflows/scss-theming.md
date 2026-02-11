@@ -31,7 +31,7 @@ Ask user: "Apply to single target or all Reverb 2.0 targets?"
 Show existing theme configuration:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh <project-dir> neo
+python scripts/extract-scss-variables.py <project-dir> neo
 ```
 
 This displays the 6 "neo" quick-theming variables:
@@ -48,10 +48,10 @@ $neo_page_color: #fefefe;           // Page background
 For detailed exploration:
 ```bash
 # All categories
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh <project-dir>
+python scripts/extract-scss-variables.py <project-dir>
 
 # Specific category
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh <project-dir> [layout|toolbar|header|footer|menu|sizes]
+python scripts/extract-scss-variables.py <project-dir> [layout|toolbar|header|footer|menu|sizes]
 ```
 
 ## Step 4: Generate Color Override
@@ -59,7 +59,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh <pro
 Create a `_colors.scss` override file with new brand colors:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-color-override.sh <output-path> \
+bash scripts/generate-color-override.sh <output-path> \
   --main-color "#E63946" \
   --main-text "#FFFFFF" \
   --secondary-color "#F1FAEE" \

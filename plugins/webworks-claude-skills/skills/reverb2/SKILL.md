@@ -34,10 +34,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 | **epublisher** | Use to understand project structure before testing |
 | **automap** | Use to rebuild output after SCSS customizations |
 
-**After customizing themes:** Use the automap skill to rebuild:
-```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -c -n -t "WebWorks Reverb 2.0" project.wep
-```
+**After customizing themes:** Use the automap skill to rebuild the Reverb target.
 
 </related_skills>
 
@@ -72,11 +69,11 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -c -n -t "W
 | Feature | Script | Description |
 |---------|--------|-------------|
 | Browser Testing | `browser-test.js` | Load output in headless Chrome, check for errors |
-| CSH Analysis | `parse-url-maps.sh` | Extract topic mappings from url_maps.xml |
-| SCSS Theming | `extract-scss-variables.sh` | Read current theme values |
+| CSH Analysis | `parse-url-maps.py` | Extract topic mappings from url_maps.xml |
+| SCSS Theming | `extract-scss-variables.py` | Read current theme values |
 | Color Override | `generate-color-override.sh` | Generate brand color files |
 | Entry Detection | `detect-entry-point.sh` | Find output location from project |
-| Report Generation | `generate-report.sh` | Create formatted test reports |
+| Report Generation | `generate-report.py` | Create formatted test reports |
 </capabilities>
 
 <browser_testing>
@@ -86,7 +83,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -c -n -t "W
 ### Run Test
 
 ```bash
-node ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
+node scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
 ```
 
 ### What It Checks
@@ -133,7 +130,7 @@ node ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/browser-test.js <chrome-path> 
 ### Parse url_maps.xml
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/parse-url-maps.sh <url-maps-file> [format]
+python scripts/parse-url-maps.py <url-maps-file> [format]
 ```
 
 Format: `json` (default) or `table`
@@ -177,7 +174,7 @@ $neo_page_color: #fefefe;           // Page background
 ### Extract Current Values
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh <project-dir> [category]
+python scripts/extract-scss-variables.py <project-dir> [category]
 ```
 
 Categories: `neo`, `layout`, `toolbar`, `header`, `footer`, `menu`, `sizes`
@@ -185,7 +182,8 @@ Categories: `neo`, `layout`, `toolbar`, `header`, `footer`, `menu`, `sizes`
 ### Generate Color Override
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-color-override.sh <output-path> \
+bash scripts/generate-color-override.sh <output-path> \
+
   --main-color "#E63946" \
   --main-text "#FFFFFF" \
   --secondary-color "#F1FAEE" \
@@ -224,7 +222,7 @@ Installs Node.js dependencies for browser testing.
 
 ```bash
 # Install dependencies (run once)
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/setup-dependencies.sh
+bash scripts/setup-dependencies.sh
 ```
 
 **Prerequisites:**
@@ -243,8 +241,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/setup-dependencies.sh
 ### Node.js (for browser testing)
 
 ```bash
-cd skills/reverb
-npm install
+bash scripts/setup-dependencies.sh
 ```
 
 Installs `puppeteer-core` for headless Chrome automation.
@@ -253,7 +250,7 @@ Installs `puppeteer-core` for headless Chrome automation.
 
 Browser testing requires Chrome. Detect with:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-chrome.sh
+bash scripts/detect-chrome.sh
 ```
 </dependencies>
 
@@ -265,26 +262,26 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-chrome.sh
 
 ```bash
 # 1. Detect entry point
-PROJECT_INFO=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-entry-point.sh project.wep)
+PROJECT_INFO=$(bash scripts/detect-entry-point.sh project.wep)
 
 # 2. Run browser test
-TEST_RESULTS=$(node ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/browser-test.js "$CHROME" "$ENTRY_URL")
+TEST_RESULTS=$(node scripts/browser-test.js "$CHROME" "$ENTRY_URL")
 
 # 3. Parse CSH
-CSH_DATA=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/parse-url-maps.sh output/url_maps.xml)
+CSH_DATA=$(python scripts/parse-url-maps.py output/url_maps.xml)
 
 # 4. Generate report
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-report.sh project.wep "$PROJECT_INFO" "$CSH_DATA" "$TEST_RESULTS"
+python scripts/generate-report.py project.wep "$PROJECT_INFO" "$CSH_DATA" "$TEST_RESULTS"
 ```
 
 ### Apply Brand Colors
 
 ```bash
 # 1. Check current colors
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/extract-scss-variables.sh /path/to/project neo
+python scripts/extract-scss-variables.py /path/to/project neo
 
 # 2. Generate override
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-color-override.sh \
+bash scripts/generate-color-override.sh \
   /path/to/project/Formats/WebWorks\ Reverb\ 2.0/Pages/sass/_colors.scss \
   --main-color "#0052CC" --main-text "#FFFFFF"
 

@@ -15,7 +15,7 @@ Collect inputs for the report:
 
 ```bash
 # Required: Project file path
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-entry-point.sh <project.wep>
+bash scripts/detect-entry-point.sh <project.wep>
 ```
 
 This provides:
@@ -30,10 +30,10 @@ Execute browser testing to get runtime results:
 
 ```bash
 # Detect Chrome
-CHROME=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/detect-chrome.sh | jq -r '.path')
+CHROME=$(bash scripts/detect-chrome.sh | jq -r '.path')
 
 # Run test
-TEST_RESULTS=$(node ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/browser-test.js "$CHROME" "<entry-url>")
+TEST_RESULTS=$(node scripts/browser-test.js "$CHROME" "<entry-url>")
 ```
 
 Capture:
@@ -47,7 +47,7 @@ Capture:
 Extract Context Sensitive Help data:
 
 ```bash
-CSH_DATA=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/parse-url-maps.sh <output>/url_maps.xml json)
+CSH_DATA=$(python scripts/parse-url-maps.py <output>/url_maps.xml json)
 ```
 
 Capture:
@@ -60,7 +60,7 @@ Capture:
 Aggregate all results:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-report.sh <project.wep> \
+python scripts/generate-report.py <project.wep> \
   "$PROJECT_INFO" \
   "$CSH_DATA" \
   "$TEST_RESULTS"
@@ -119,10 +119,10 @@ If user requests, save report to file:
 
 ```bash
 # Text format
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-report.sh ... > reverb-test-report.txt
+python scripts/generate-report.py ... > reverb-test-report.txt
 
 # JSON format (follows templates/test-results.json structure)
-bash ${CLAUDE_PLUGIN_ROOT}/skills/reverb2/scripts/generate-report.sh ... --json > reverb-test-report.json
+python scripts/generate-report.py ... --json > reverb-test-report.json
 ```
 
 JSON output conforms to `../templates/test-results.json` for programmatic use.

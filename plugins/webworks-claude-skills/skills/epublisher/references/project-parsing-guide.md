@@ -170,7 +170,7 @@ Both use Reverb format but have different output locations.
 **1. List Available Targets**
 Parse project file to show user all configured targets:
 ```bash
-./parse-targets.sh project.wep
+python scripts/parse-targets.py project.wep
 ```
 
 **2. Validate Target Name**
@@ -593,32 +593,32 @@ fi
 
 ## Helper Scripts
 
-### parse-targets.sh
+### parse-targets.py
 
 Parse project files to extract target and format information.
 
 **Usage:**
 ```bash
 # List all targets
-./parse-targets.sh project.wep
+python scripts/parse-targets.py project.wep
 
 # Detailed info
-./parse-targets.sh --list project.wep
+python scripts/parse-targets.py --list project.wep
 
 # JSON output
-./parse-targets.sh --json project.wep
+python scripts/parse-targets.py --json project.wep
 
 # Base Format Version
-./parse-targets.sh --version project.wep
+python scripts/parse-targets.py --version project.wep
 ```
 
 **Output examples:**
 ```
-$ ./parse-targets.sh project.wep
+$ python scripts/parse-targets.py project.wep
 WebWorks Reverb 2.0
 PDF - XSL-FO
 
-$ ./parse-targets.sh --version project.wep
+$ python scripts/parse-targets.py --version project.wep
 Base Format Version: 2024.1
 ```
 
@@ -629,21 +629,21 @@ Manage source documents in project files.
 **Usage:**
 ```bash
 # List all sources
-./manage-sources.sh --list project.wep
+bash scripts/manage-sources.sh --list project.wep
 
 # Validate paths exist
-./manage-sources.sh --validate project.wep
+bash scripts/manage-sources.sh --validate project.wep
 
 # Toggle inclusion
-./manage-sources.sh --toggle "Source\file.md" project.wep
+bash scripts/manage-sources.sh --toggle "Source\file.md" project.wep
 
 # Show group hierarchy
-./manage-sources.sh --groups project.wep
+bash scripts/manage-sources.sh --groups project.wep
 ```
 
 **Output examples:**
 ```
-$ ./manage-sources.sh --list project.wep
+$ bash scripts/manage-sources.sh --list project.wep
 Group: Getting Started
   ✓ Source\content-seed.md (included)
   ✓ Source\getting-started.md (included)
@@ -652,7 +652,7 @@ Group: Reference
   ✓ Source\api-reference.md (included)
   ✗ Source\old-content.md (excluded)
 
-$ ./manage-sources.sh --validate project.wep
+$ bash scripts/manage-sources.sh --validate project.wep
 ✓ Source\content-seed.md exists
 ✓ Source\getting-started.md exists
 ✗ Source\missing-file.md NOT FOUND

@@ -260,18 +260,18 @@ Container for format setting overrides.
 
 ```bash
 # 1. Parse Stationery to see available formats
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp
+python scripts/parse-stationery.py stationery.wxsp
 
 # 2a. Create interactively
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --stationery stationery.wxsp
+python scripts/create-job.py --stationery stationery.wxsp
 
 # 2b. Or generate a template and edit
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --template --stationery stationery.wxsp > config.json
+python scripts/create-job.py --template --stationery stationery.wxsp > config.json
 # Edit config.json...
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --config config.json --output job.waj
+python scripts/create-job.py --config config.json --output job.waj
 
 # 3. Validate the result
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py --check-stationery job.waj
+python scripts/validate-job.py --check-stationery job.waj
 ```
 
 ### Configuration File Format
@@ -359,7 +359,7 @@ Settings override format-level configuration from Stationery:
 
 **To see available settings**, run:
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp
+python scripts/parse-stationery.py stationery.wxsp
 ```
 
 ---
@@ -425,10 +425,10 @@ Use multiple targets with different conditions:
 # Build all enabled targets from job file
 
 # Validate first
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py --check-stationery job.waj || exit 1
+python scripts/validate-job.py --check-stationery job.waj || exit 1
 
 # Run build
-./scripts/automap-wrapper.sh job.waj
+bash scripts/automap-wrapper.sh job.waj
 
 # Check result
 if [ $? -eq 0 ]; then
@@ -452,7 +452,7 @@ fi
 1. Check the `<Project path="..."/>` value
 2. Paths are relative to the job file's location
 3. Verify the file exists at the resolved path
-4. Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py job.waj`
+4. Run: `python scripts/validate-job.py job.waj`
 
 ### Invalid Format Name
 
@@ -460,7 +460,7 @@ fi
 
 **Solutions**:
 1. Format names are case-sensitive
-2. List available formats: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp`
+2. List available formats: `python scripts/parse-stationery.py stationery.wxsp`
 3. Update the `format` attribute to match exactly
 
 ### Document Not Found
@@ -471,7 +471,7 @@ fi
 1. Document paths are relative to job file location
 2. Check for typos in the path
 3. Verify the file exists
-4. Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py --check-documents job.waj`
+4. Run: `python scripts/validate-job.py --check-documents job.waj`
 
 ### Build Flag Ignored
 
@@ -486,7 +486,7 @@ fi
 **Solutions**:
 1. Verify setting name exactly matches Stationery
 2. Check that setting is valid for this format
-3. List available settings: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp`
+3. List available settings: `python scripts/parse-stationery.py stationery.wxsp`
 
 ---
 
@@ -494,11 +494,11 @@ fi
 
 | Script | Purpose | Example |
 |--------|---------|---------|
-| `parse-stationery.py` | Extract formats/settings | `python parse-stationery.py stationery.wxsp` |
-| `create-job.py` | Create job files | `python create-job.py --stationery stationery.wxsp` |
-| `parse-job.py` | View job configuration | `python parse-job.py job.waj` |
-| `validate-job.py` | Validate job files | `python validate-job.py --check-stationery job.waj` |
-| `list-job-targets.py` | List targets | `python list-job-targets.py --enabled job.waj` |
+| `parse-stationery.py` | Extract formats/settings | `python scripts/parse-stationery.py stationery.wxsp` |
+| `create-job.py` | Create job files | `python scripts/create-job.py --stationery stationery.wxsp` |
+| `parse-job.py` | View job configuration | `python scripts/parse-job.py job.waj` |
+| `validate-job.py` | Validate job files | `python scripts/validate-job.py --check-stationery job.waj` |
+| `list-job-targets.py` | List targets | `python scripts/list-job-targets.py --enabled job.waj` |
 
 ---
 

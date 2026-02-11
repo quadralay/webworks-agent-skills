@@ -424,7 +424,7 @@ Apply custom styles to list containers:
 Use the validation script to check Markdown++ syntax:
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/markdown-plus-plus/scripts/validate-mdpp.py document.md
+python scripts/validate-mdpp.py document.md
 ```
 
 **Options:**
@@ -444,7 +444,7 @@ python ${CLAUDE_PLUGIN_ROOT}/skills/markdown-plus-plus/scripts/validate-mdpp.py 
 Generate unique aliases for headings:
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/markdown-plus-plus/scripts/add-aliases.py document.md --levels 1,2,3
+python scripts/add-aliases.py document.md --levels 1,2,3
 ```
 
 **Options:**

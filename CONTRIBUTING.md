@@ -53,9 +53,9 @@ See [docs/solutions/bash-syntax-errors-in-skill-tables.md](docs/solutions/bash-s
 Bump the plugin version **before creating a PR** using the bump script:
 
 ```bash
-./scripts/bump-version.sh patch  # 2.1.0 → 2.1.1 (bug fixes)
-./scripts/bump-version.sh minor  # 2.1.0 → 2.2.0 (new features)
-./scripts/bump-version.sh major  # 2.1.0 → 3.0.0 (breaking changes)
+scripts/bump-version.sh patch  # 2.1.0 → 2.1.1 (bug fixes)
+scripts/bump-version.sh minor  # 2.1.0 → 2.2.0 (new features)
+scripts/bump-version.sh major  # 2.1.0 → 3.0.0 (breaking changes)
 ```
 
 The script updates both version locations automatically:
@@ -76,7 +76,7 @@ The script updates both version locations automatically:
 
 1. Fork and create a feature branch
 2. Test thoroughly
-3. Run `./scripts/bump-version.sh <type>` to bump version
+3. Run `scripts/bump-version.sh <type>` to bump version
 4. Submit PR with clear description
 
 ## License

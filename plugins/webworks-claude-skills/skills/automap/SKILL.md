@@ -21,8 +21,8 @@ AutoMap is the command-line build tool for ePublisher. It processes source docum
 
 ### Supported File Types
 
-- **Project files (.wep, .wrp)**: Complete self-contained projects
-- **Job files (.waj)**: Lean automation files that reference Stationery
+- **Project files (.wep, .wrp)**: Complete self-contained projects. Require `-t` option to specify which target(s) to build.
+- **Job files (.waj)**: Lean automation files that reference Stationery. Targets to build are controlled by the `build="True"` attribute in the job file itself—the `-t` option is an optional override.
 
 ### Job Files and Stationery
 
@@ -65,15 +65,27 @@ Do NOT use `detect-installation.sh` to find the CLI path and call it directly. T
 
 ### Run a Build
 
+**Project files (.wep, .wrp)** - Use `-t` to specify target:
+
 ```bash
 # Build single target (safe defaults: clean, no-deploy, skip-reports)
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 
 # CI/CD: Build all targets explicitly
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
+bash scripts/automap-wrapper.sh --all-targets project.wep
 
 # Production: Deploy with reports
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --with-reports -t "Target" project.wep
+bash scripts/automap-wrapper.sh --deploy --with-reports -t "Target" project.wep
+```
+
+**Job files (.waj)** - Targets determined by `build="True"` in file:
+
+```bash
+# Build job file (targets set in file, no -t needed)
+bash scripts/automap-wrapper.sh job.waj
+
+# With deployment
+bash scripts/automap-wrapper.sh -l -d /path/to/deploy job.waj
 ```
 
 The wrapper automatically detects the AutoMap installation and applies safe defaults.
@@ -88,12 +100,14 @@ The wrapper now applies these options by default:
 | `-n` (no deploy) | `--deploy` | Prevent accidental overwrites |
 | `--skip-reports` | `--with-reports` | Faster builds *(2025.1+)* |
 
-### Interactive Target Selection
+### Interactive Target Selection (Project Files Only)
 
-When no target is specified:
+When using project files (.wep, .wrp) with no target specified:
 - **Single-target projects**: Auto-builds the only target
 - **Multi-target projects**: Prompts for selection (interactive mode)
 - **CI/CD (non-interactive)**: Requires `-t`, `--target=`, or `--all-targets`
+
+**Note:** Job files (.waj) do not need target selection options — see overview for details.
 
 ### Environment Variable Override
 
@@ -101,7 +115,7 @@ Use `AUTOMAP_EXE_PATH` to bypass auto-detection:
 
 ```bash
 # Cache detected path for multiple builds
-export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash scripts/detect-installation.sh)
 
 # Or point to a development/debug build
 export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
@@ -112,7 +126,7 @@ export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
 To check if AutoMap is installed and where:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh --verbose
+bash scripts/detect-installation.sh --verbose
 ```
 </quick_start>
 
@@ -140,38 +154,38 @@ The skill will guide you through:
 
 ```bash
 # Parse Stationery to see available formats and settings
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp
+python scripts/parse-stationery.py stationery.wxsp
 
 # Create job file interactively
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --stationery stationery.wxsp
+python scripts/create-job.py --stationery stationery.wxsp
 
 # Create job from config file
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --config config.json --output job.waj
+python scripts/create-job.py --config config.json --output job.waj
 
 # Generate a config template from Stationery
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/create-job.py --template --stationery stationery.wxsp > template.json
+python scripts/create-job.py --template --stationery stationery.wxsp > template.json
 ```
 
 ### Working with Existing Job Files
 
 ```bash
 # Parse job file to view configuration
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-job.py job.waj
+python scripts/parse-job.py job.waj
 
 # Export to editable config format
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-job.py --config job.waj > job-config.json
+python scripts/parse-job.py --config job.waj > job-config.json
 
 # Validate job file before building
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py job.waj
+python scripts/validate-job.py job.waj
 
 # Validate with full checks
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py --check-documents --check-stationery job.waj
+python scripts/validate-job.py --check-documents --check-stationery job.waj
 
 # List targets with build status
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/list-job-targets.py job.waj
+python scripts/list-job-targets.py job.waj
 
 # Show only enabled targets
-python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/list-job-targets.py --enabled job.waj
+python scripts/list-job-targets.py --enabled job.waj
 ```
 
 ### Stationery Relationship
@@ -189,10 +203,16 @@ Job files reference Stationery via `<Project path="..."/>`:
 ### Basic Syntax
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
+# Project files (.wep, .wrp) - target selection required
+bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
+
+# Job files (.waj) - targets set in file (no -t needed)
+bash scripts/automap-wrapper.sh [options] <job-file>
 ```
 
 ### Target Selection
+
+These options apply primarily to project files (.wep, .wrp). When used with job files, they override the `build="True"` settings.
 
 | Option | Description |
 |--------|-------------|
@@ -236,16 +256,20 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <
 ### Installation Detection
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh
+bash scripts/detect-installation.sh
 ```
 
 ### Build Wrapper
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <project-or-job-file> [-t <target-name>]
+# Project files - use -t to specify targets
+bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
+
+# Job files - targets set in file (no -t needed)
+bash scripts/automap-wrapper.sh [options] <job-file>
 ```
 
-Supports both project files (.wep) and job files (.waj). For multiple targets use `--target="Name1", "Name2"`.
+Supports both project files (.wep, .wrp) and job files (.waj). For project files with multiple targets, use `--target="Name1","Name2"` or `--all-targets`.
 </scripts>
 
 <references>
@@ -303,13 +327,18 @@ pip install defusedxml
 
 ```bash
 #!/bin/bash
-# Build all targets (safe defaults applied automatically)
-if bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep; then
+# Project files: use --all-targets
+if bash scripts/automap-wrapper.sh --all-targets project.wep; then
     echo "Build successful"
-    # Deploy output...
 else
-    echo "Build failed"
-    exit 1
+    echo "Build failed" && exit 1
+fi
+
+# Job files: targets set in file, no -t needed
+if bash scripts/automap-wrapper.sh -l -d /deploy/path job.waj; then
+    echo "Build successful"
+else
+    echo "Build failed" && exit 1
 fi
 ```
 
@@ -317,11 +346,11 @@ fi
 
 ```bash
 # Cache installation path for efficiency
-export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash scripts/detect-installation.sh)
 
 for project in projects/*.wep; do
     # --all-targets required in non-interactive (CI) mode
-    bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets "$project" || echo "Failed: $project"
+    bash scripts/automap-wrapper.sh --all-targets "$project" || echo "Failed: $project"
 done
 ```
 
@@ -329,10 +358,10 @@ done
 
 ```bash
 # No target specified - prompts for selection if multiple targets exist
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh project.wep
+bash scripts/automap-wrapper.sh project.wep
 
 # Incremental build (skip clean)
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 ```
 </common_workflows>
 
@@ -365,7 +394,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --no-clean 
 **Cause:** Specified target name doesn't exist in project.
 
 **Solutions:**
-1. Use `parse-targets.sh` to list available targets
+1. Use the epublisher skill's `parse-targets.py` to list available targets
 2. Verify target name spelling (case-sensitive)
 3. Check project file for available `<Format>` elements
 
@@ -377,7 +406,7 @@ Error: Stationery file not found: ..\stationery\main.wxsp
 ```
 - Check `<Project path="..."/>` in job file
 - Verify path is relative to job file location
-- Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py job.waj`
+- Run: `python scripts/validate-job.py job.waj`
 
 **Invalid target format**
 ```
@@ -385,7 +414,7 @@ Error: Format "Unknown Format" not found in Stationery
 ```
 - Target `format` attribute must match format name in Stationery
 - Format names are case-sensitive
-- Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/parse-stationery.py stationery.wxsp` to list available formats
+- Run: `python scripts/parse-stationery.py stationery.wxsp` to list available formats
 
 **Document path errors**
 ```
@@ -393,7 +422,7 @@ Warning: Document not found: Source\missing.md
 ```
 - Document paths are relative to job file location
 - Check for typos in path
-- Run: `python ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/validate-job.py --check-documents job.waj`
+- Run: `python scripts/validate-job.py --check-documents job.waj`
 
 </troubleshooting>
 
