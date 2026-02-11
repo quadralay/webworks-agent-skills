@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Version="1.1.2.0" ProjectID="hMDzxVACF5I" ChangeID="_7WZ93Dslfk" RuntimeVersion="2025.1" FormatVersion="{Current}" xmlns="urn:WebWorks-Publish-Project">
+  <Formats>
+    <Format TargetName="TargetName" Name="WebWorks Reverb 2.0" Type="Application" TargetID="Lf3DjZlhl_A">
+      <OutputDirectory>Output\TargetName</OutputDirectory>
+    </Format>
+  </Formats>
+  <Groups>
+    <Group Name="Docs" Type="normal" Included="true" GroupID="QeGxWoyPnS0" ChangeID="" />
+  </Groups>
+  <GlobalConfiguration ChangeID="A6CpOGl6bic">
+    <Rules Type="Paragraph" Default="{WWDefaultRule}" ChangeID="">
+      <Rule Key="{WWDefaultRule}" />
+    </Rules>
+    <Rules Type="Character" Default="{WWDefaultRule}" ChangeID="">
+      <Rule Key="{WWDefaultRule}" />
+    </Rules>
+    <Rules Type="Marker" Default="{WWDefaultRule}" ChangeID="">
+      <Rule Key="{WWDefaultRule}" />
+    </Rules>
+    <Rules Type="Graphic" Default="{WWDefaultRule}" ChangeID="">
+      <Rule Key="{WWDefaultRule}" />
+    </Rules>
+    <Rules Type="Table" Default="{WWDefaultRule}" ChangeID="">
+      <Rule Key="{WWDefaultRule}" />
+    </Rules>
+    <Rules Type="Page" Default="{WWDefaultRule}" ChangeID="">
+      <Rule Key="{WWDefaultRule}" />
+    </Rules>
+  </GlobalConfiguration>
+  <FormatConfigurations>
+    <FormatConfiguration TargetID="Lf3DjZlhl_A" ChangeID="CWJ2qzdnsxU">
+      <MergeSettings Title="">
+        <MergeGroup GroupID="QeGxWoyPnS0" />
+      </MergeSettings>
+    </FormatConfiguration>
+  </FormatConfigurations>
+  <AdapterConfigurations ChangeID="8Lhn5x923ec">
+    <AdapterConfiguration Name="Adobe FrameMaker" ChangeID="bHQWuYTITFA" />
+    <AdapterConfiguration Name="Helper Adapter" ChangeID="dNJ-Zvamyps" />
+    <AdapterConfiguration Name="Microsoft Word" ChangeID="7LPaOQSi4lw">
+      <AdapterConfigurationEntry Name="preserve-change-bars-in-pdf" Value="false" />
+      <AdapterConfigurationEntry Name="rd-field-handling" Value="book" />
+    </AdapterConfiguration>
+    <AdapterConfiguration Name="Xml Adapter" ChangeID="Q-ms96mwyuQ">
+      <AdapterConfigurationEntry Name="dita-combine-character-styles" Value="true" />
+      <AdapterConfigurationEntry Name="dita-ot-version" Value="3.7.4" />
+    </AdapterConfiguration>
+  </AdapterConfigurations>
+  <ProjectSettings />
+</Project>

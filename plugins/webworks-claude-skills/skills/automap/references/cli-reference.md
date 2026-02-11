@@ -24,12 +24,12 @@ Complete reference for WebWorks ePublisher AutoMap command-line interface option
 For multiple consecutive builds, cache the installation path to avoid repeated detection:
 
 ```bash
-export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash scripts/detect-installation.sh)
 
 # All subsequent builds skip detection
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project1.wep
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project2.wep
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project3.wep
+bash scripts/automap-wrapper.sh --all-targets project1.wep
+bash scripts/automap-wrapper.sh --all-targets project2.wep
+bash scripts/automap-wrapper.sh --all-targets project3.wep
 ```
 
 ### Development Builds
@@ -38,7 +38,7 @@ Point to a debug build for testing:
 
 ```bash
 export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ### Clearing the Override
@@ -68,10 +68,10 @@ When no target is specified:
 
 ```bash
 # Interactive mode - shows numbered list for selection
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh project.wep
+bash scripts/automap-wrapper.sh project.wep
 
 # CI/CD mode - explicit all-targets flag required
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
+bash scripts/automap-wrapper.sh --all-targets project.wep
 ```
 
 ## Basic Command Pattern
@@ -79,7 +79,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targe
 Always use the wrapper script to execute builds:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
+bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
 ```
 
 **Components:**
@@ -119,15 +119,15 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <
   - Single target: `-t "WebWorks Reverb 2.0"`
   - Multiple targets: `--target="WebWorks Reverb 2.0", "PDF - XSL-FO"`
 - **Examples**:
-  - Single target: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep`
-  - Multiple targets: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep`
+  - Single target: `bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep`
+  - Multiple targets: `bash scripts/automap-wrapper.sh --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep`
 - **Note**: Target names must exactly match `TargetName` in project file (case-sensitive)
 
 **`--all-targets`**
 - **Purpose**: Build all targets in the project
 - **Use When**: CI/CD pipelines, batch builds, or when you want all outputs
 - **Impact**: Bypasses interactive target selection
-- **Example**: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep`
+- **Example**: `bash scripts/automap-wrapper.sh --all-targets project.wep`
 - **Note**: Required in non-interactive mode when no specific target is specified
 
 ### Deployment Control
@@ -156,7 +156,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <
 - **Purpose**: Show all build output including progress messages
 - **Use When**: Debugging build issues or monitoring progress manually
 - **Impact**: Full output with progress indicators and informational messages
-- **Example**: `bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep`
+- **Example**: `bash scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep`
 
 **Default output:**
 ```
@@ -177,36 +177,36 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh [options] <
 
 **Build all targets:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
+bash scripts/automap-wrapper.sh --all-targets project.wep
 ```
 
 **Build with deployment:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --all-targets project.wep
+bash scripts/automap-wrapper.sh --deploy --all-targets project.wep
 ```
 
 ### Target-Specific Builds
 
 **Build single target:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 ```
 
 **Build multiple targets:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep
+bash scripts/automap-wrapper.sh --target="WebWorks Reverb 2.0", "PDF - XSL-FO" project.wep
 ```
 
 ### Custom Deployment
 
 **Deploy to network share:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --deployfolder "\\\\WebServer\\wwwroot\\docs" project.wep
+bash scripts/automap-wrapper.sh --deploy --deployfolder "\\\\WebServer\\wwwroot\\docs" project.wep
 ```
 
 **Deploy to local test folder:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --deployfolder "C:\\TestOutput" project.wep
+bash scripts/automap-wrapper.sh --deploy --deployfolder "C:\\TestOutput" project.wep
 ```
 
 ## Execution Guidelines
@@ -232,12 +232,12 @@ Set appropriate timeout based on project size when using the Bash tool:
 
 **Save output to log file:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep > build.log 2>&1
+bash scripts/automap-wrapper.sh --all-targets project.wep > build.log 2>&1
 ```
 
 **Verbose mode for debugging:**
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ### Exit Code Handling
@@ -254,7 +254,7 @@ The wrapper provides consistent exit codes:
 
 **Check build status:**
 ```bash
-if bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep; then
+if bash scripts/automap-wrapper.sh --all-targets project.wep; then
     echo "Build succeeded"
 else
     echo "Build failed with exit code: $?"
@@ -403,7 +403,7 @@ Error: Target 'Invalid Target Name' not found in project
 - Case sensitivity mismatch
 
 **Solutions:**
-1. List available targets: `parse-targets.sh project.wep`
+1. List available targets: use the epublisher skill's `parse-targets.py`
 2. Use exact target name from project file
 3. Check for extra spaces or special characters
 4. Ensure case matches exactly
@@ -414,53 +414,53 @@ Error: Target 'Invalid Target Name' not found in project
 
 For production releases, opt-out of safe defaults:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --deploy --with-reports -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh --deploy --with-reports -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ### 2. Use --all-targets for CI/CD
 
 Non-interactive environments require explicit target specification:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project.wep
+bash scripts/automap-wrapper.sh --all-targets project.wep
 ```
 
 ### 3. Build Specific Targets When Testing
 
 Save time by building only the target(s) you're working on:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ### 4. Cache Installation Path for Batch Builds
 
 When building multiple projects, cache the installation path:
 ```bash
-export AUTOMAP_EXE_PATH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/detect-installation.sh)
+export AUTOMAP_EXE_PATH=$(bash scripts/detect-installation.sh)
 
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project1.wep
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project2.wep
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --all-targets project3.wep
+bash scripts/automap-wrapper.sh --all-targets project1.wep
+bash scripts/automap-wrapper.sh --all-targets project2.wep
+bash scripts/automap-wrapper.sh --all-targets project3.wep
 ```
 
 ### 5. Use Verbose Mode for Debugging
 
 When troubleshooting build issues:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ### 6. Capture Build Logs
 
 Save output for troubleshooting:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep 2>&1 | tee build.log
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep 2>&1 | tee build.log
 ```
 
 ### 7. Incremental Builds During Development
 
 Use `--no-clean` for faster iterative builds:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/automap/scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 ```
 
 ## Script Reference
@@ -471,7 +471,7 @@ The wrapper is the primary execution interface:
 |--------|---------|
 | **automap-wrapper.sh** | Execute builds (primary interface) |
 | **detect-installation.sh** | Verify installation, cache path |
-| **parse-targets.sh** | List valid target names for `-t` parameter |
+| **parse-targets.py** *(epublisher skill)* | List valid target names for `-t` parameter |
 
 Use `detect-installation.sh` only for:
 - Verifying AutoMap is installed

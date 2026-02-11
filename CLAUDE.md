@@ -38,9 +38,9 @@ Use `/workflows:review` for code review:
 Bump the plugin version before creating a PR using the bump script:
 
 ```bash
-./scripts/bump-version.sh patch  # 2.1.0 -> 2.1.1 (bug fixes)
-./scripts/bump-version.sh minor  # 2.1.0 -> 2.2.0 (new features)
-./scripts/bump-version.sh major  # 2.1.0 -> 3.0.0 (breaking changes)
+scripts/bump-version.sh patch  # 2.1.0 -> 2.1.1 (bug fixes)
+scripts/bump-version.sh minor  # 2.1.0 -> 2.2.0 (new features)
+scripts/bump-version.sh major  # 2.1.0 -> 3.0.0 (breaking changes)
 ```
 
 The script updates both `plugin.json` and `marketplace.json` to keep versions synchronized.
@@ -52,6 +52,6 @@ The script updates both `plugin.json` and `marketplace.json` to keep versions sy
 
 **Workflow:**
 1. Make your changes
-2. Run `./scripts/bump-version.sh <type>`
+2. Run `scripts/bump-version.sh <type>`
 3. Include the version bump in your PR
 4. Merge PR - version is already updated

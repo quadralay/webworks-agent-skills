@@ -93,12 +93,12 @@ Documents are organized into groups within projects:
 
 ## Scripts
 
-### parse-targets.sh
+### parse-targets.py
 
 Extract target information from a project file:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/epublisher/scripts/parse-targets.sh <project-file>
+python scripts/parse-targets.py <project-file>
 ```
 
 Returns JSON with target names, IDs, formats, and output directories.
@@ -108,7 +108,7 @@ Returns JSON with target names, IDs, formats, and output directories.
 List and manage source document groups:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/epublisher/scripts/manage-sources.sh <project-file> [list|add|remove]
+bash scripts/manage-sources.sh <project-file> [list|add|remove]
 ```
 
 ### copy-customization.py
@@ -116,7 +116,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/epublisher/scripts/manage-sources.sh <project-
 Copy format files from installation to project with structure validation:
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/epublisher/scripts/copy-customization.py --source <install-file> --destination <project-file>
+python scripts/copy-customization.py --source <install-file> --destination <project-file>
 ```
 
 Validates parallel folder structure and creates directories as needed.
@@ -139,7 +139,7 @@ Validates parallel folder structure and creates directories as needed.
 ### Find all targets in a project
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/epublisher/scripts/parse-targets.sh /path/to/project.wep
+python scripts/parse-targets.py /path/to/project.wep
 ```
 
 ### Locate format customization files
@@ -152,7 +152,7 @@ Check the file resolver hierarchy:
 ### Identify source documents
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/epublisher/scripts/manage-sources.sh /path/to/project.wep list
+bash scripts/manage-sources.sh /path/to/project.wep list
 ```
 </common_tasks>
 
