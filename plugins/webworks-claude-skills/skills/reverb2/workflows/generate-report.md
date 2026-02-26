@@ -1,6 +1,6 @@
 # Workflow: Test Report Generation
 
-**Routed from:** SKILL.md intake menu item **4** ("Generate test report")
+*From SKILL.md intake item 4.*
 
 <required_reading>
 **Templates:**

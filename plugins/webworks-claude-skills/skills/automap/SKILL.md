@@ -56,10 +56,8 @@ Do NOT use `detect-installation.sh` to find the CLI path and call it directly. T
 
 | Skill | Relationship |
 |-------|--------------|
-| **epublisher** | Use first to understand project structure, target names, and product foundations |
+| **epublisher** | Use first to understand project structure, target names, and product foundations; see `../epublisher/references/product-foundations.md` for cross-cutting product knowledge |
 | **reverb2** | Use after building Reverb output to test and customize |
-
-**For cross-cutting product knowledge** (architecture, platform constraints, debugging): see the epublisher skill's `references/product-foundations.md`.
 
 </related_skills>
 

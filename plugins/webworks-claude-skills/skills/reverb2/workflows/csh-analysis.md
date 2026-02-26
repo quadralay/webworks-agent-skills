@@ -1,6 +1,6 @@
 # Workflow: CSH Link Analysis
 
-**Routed from:** SKILL.md intake menu item **2** ("Analyze CSH links")
+*From SKILL.md intake item 2.*
 
 <required_reading>
 **No additional references needed** - all information is in this file and the SKILL.md csh_analysis section.

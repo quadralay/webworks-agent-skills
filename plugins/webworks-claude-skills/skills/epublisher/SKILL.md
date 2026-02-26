@@ -130,7 +130,7 @@ Validates parallel folder structure and creates directories as needed.
 
 ## Reference Files
 
-- `product-foundations.md` - Cross-cutting product knowledge (architecture, platform, debugging)
+- `product-foundations.md` - Cross-cutting product knowledge (architecture, platform constraints, debugging)
 - `file-resolver-guide.md` - Complete file resolution hierarchy
 - `project-parsing-guide.md` - Detailed project file structure
 - `user-interaction-patterns.md` - Disambiguating user intent (query vs. creation)
@@ -165,11 +165,7 @@ bash scripts/manage-sources.sh /path/to/project.wep list
 
 ## Common Mistakes
 
-**`.wez` files are not format sources.** They look like format archives but are installer-only packaging artifacts. Always work with the extracted `Formats/<format name>/` directory, never `.wez` files.
-
-**XSLT 2.0 features will fail.** ePublisher uses .NET `XslCompiledTransform` (XSLT 1.0 only). Never suggest `xsl:for-each-group`, `xsl:analyze-string`, or other 2.0/3.0 features in format transforms. The sole exception is DITA preprocessing, which uses DITA-OT and supports XSLT 2.0.
-
-**UI names differ from internal names.** When users reference a setting by its display name (e.g., "Generate toolbar"), the corresponding internal name in `.fti` and project files is different (e.g., `toolbar-generate`). Do not guess the mapping — search `.fti` files or ask the user.
+For platform-level gotchas (.wez files, XSLT 1.0 constraint, UI name mapping), see `references/product-foundations.md`.
 
 </common_mistakes>
 

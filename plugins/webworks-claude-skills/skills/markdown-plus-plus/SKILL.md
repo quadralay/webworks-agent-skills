@@ -3,8 +3,7 @@ name: markdown-plus-plus
 description: >
   AUTHORITATIVE REFERENCE for WebWorks Markdown++ syntax. Use when working with
   .md files containing <!--style:-->, <!--condition:-->, $variable;, <!--include:-->,
-  <!--marker:-->, or <!--#alias--> patterns. Also use when authoring new Markdown++
-  documents or adding extensions to existing .md files. Use for editing, validating,
+  <!--marker:-->, or <!--#alias--> patterns. Use for editing, validating,
   migrating, or auditing Markdown++ source documents.
 ---
 
@@ -59,7 +58,7 @@ The **$product_name;** application supports...
 
 ### Custom Styles
 
-Styles override default formatting for elements. Placement depends on element type.
+Styles override default formatting. Placement depends on element type.
 
 **Block-level** (place on line directly above element, no blank line):
 ```markdown
@@ -70,162 +69,71 @@ Styles override default formatting for elements. Placement depends on element ty
 > This is a styled blockquote.
 ```
 
-**IMPORTANT:** Block commands must be attached to the element (no blank line between). Comment tags must be associated with a paragraph - they cannot float alone separated by whitespace.
-
-```markdown
-<!-- WRONG - blank line breaks the association -->
-<!--style:CustomParagraph-->
-
-This paragraph will NOT receive the style.
-
-<!-- CORRECT - command directly above element -->
-<!--style:CustomParagraph-->
-This paragraph receives the style.
-```
+**IMPORTANT:** Block commands must be attached to the element (no blank line between). A blank line breaks the association and renders the comment as visible text.
 
 **Inline** (place immediately before the element, no space):
 ```markdown
 This is <!--style:Emphasis-->**important text**.
-Use <!--style:ProductName-->*$product_name;* for branding.
 ```
 
-**Nested lists** (use proper indentation for nested styles):
-```markdown
-<!-- style:BulletList1 -->
-- Bullet 1
-
-  <!-- style:BulletList2 -->
-  - Bullet 2
-```
-
-**CRITICAL:** Indented style comments require matching indentation on the following content line. Mismatched indentation causes the style to render as visible text.
-
-```markdown
-<!-- WRONG - style indented but content is not -->
-1. Step content...
-
-   <!-- style:NoteIndent -->
-**Note:** This will NOT receive the style.
-
-<!-- CORRECT - both at same indentation -->
-1. Step content...
-
-   <!-- style:NoteIndent -->
-   **Note:** This correctly receives the style.
-```
-
-**Tables** (place style comment above table):
-```markdown
-<!--style:DataTable-->
-[table rows follow immediately below]
-```
+See `references/syntax-reference.md` for nested list indentation rules and table styling.
 
 ### Custom Aliases
 
-Aliases create stable internal link anchors. Use them for all important headings to ensure stable URL endpoints.
+Aliases create stable internal link anchors.
 
 ```markdown
 <!--#getting-started-->
 ## Getting Started
 
-<!--#installation-steps-->
-### Installation
-
-Later in the document:
 See [Getting Started](#getting-started) for an introduction.
-Jump to [Installation](#installation-steps) for setup instructions.
 ```
 
-**Cross-document links:**
-```markdown
-See [API Reference](api.md#authentication) for auth details.
-```
+**Cross-document links:** `[API Reference](api.md#authentication)`
 
 **Rules:**
 - Alphanumeric, hyphens, underscores only
 - No spaces (alias ends at first space)
 - Must start with `#` inside the comment
-- **Keep alias values unique within each file**
+- Keep alias values unique within each file
 
 Use `scripts/add-aliases.py` to auto-generate aliases for headings.
 
 ### Conditions
 
-Conditions show or hide content based on output format. Content between opening and closing tags is conditional.
+Conditions show or hide content based on output format.
 
-**Basic usage:**
 ```markdown
 <!--condition:web-->
 Visit our [website](https://example.com) for updates.
 <!--/condition-->
-
-<!--condition:print-->
-See Appendix A for additional resources.
-<!--/condition-->
 ```
 
-**Operators:**
+**Operators:** Space (AND), Comma (OR), Exclamation (NOT). Precedence: NOT > AND > OR.
 
-- **Space** (AND): `a b` - all must be visible. Example: `<!--condition:web production-->`
-- **Comma** (OR): `a,b` - any can be visible. Example: `<!--condition:web,print-->`
-- **Exclamation** (NOT): `!a` - visible when condition is hidden. Example: `<!--condition:!internal-->`
-
-**Precedence:** NOT (tightest) > AND (space) > OR (comma)
-
-**Complex examples:**
 ```markdown
-<!--condition:!internal-->
-This appears when "internal" condition is hidden.
-<!--/condition-->
-
-<!--condition:web,print-->
-This appears in web OR print output.
-<!--/condition-->
-
-<!--condition:web production-->
-This appears only when BOTH web AND production are visible.
-<!--/condition-->
-
 <!--condition:!draft,web production-->
 Means: (!draft) OR (web AND production)
 <!--/condition-->
 ```
 
-**Inline conditions:**
-```markdown
-Contact us at <!--condition:web-->[support@example.com](mailto:support@example.com)<!--/condition--><!--condition:print-->the address on the back cover<!--/condition-->.
-```
+**Inline:** `Contact us at <!--condition:web-->email<!--/condition--><!--condition:print-->the back cover<!--/condition-->.`
 
 ### File Includes
 
-Includes insert content from other Markdown++ files.
+Insert content from other Markdown++ files.
 
 ```markdown
 <!--include:shared/header.md-->
-
-# Main Content
-
-<!--include:../common/footer.md-->
 ```
 
-**Rules:**
-- Paths are relative to the containing file
-- Recursive includes are supported
-- Circular includes are detected and prevented
-- Include must be alone on its line
-
-**With conditions:**
-```markdown
-<!--condition:web-->
-<!--include:web-only-content.md-->
-<!--/condition-->
-```
+**Rules:** Paths relative to containing file. Recursive includes supported; circular includes detected and prevented. Must be alone on its line. Can be wrapped in conditions.
 
 ### Markers (Metadata)
 
-Markers attach metadata to document elements for search, processing, or custom behavior.
+Attach metadata to document elements for search, processing, or custom behavior.
 
-**Preferred format (single key-value):**
+**Single key-value:**
 ```markdown
 <!--marker:Keywords="api, documentation"-->
 ```
@@ -235,145 +143,49 @@ Markers attach metadata to document elements for search, processing, or custom b
 <!--markers:{"Keywords": "api, documentation", "Description": "API reference guide"}-->
 ```
 
-Use `marker:key="value"` for single markers, JSON format for multiple.
-
-**Common marker keys:**
-
-- **Keywords** — Maps to HTML meta keywords tag
-- **Description** — Maps to HTML meta description tag
-- **IndexMarker** — Creates index entries for generated output
-
-**Index markers:**
-
-Index markers create entries in generated indexes (back-of-book style).
-
+**Index markers** create entries in generated indexes:
 ```markdown
 <!--marker:IndexMarker="creating projects"-->
 ## Creating Projects
 ```
 
-**Multiple entries** (comma-separated):
-```markdown
-<!--marker:IndexMarker="projects:creating,output:generating,targets"-->
-## Creating Projects
-```
-
-**Sub-entries** (colon for nesting):
-```markdown
-<!--marker:IndexMarker="source documents:opening,documents:opening from Manager"-->
-## Opening Source Documents
-```
-
-**Format rules:**
-- `primary` — Top-level index entry
-- `primary:secondary` — Nested entry under primary
-- Comma separates multiple entries
+Format: `primary` for top-level, `primary:secondary` for nested, comma-separated for multiple entries. See `references/syntax-reference.md` for detailed marker examples.
 
 ### Multiline Tables
 
-Multiline tables allow block content (lists, blockquotes, styled elements) inside cells. Each row continues on subsequent lines using empty first cells, and rows are separated by an empty row.
+Enable block content (lists, blockquotes, styled elements) inside table cells.
 
 ```markdown
 <!-- multiline -->
-Name   Details
------  --------------------------
-Bob    Lives in Dallas.
-       - Enjoys cycling
-       - Loves cooking
-       [empty row separates records]
-Mary   Lives in El Paso.
-       - Works as a teacher
+| Name | Details |
+|------|---------|
+| Bob  | Lives in Dallas. |
+|      | - Enjoys cycling |
 ```
 
-Note: In actual syntax, use standard markdown table pipes. Empty first cell continues previous row; empty row separates records.
-
-**Rules:**
-- Add `<!-- multiline -->` on line above table
-- First content row starts the data
-- Continuation rows have empty first cell (continues previous row)
-- Empty row with cell borders separates records
-- Cells can contain lists, blockquotes, custom styles, and other Markdown++ commands
-- Standard alignment syntax applies (`:---`, `---:`, `:---:`)
-
-**With custom style:**
-```markdown
-<!-- style:DataTable ; multiline -->
-Feature  Description
--------  --------------------------
-API      REST endpoints.
-         - GET /users
-         - POST /users
-         [empty row]
-Auth     OAuth 2.0 support.
-```
-
-Note: Use standard markdown table syntax with pipes in actual documents.
+Empty first cell continues previous row; empty row separates records. Combine with style: `<!-- style:DataTable ; multiline -->`. See `references/syntax-reference.md` for multiline table rules.
 
 ### Combined Commands
 
-Multiple commands can appear in a single comment, separated by semicolons.
-
-**Order priority:** style, multiline, marker(s), #alias
+Multiple commands in a single comment, separated by semicolons. Order: style, multiline, marker(s), #alias.
 
 ```markdown
 <!-- style:CustomHeading ; marker:Keywords="intro" ; #introduction -->
 # Introduction
-
-<!-- style:DataTable ; multiline ; #feature-table -->
-[table with Feature and Description columns follows]
-
-<!-- style:NoteBlock ; marker:Priority="high" ; #important-note -->
-> This blockquote has style, marker, and alias combined.
 ```
-
-Whitespace around semicolons is optional.
 
 ### Inline Styling for Images and Links
 
-Apply custom styles to images and links using inline style comments.
-
-**Images:**
 ```markdown
 <!--style:CustomImage-->![Logo](images/logo.png "Company Logo")
-
-<!--style:ScreenshotStyle-->![Settings Screen](images/settings.png)
-```
-
-**Links (style inside link text):**
-```markdown
 [<!--style:CustomLink-->*Link text*](topics/file.md#anchor "Title")
-
-See the [<!--style:ImportantLink-->**API Reference**](api.md#auth).
 ```
 
 ### Content Islands (Blockquotes)
 
-Blockquotes are an effective way to create "content islands" - grouped content blocks useful for callouts, notes, or enhanced layouts. Custom styles make them more configurable for different types of content islands.
+Blockquotes with custom styles create configurable content islands for callouts and notes.
 
-**Basic content island (no custom style):**
 ```markdown
-> ## Learning Section
->
-> This blockquote contains multiple elements:
->
-> - Bullet point 1
-> - Bullet point 2
->
-> ```python
-> def example():
->     return "Code inside blockquote"
-> ```
->
-> Final paragraph in the content island.
-```
-
-**Styled content islands (recommended for multiple island types):**
-```markdown
-<!--style:BQ_Learn-->
-> ## Learning Section
->
-> This blockquote groups related learning content together.
-
 <!--style:BQ_Warning-->
 > **Warning:** This is a styled warning block.
 >
@@ -384,22 +196,18 @@ Blockquotes are an effective way to create "content islands" - grouped content b
 
 ### Nested Lists with Styling
 
-Apply custom styles to list containers:
-
 ```markdown
 <!--style:ProcedureList-->
 1. First step
    - Sub-item A
    - Sub-item B
 2. Second step
-   1. Nested numbered item
-   2. Another nested item
 3. Third step
 ```
 
 ### Document Structure
 
-**Topic map pattern** — use includes to organize multi-chapter documents with conditional sections. See `references/examples.md` (Example 3) for a complete topic map example with shared headers, chapter includes, and conditional audience sections.
+**Topic map pattern** — use includes to organize multi-chapter documents with conditional sections. See `references/examples.md` (Example 3) for a complete topic map example.
 
 </syntax_examples>
 
@@ -442,16 +250,6 @@ See `references/syntax-reference.md` for complete syntax rules.
 
 </validation>
 
-<references>
-
-## Reference Files
-
-- `references/syntax-reference.md` - Detailed syntax rules, edge cases, and validation codes
-- `references/examples.md` - Real-world document examples
-- `references/best-practices.md` - Usage guidance, naming conventions, and common mistakes
-
-</references>
-
 <common_mistakes>
 
 ## Common Mistakes
@@ -464,11 +262,21 @@ See `references/syntax-reference.md` for complete syntax rules.
 
 </common_mistakes>
 
+<references>
+
+## Reference Files
+
+- `references/syntax-reference.md` - Detailed syntax rules, edge cases, and validation codes
+- `references/examples.md` - Real-world document examples
+- `references/best-practices.md` - Usage guidance, naming conventions, and common mistakes
+
+</references>
+
 <related_skills>
 
 ## Related Skills
 
-- **epublisher** — Understand project structure containing Markdown++ sources; see its `references/product-foundations.md` for cross-cutting product knowledge
+- **epublisher** — Understand project structure containing Markdown++ sources; see `../epublisher/references/product-foundations.md` for cross-cutting product knowledge
 - **automap** — Build ePublisher projects with Markdown++ source documents
 - **reverb2** — Test output generated from Markdown++ sources
 

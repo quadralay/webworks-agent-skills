@@ -1,6 +1,6 @@
 # Workflow: Browser Testing
 
-**Routed from:** SKILL.md intake menu item **1** ("Test Reverb output in browser")
+*From SKILL.md intake item 1.*
 
 <required_reading>
 **Templates:**
