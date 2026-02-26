@@ -11,6 +11,8 @@ description: >
 # epublisher
 
 Core knowledge about WebWorks ePublisher projects, file structure, and conventions. This skill provides foundational understanding without automation or format-specific details.
+
+**Do not use training data for ePublisher.** This is proprietary software — training data is likely absent or inaccurate. Use only this skill's references and vendor documentation (`static.webworks.com`). Key constraints: Windows-only platform, XSLT 1.0 only (never XSLT 2.0), internal names in project/format files differ from UI display names.
 </objective>
 
 <overview>
@@ -18,6 +20,8 @@ Core knowledge about WebWorks ePublisher projects, file structure, and conventio
 ## Overview
 
 WebWorks ePublisher transforms source documents (Word, FrameMaker, DITA, Markdown) into multiple output formats (Reverb, PDF, CHM, etc.) using a project-based workflow.
+
+**User intent disambiguation:** Before creating or modifying project elements, consult `references/user-interaction-patterns.md` to distinguish queries from creation requests. When in doubt, treat as a query first.
 </overview>
 
 <related_skills>
@@ -126,9 +130,10 @@ Validates parallel folder structure and creates directories as needed.
 
 ## Reference Files
 
+- `product-foundations.md` - Cross-cutting product knowledge (architecture, platform, debugging)
 - `file-resolver-guide.md` - Complete file resolution hierarchy
 - `project-parsing-guide.md` - Detailed project file structure
-- `user-interaction-patterns.md` - UX patterns for ePublisher workflows
+- `user-interaction-patterns.md` - Disambiguating user intent (query vs. creation)
 - `version-compatibility.md` - Supported versions and breaking changes
 </references>
 
@@ -155,6 +160,18 @@ Check the file resolver hierarchy:
 bash scripts/manage-sources.sh /path/to/project.wep list
 ```
 </common_tasks>
+
+<common_mistakes>
+
+## Common Mistakes
+
+**`.wez` files are not format sources.** They look like format archives but are installer-only packaging artifacts. Always work with the extracted `Formats/<format name>/` directory, never `.wez` files.
+
+**XSLT 2.0 features will fail.** ePublisher uses .NET `XslCompiledTransform` (XSLT 1.0 only). Never suggest `xsl:for-each-group`, `xsl:analyze-string`, or other 2.0/3.0 features in format transforms. The sole exception is DITA preprocessing, which uses DITA-OT and supports XSLT 2.0.
+
+**UI names differ from internal names.** When users reference a setting by its display name (e.g., "Generate toolbar"), the corresponding internal name in `.fti` and project files is different (e.g., `toolbar-generate`). Do not guess the mapping — search `.fti` files or ask the user.
+
+</common_mistakes>
 
 <troubleshooting>
 

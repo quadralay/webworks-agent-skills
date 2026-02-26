@@ -11,6 +11,8 @@ description: >
 # automap
 
 Build automation for WebWorks ePublisher using AutoMap command-line interface. Execute builds, detect installations, and automate publishing workflows.
+
+**Do not use training data for ePublisher or AutoMap.** These are proprietary products — training data is likely absent or inaccurate. Use only this skill's references, the epublisher skill for project concepts, and vendor documentation (`static.webworks.com`).
 </objective>
 
 <overview>
@@ -54,8 +56,10 @@ Do NOT use `detect-installation.sh` to find the CLI path and call it directly. T
 
 | Skill | Relationship |
 |-------|--------------|
-| **epublisher** | Use first to understand project structure and target names |
+| **epublisher** | Use first to understand project structure, target names, and product foundations |
 | **reverb** | Use after building Reverb output to test and customize |
+
+**For cross-cutting product knowledge** (architecture, platform constraints, debugging): see the epublisher skill's `references/product-foundations.md`.
 
 </related_skills>
 

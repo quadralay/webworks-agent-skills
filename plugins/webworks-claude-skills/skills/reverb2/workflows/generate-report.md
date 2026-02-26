@@ -1,5 +1,7 @@
 # Workflow: Test Report Generation
 
+**Routed from:** SKILL.md intake menu item **4** ("Generate test report")
+
 <required_reading>
 **Templates:**
 - `../templates/test-results.json` - Canonical structure for browser test output

@@ -1,5 +1,7 @@
 # Workflow: SCSS Theme Customization
 
+**Routed from:** SKILL.md intake menu item **3** ("Customize SCSS theme")
+
 <required_reading>
 **No additional references needed** - all information is in this file and the SKILL.md scss_customization section.
 </required_reading>

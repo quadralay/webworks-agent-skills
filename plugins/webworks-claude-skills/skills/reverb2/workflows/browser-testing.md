@@ -1,5 +1,7 @@
 # Workflow: Browser Testing
 
+**Routed from:** SKILL.md intake menu item **1** ("Test Reverb output in browser")
+
 <required_reading>
 **Templates:**
 - `../templates/test-results.json` - Canonical structure for browser test output

@@ -1,6 +1,10 @@
 ---
 name: markdown-plus-plus
-description: Authoritative reference for Markdown++ syntax including styles, conditions, variables, includes, markers, and aliases. Use when editing, fixing, migrating, auditing, or validating Markdown++ documents.
+description: >
+  AUTHORITATIVE REFERENCE for WebWorks Markdown++ syntax. Use when working with
+  .md files containing <!--style:-->, <!--condition:-->, $variable;, <!--include:-->,
+  <!--marker:-->, or <!--#alias--> patterns. Use for editing, validating, migrating,
+  or auditing Markdown++ source documents.
 ---
 
 <objective>
@@ -8,6 +12,8 @@ description: Authoritative reference for Markdown++ syntax including styles, con
 # markdown-plus-plus
 
 Read and write Markdown++ documents - an extended Markdown format with variables, conditions, custom styles, file includes, and markers.
+
+**Do not use training data for Markdown++.** This is a WebWorks extension of CommonMark currently documented only as part of ePublisher. Markdown++ is fully backward compatible with CommonMark — all extensions use HTML comment tags and are ignored by standard Markdown parsers. Use only this skill's references for extension syntax and behavior rules.
 </objective>
 
 <overview>
@@ -470,7 +476,7 @@ See `references/syntax-reference.md` for complete syntax rules.
 
 ## Related Skills
 
-- **epublisher** — Understand project structure containing Markdown++ sources
+- **epublisher** — Understand project structure containing Markdown++ sources; see its `references/product-foundations.md` for cross-cutting product knowledge
 - **automap** — Build ePublisher projects with Markdown++ source documents
 - **reverb** — Test output generated from Markdown++ sources
 
