@@ -3,8 +3,9 @@ name: markdown-plus-plus
 description: >
   AUTHORITATIVE REFERENCE for WebWorks Markdown++ syntax. Use when working with
   .md files containing <!--style:-->, <!--condition:-->, $variable;, <!--include:-->,
-  <!--marker:-->, or <!--#alias--> patterns. Use for editing, validating, migrating,
-  or auditing Markdown++ source documents.
+  <!--marker:-->, or <!--#alias--> patterns. Also use when authoring new Markdown++
+  documents or adding extensions to existing .md files. Use for editing, validating,
+  migrating, or auditing Markdown++ source documents.
 ---
 
 <objective>
@@ -398,28 +399,7 @@ Apply custom styles to list containers:
 
 ### Document Structure
 
-**Topic map pattern** - A top-level file includes chapter-level files:
-
-```markdown
-<!--markers:{"Keywords": "user guide, documentation", "Description": "Complete user guide for the application"} ; #user-guide-->
-# User Guide
-
-<!--include:introduction.md-->
-
-<!--include:getting_started.md-->
-
-<!--include:configuration.md-->
-
-<!--condition:advanced-->
-<!--include:advanced_topics.md-->
-<!--/condition-->
-```
-
-**Key points:**
-- Markers and alias are combined in one comment attached to the title heading
-- `Keywords` and `Description` map to HTML meta tags
-- Includes pull in chapter-level content files
-- Conditions wrap audience-specific sections
+**Topic map pattern** — use includes to organize multi-chapter documents with conditional sections. See `references/examples.md` (Example 3) for a complete topic map example with shared headers, chapter includes, and conditional audience sections.
 
 </syntax_examples>
 
@@ -472,13 +452,25 @@ See `references/syntax-reference.md` for complete syntax rules.
 
 </references>
 
+<common_mistakes>
+
+## Common Mistakes
+
+**A blank line between a style comment and its element breaks the association.** The style comment must be on the line directly above the element — no blank line. This is the most common authoring error and produces visible `<!--style:...-->` text in output.
+
+**Indentation of style comments must match the content line.** In nested lists, if the style comment is indented but the following content is not (or vice versa), the style renders as visible text instead of being applied.
+
+**Variables without a trailing semicolon are not recognized.** `$product_name` is literal text; `$product_name;` is a variable reference. The semicolon is required.
+
+</common_mistakes>
+
 <related_skills>
 
 ## Related Skills
 
 - **epublisher** — Understand project structure containing Markdown++ sources; see its `references/product-foundations.md` for cross-cutting product knowledge
 - **automap** — Build ePublisher projects with Markdown++ source documents
-- **reverb** — Test output generated from Markdown++ sources
+- **reverb2** — Test output generated from Markdown++ sources
 
 </related_skills>
 

@@ -2,6 +2,8 @@
 
 Cross-cutting knowledge that applies to all WebWorks ePublisher skills. Any skill that works with ePublisher projects, builds, or output should treat this as baseline context.
 
+> **Maintenance note:** Some content here (XSLT 1.0 constraint, file resolver hierarchy, .wez warning) is intentionally duplicated from individual SKILL.md files so this document is self-contained. When updating shared facts, check both this file and the relevant SKILL.md `<common_mistakes>` sections.
+
 ## Platform and Runtime
 
 - **Windows-only**: ePublisher Designer, Express, and AutoMap run only on Windows. Shell scripts execute via Git Bash or WSL.
@@ -71,7 +73,7 @@ The four skills form a pipeline:
 - **XSLT logging**: Use `wwlog:Message(...)` extension functions in `.xsl` files — output appears in `generate.log`
 - **Format settings**: Defined in `.fti` (Format Trait Info) files located alongside `.xsl` files in the Formats directory
 
-## Current Output Formats (2025.1)
+## Available Output Formats
 
 Dynamic HTML, Eclipse Help, Markdown++, Microsoft HTML Help 1.x, Oracle Help, PDF - XSL-FO, PDF, Sun JavaHelp 2.0, WebWorks Help 5.0, WebWorks Reverb, WebWorks Reverb 2.0, eBook - ePUB 2.0
 

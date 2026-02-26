@@ -57,7 +57,7 @@ Do NOT use `detect-installation.sh` to find the CLI path and call it directly. T
 | Skill | Relationship |
 |-------|--------------|
 | **epublisher** | Use first to understand project structure, target names, and product foundations |
-| **reverb** | Use after building Reverb output to test and customize |
+| **reverb2** | Use after building Reverb output to test and customize |
 
 **For cross-cutting product knowledge** (architecture, platform constraints, debugging): see the epublisher skill's `references/product-foundations.md`.
 
@@ -368,6 +368,16 @@ bash scripts/automap-wrapper.sh project.wep
 bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 ```
 </common_workflows>
+
+<common_mistakes>
+
+## Common Mistakes
+
+**Do not call the AutoMap CLI directly.** Always use `automap-wrapper.sh`, which handles installation detection, path conversion, safe defaults, and error handling. The `detect-installation.sh` script is for the wrapper's internal use and environment variable caching — not for building a manual CLI invocation.
+
+**Do not use `-t` with job files expecting it to work like project files.** Job files (.waj) control which targets to build via `build="True"` attributes in the file itself. The `-t` option with job files is an override, not the primary mechanism. If a build seems to skip targets, check the job file's `build` attributes first.
+
+</common_mistakes>
 
 <troubleshooting>
 

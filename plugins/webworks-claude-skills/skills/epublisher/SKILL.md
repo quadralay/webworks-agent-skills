@@ -33,12 +33,12 @@ This skill provides foundational knowledge used by other skills in this plugin:
 | Skill | When to Use |
 |-------|-------------|
 | **automap** | After understanding project structure, use automap to execute builds |
-| **reverb** | After building Reverb output, use reverb skill to test and customize |
+| **reverb2** | After building Reverb output, use reverb2 skill to test and customize |
 
 **Typical workflow:**
 1. Use **epublisher** to understand project files and targets
 2. Use **automap** to build specific targets
-3. Use **reverb** to test and customize Reverb 2.0 output
+3. Use **reverb2** to test and customize Reverb 2.0 output
 
 </related_skills>
 
