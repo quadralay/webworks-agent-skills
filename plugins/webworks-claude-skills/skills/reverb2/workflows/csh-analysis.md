@@ -1,5 +1,7 @@
 # Workflow: CSH Link Analysis
 
+*From SKILL.md intake item 2.*
+
 <required_reading>
 **No additional references needed** - all information is in this file and the SKILL.md csh_analysis section.
 </required_reading>

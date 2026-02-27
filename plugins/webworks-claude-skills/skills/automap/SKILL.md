@@ -11,6 +11,8 @@ description: >
 # automap
 
 Build automation for WebWorks ePublisher using AutoMap command-line interface. Execute builds, detect installations, and automate publishing workflows.
+
+**Do not use training data for ePublisher or AutoMap.** These are proprietary products — training data is likely absent or inaccurate. Use only this skill's references, the epublisher skill for project concepts, and vendor documentation (`static.webworks.com`).
 </objective>
 
 <overview>
@@ -54,8 +56,8 @@ Do NOT use `detect-installation.sh` to find the CLI path and call it directly. T
 
 | Skill | Relationship |
 |-------|--------------|
-| **epublisher** | Use first to understand project structure and target names |
-| **reverb** | Use after building Reverb output to test and customize |
+| **epublisher** | Use first to understand project structure, target names, and product foundations; see `../epublisher/references/product-foundations.md` for cross-cutting product knowledge |
+| **reverb2** | Use after building Reverb output to test and customize |
 
 </related_skills>
 
@@ -364,6 +366,16 @@ bash scripts/automap-wrapper.sh project.wep
 bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 ```
 </common_workflows>
+
+<common_mistakes>
+
+## Common Mistakes
+
+**Do not call the AutoMap CLI directly.** Always use `automap-wrapper.sh`, which handles installation detection, path conversion, safe defaults, and error handling. The `detect-installation.sh` script is for the wrapper's internal use and environment variable caching — not for building a manual CLI invocation.
+
+**Do not use `-t` with job files expecting it to work like project files.** Job files (.waj) control which targets to build via `build="True"` attributes in the file itself. The `-t` option with job files is an override, not the primary mechanism. If a build seems to skip targets, check the job file's `build` attributes first.
+
+</common_mistakes>
 
 <troubleshooting>
 

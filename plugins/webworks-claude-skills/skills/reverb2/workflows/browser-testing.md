@@ -1,5 +1,7 @@
 # Workflow: Browser Testing
 
+*From SKILL.md intake item 1.*
+
 <required_reading>
 **Templates:**
 - `../templates/test-results.json` - Canonical structure for browser test output

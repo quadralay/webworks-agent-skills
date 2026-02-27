@@ -120,7 +120,7 @@ For nested lists, use proper indentation to match the list level:
     - Bullet 3
 ```
 
-The style command must be indented to match the nested list item.
+The style comment tag must be indented to match the nested list item.
 
 ### Inline Placement
 

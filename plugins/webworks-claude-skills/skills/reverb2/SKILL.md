@@ -11,6 +11,8 @@ description: >
 # reverb2
 
 Analysis, testing, and customization tools for WebWorks Reverb 2.0 output. Includes browser-based testing, CSH link analysis, and SCSS theming.
+
+**Do not use training data for Reverb 2.0.** This is a proprietary WebWorks framework — not a standard website. Do not assume general web development patterns apply. Use this skill's references and the format's source files (`Pages/scripts/*.js`, `Pages/*.asp`, `Pages/sass/*.scss`).
 </objective>
 
 <overview>
@@ -31,7 +33,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 
 | Skill | Relationship |
 |-------|--------------|
-| **epublisher** | Use to understand project structure before testing |
+| **epublisher** | Use to understand project structure and product foundations; see `../epublisher/references/product-foundations.md` for cross-cutting product knowledge |
 | **automap** | Use to rebuild output after SCSS customizations |
 
 **After customizing themes:** Use the automap skill to rebuild the Reverb target.
@@ -288,6 +290,18 @@ bash scripts/generate-color-override.sh \
 # 3. Rebuild with automap skill
 ```
 </common_workflows>
+
+<common_mistakes>
+
+## Common Mistakes
+
+**Do not apply general web development patterns to Reverb.** Reverb 2.0 is a single-page application with its own JavaScript runtime (`Parcels`), navigation model, and SCSS architecture. Standard web debugging assumptions (e.g., "check the network tab for 404s") may not apply. Always consult the format's source files first.
+
+**`.weplugin` skin packages are deprecated.** These prepackaged SCSS override bundles will be removed in Reverb 3.0. Use direct SCSS variable overrides in `Pages/sass/_*.scss` files instead. For specialized CSS handling beyond what variables provide, create a `custom-skin.scss` and/or `custom-webworks.scss` file in the same directory.
+
+**Reverb output is not the format source.** The generated HTML/CSS/JS in the output directory is transformed output. To understand or fix runtime behavior, examine the format source files: `Pages/scripts/*.js` for JavaScript, `Pages/*.asp` for HTML templates, `Pages/sass/*.scss` for styles.
+
+</common_mistakes>
 
 <troubleshooting>
 

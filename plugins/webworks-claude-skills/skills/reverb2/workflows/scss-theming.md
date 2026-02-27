@@ -1,5 +1,7 @@
 # Workflow: SCSS Theme Customization
 
+*From SKILL.md intake item 3.*
+
 <required_reading>
 **No additional references needed** - all information is in this file and the SKILL.md scss_customization section.
 </required_reading>
