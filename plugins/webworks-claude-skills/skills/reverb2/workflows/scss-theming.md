@@ -16,7 +16,7 @@ Ask the user what they want to customize, then route to the correct layer:
 
 | Request | Layer | Jump to |
 |---------|-------|---------|
-| "Change brand colors" | 1 — Variable overrides | Step 3a (quick) or Step 3b (manual) |
+| "Change brand colors" | 1 — Variable overrides | Step 3b (recommended) or Step 3a (legacy script) |
 | "Adjust font sizes / spacing" | 1 — Variable overrides | Step 3b |
 | "Customize toolbar / TOC / navigation look" | 2 — Skin CSS | Step 4 |
 | "Style content page elements" | 3 — Content page CSS | Step 5 |
@@ -45,11 +45,9 @@ python scripts/extract-scss-variables.py <project-dir> [layout|toolbar|header|fo
 
 **Script limitation:** `extract-scss-variables.py` only reads `_colors.scss` and `_sizes.scss`. For variables in `_fonts.scss`, `_icons.scss`, or `_borders.scss`, read those files directly from the resolved location.
 
-## Step 3a: Layer 1 — Quick Brand Colors (Script-Assisted)
+## Step 3a: Layer 1 — Legacy Quick Colors (Script-Assisted)
 
-Use when the user provides 2–6 brand colors and wants fast results.
-
-Generate a `_colors.scss` override:
+**Note:** This script sets `$neo_*` variables directly without the `$theme_` naming convention. It works but produces output that is harder to maintain during upgrades. **Prefer Step 3b** for new projects.
 
 ```bash
 bash scripts/generate-color-override.sh <output-path> \
@@ -65,9 +63,7 @@ Output path follows the override level from Step 2:
 - Target: `[Project]/Targets/[Target]/Pages/sass/_colors.scss`
 - Format: `[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss`
 
-Only specify colors that differ from defaults. Skip to **Step 7** after generating.
-
-**Script limitation:** `generate-color-override.sh` sets neo variables directly. It does not generate the `$theme_` convention wrapper. For the recommended naming pattern, use Step 3b instead.
+Skip to **Step 7** after generating.
 
 ## Step 3b: Layer 1 — Manual Variable Override (With `$theme_` Convention)
 
@@ -95,25 +91,34 @@ $theme_on_surface_nav:   #172B4D;
 $theme_surface_footer:   #253858;
 ```
 
-### 3. Map `$theme_` variables to neo presets
+### 3. Map `$theme_` variables to layout color slots
+
+Map directly to `$_layout_color_*` (bypasses neo — more direct cascade):
 
 ```scss
-$neo_main_color:           $theme_primary;
-$neo_main_text_color:      $theme_on_primary;
-$neo_page_color:           $theme_surface;
-$neo_secondary_color:      $theme_surface_nav;
-$neo_secondary_text_color: $theme_on_surface_nav;
-$neo_tertiary_color:       $theme_surface_footer;
+$_layout_color_1: $theme_primary;
+$_layout_color_2: $theme_on_primary;
+$_layout_color_3: $theme_surface_nav;
+$_layout_color_4: $theme_on_surface_nav;
+$_layout_color_5: $theme_surface_footer;
+$_layout_color_6: $theme_surface;
 ```
 
-### 4. Override individual component variables as needed
+### 4. Add `$theme_*` variables for additional color needs
 
-For targeted changes that neo presets don't cover, override specific Tier 3 variables below the neo assignments:
+Create new `$theme_*` variables for any color that doesn't map through the 6 layout slots. This keeps every intentional value greppable for upgrade traceability:
 
 ```scss
-// Override specific component beyond neo cascade
-$_toolbar_button_hover_color: darken($theme_primary, 10%);
+// Additional brand colors beyond the 6 layout slots
+$theme_accent:          #0088CC;
+$theme_surface_menu:    #E8EEF2;
+
+// Map to specific component variables
+$_menu_background_color: $theme_surface_menu;
+$link_default_color:     $theme_accent;
 ```
+
+**Upgrade workflow:** `grep 'theme_'` finds every project customization instantly, making it easy to audit overrides against new Reverb defaults.
 
 See `references/scss-architecture.md` for the full cascade diagram.
 

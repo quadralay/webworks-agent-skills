@@ -96,7 +96,7 @@ $_menu_background_color:     $_layout_color_3;
 $_footer_background_color:   $_layout_color_5;
 ```
 
-Override at any tier. Tier 1 changes cascade everywhere; Tier 3 overrides affect only one element.
+Override at any tier. Tier 2 (layout slots) is the recommended entry point for the `$theme_` convention — it bypasses neo entirely, providing a more direct cascade with fewer indirection layers. Neo presets exist as a quick-theming convenience but are not needed when using named `$theme_*` variables.
 
 ## `$theme_` Naming Convention
 
@@ -110,14 +110,38 @@ When adding custom variables to override files, use the `$theme_` prefix with MD
 
 ### Standard Tokens
 
+The six core tokens map directly to layout color slots, bypassing the neo layer:
+
 | Variable | Role | Cascade target |
 |----------|------|----------------|
-| `$theme_primary` | Brand primary color | `$neo_main_color` |
-| `$theme_on_primary` | Text/icons on primary | `$neo_main_text_color` |
-| `$theme_surface` | Page background | `$neo_page_color` |
-| `$theme_surface_nav` | Sidebar/TOC background | `$neo_secondary_color` |
-| `$theme_on_surface_nav` | Text on sidebar | `$neo_secondary_text_color` |
-| `$theme_surface_footer` | Header/footer background | `$neo_tertiary_color` |
+| `$theme_primary` | Brand primary color | `$_layout_color_1` |
+| `$theme_on_primary` | Text/icons on primary | `$_layout_color_2` |
+| `$theme_surface_nav` | Sidebar/TOC background | `$_layout_color_3` |
+| `$theme_on_surface_nav` | Text on sidebar | `$_layout_color_4` |
+| `$theme_surface_footer` | Header/footer background | `$_layout_color_5` |
+| `$theme_surface` | Page background | `$_layout_color_6` |
+
+The `on_` prefix denotes the contrast color for text/icons placed on that surface — a pattern borrowed from Material Design 3.
+
+### Extending Beyond the Six Core Tokens
+
+Create additional `$theme_*` variables for any color need beyond the six layout slots. This ensures **every intentional color value has a greppable name**, which is critical for upgrade traceability:
+
+```scss
+// Additional brand colors beyond the 6 layout slots
+$theme_accent:           #00b8d4;   // Bright cyan for highlights
+$theme_surface_menu:     #e4eef2;   // Sidebar distinct from content
+$theme_surface_content:  #f4f7fa;   // Content area background
+```
+
+These map directly to component variables rather than layout slots:
+
+```scss
+$_menu_background_color:    $theme_surface_menu;
+$_page_background_color:    $theme_surface_content;
+```
+
+**Why this matters for upgrades:** When upgrading to a new Reverb version, `grep 'theme_'` finds every intentional customization in seconds. Without named variables, raw hex values scattered through 300+ component assignments are nearly impossible to audit against new defaults.
 
 ### Example
 
@@ -129,17 +153,21 @@ $theme_surface:          #FAFBFC;
 $theme_surface_nav:      #F4F5F7;
 $theme_on_surface_nav:   #172B4D;
 $theme_surface_footer:   #253858;
+$theme_accent:           #0088CC;
+$theme_surface_menu:     #E8EEF2;
 
-// Map to neo cascade
-$neo_main_color:           $theme_primary;
-$neo_main_text_color:      $theme_on_primary;
-$neo_page_color:           $theme_surface;
-$neo_secondary_color:      $theme_surface_nav;
-$neo_secondary_text_color: $theme_on_surface_nav;
-$neo_tertiary_color:       $theme_surface_footer;
+// Map to layout color slots (bypasses neo — more direct)
+$_layout_color_1: $theme_primary;
+$_layout_color_2: $theme_on_primary;
+$_layout_color_3: $theme_surface_nav;
+$_layout_color_4: $theme_on_surface_nav;
+$_layout_color_5: $theme_surface_footer;
+$_layout_color_6: $theme_surface;
+
+// Additional component overrides beyond the 6-slot cascade
+$_menu_background_color: $theme_surface_menu;
+$link_default_color:     $theme_accent;
 ```
-
-The `on_` prefix denotes the contrast color for text/icons placed on that surface — a pattern borrowed from Material Design 3.
 
 ## `.weplugin` Migration
 

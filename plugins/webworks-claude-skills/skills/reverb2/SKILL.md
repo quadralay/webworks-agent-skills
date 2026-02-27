@@ -73,7 +73,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 | Browser Testing | `browser-test.js` | Load output in headless Chrome, check for errors |
 | CSH Analysis | `parse-url-maps.py` | Extract topic mappings from url_maps.xml |
 | SCSS Theming | `extract-scss-variables.py` | Read current theme values |
-| Color Override | `generate-color-override.sh` | Generate brand color files |
+| Color Override | `generate-color-override.sh` | Generate brand color files (legacy — sets neo vars, not `$theme_` convention) |
 | Entry Detection | `detect-entry-point.sh` | Find output location from project |
 | Report Generation | `generate-report.py` | Create formatted test reports |
 </capabilities>
@@ -183,30 +183,24 @@ Layer 1 is safest (variable values only). Layers 2–3 require copying entry poi
 
 ### `$theme_` Naming Convention
 
-Use `$theme_` prefix for custom variables — greppable, collision-free, self-documenting:
+Use `$theme_` prefix for custom variables — greppable, collision-free, self-documenting. Map to `$_layout_color_*` slots (bypasses neo for a more direct cascade):
 
 ```scss
-$theme_primary:        #0052CC;   // → $neo_main_color
-$theme_on_primary:     #FFFFFF;   // → $neo_main_text_color
-$theme_surface:        #FAFBFC;   // → $neo_page_color
-$theme_surface_nav:    #F4F5F7;   // → $neo_secondary_color
-$theme_on_surface_nav: #172B4D;   // → $neo_secondary_text_color
-$theme_surface_footer: #253858;   // → $neo_tertiary_color
+$theme_primary:        #0052CC;   // → $_layout_color_1
+$theme_on_primary:     #FFFFFF;   // → $_layout_color_2
+$theme_surface_nav:    #F4F5F7;   // → $_layout_color_3
+$theme_on_surface_nav: #172B4D;   // → $_layout_color_4
+$theme_surface_footer: #253858;   // → $_layout_color_5
+$theme_surface:        #FAFBFC;   // → $_layout_color_6
 ```
 
-The `on_` prefix denotes contrast color for text/icons on that surface (MD3-inspired).
+The `on_` prefix denotes contrast color for text/icons on that surface (MD3-inspired). Create additional `$theme_*` variables for any color beyond the 6 core tokens — keeps every value greppable for upgrade traceability.
 
-### Quick-Start: Brand Colors
+### Extract Current Values
 
 ```bash
-# Extract current values
 python scripts/extract-scss-variables.py <project-dir> neo
-
-# Generate color override (sets neo variables directly)
-bash scripts/generate-color-override.sh <output-path> \
-  --main-color "#E63946" --main-text "#FFFFFF" \
-  --secondary-color "#F1FAEE" --secondary-text "#1D3557" \
-  --tertiary-color "#457B9D" --page-color "#F1FAEE"
+# Categories: neo, layout, toolbar, header, footer, menu, sizes
 ```
 
 ### Override Priority
@@ -300,10 +294,8 @@ python scripts/generate-report.py project.wep "$PROJECT_INFO" "$CSH_DATA" "$TEST
 # 1. Check current colors
 python scripts/extract-scss-variables.py /path/to/project neo
 
-# 2. Generate override
-bash scripts/generate-color-override.sh \
-  /path/to/project/Formats/WebWorks\ Reverb\ 2.0/Pages/sass/_colors.scss \
-  --main-color "#0052CC" --main-text "#FFFFFF"
+# 2. Copy _colors.scss to project, add $theme_* variables, map to $_layout_color_*
+#    See workflows/scss-theming.md Step 3b for detailed instructions
 
 # 3. Rebuild with automap skill
 ```
