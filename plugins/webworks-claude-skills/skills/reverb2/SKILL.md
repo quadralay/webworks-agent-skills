@@ -160,46 +160,64 @@ Format: `json` (default) or `table`
 
 ## SCSS Customization
 
-### Theme Variables
+### Three-Layer Architecture
 
-Reverb uses 6 "neo" variables for quick theming:
+| Layer | What it controls | Override file | Entry point |
+|-------|-----------------|---------------|-------------|
+| **1. Variable overrides** | Colors, sizes, fonts, icons, borders | `_colors.scss`, `_sizes.scss`, etc. | Compiled by `skin.scss` and `webworks.scss` |
+| **2. Skin CSS** | Toolbar, TOC, navigation chrome | `_custom-skin.scss` (user-created) | Imported by `skin.scss` |
+| **3. Content page CSS** | Content fonts, links, tables, mini-TOC | `_custom-webworks.scss` (user-created) | Imported by `webworks.scss` |
+
+Layer 1 is safest (variable values only). Layers 2–3 require copying entry points and adding import hooks — they do **not** ship with custom imports pre-configured.
+
+### Partials Inventory
+
+| Partial | Variables | Controls |
+|---------|-----------|----------|
+| `_colors.scss` | 300+ | All colors — neo presets cascade to component colors |
+| `_sizes.scss` | 120+ | Dimensions, spacing, padding, font sizes |
+| `_fonts.scss` | 69 | Font families, weights, styles |
+| `_icons.scss` | 44 | Font Awesome icon codepoints |
+| `_borders.scss` | 150+ | Border widths, styles, colors, radii |
+| `_functions.scss` | 4 | Color manipulation helpers |
+
+### `$theme_` Naming Convention
+
+Use `$theme_` prefix for custom variables — greppable, collision-free, self-documenting:
 
 ```scss
-$neo_main_color: #008bff;           // Primary (toolbar, buttons, links)
-$neo_main_text_color: #222222;      // Text on primary
-$neo_secondary_color: #eeeeee;      // Sidebar background
-$neo_secondary_text_color: #fefefe; // Text on dark backgrounds
-$neo_tertiary_color: #222222;       // Header/footer background
-$neo_page_color: #fefefe;           // Page background
+$theme_primary:        #0052CC;   // → $neo_main_color
+$theme_on_primary:     #FFFFFF;   // → $neo_main_text_color
+$theme_surface:        #FAFBFC;   // → $neo_page_color
+$theme_surface_nav:    #F4F5F7;   // → $neo_secondary_color
+$theme_on_surface_nav: #172B4D;   // → $neo_secondary_text_color
+$theme_surface_footer: #253858;   // → $neo_tertiary_color
 ```
 
-### Extract Current Values
+The `on_` prefix denotes contrast color for text/icons on that surface (MD3-inspired).
+
+### Quick-Start: Brand Colors
 
 ```bash
-python scripts/extract-scss-variables.py <project-dir> [category]
-```
+# Extract current values
+python scripts/extract-scss-variables.py <project-dir> neo
 
-Categories: `neo`, `layout`, `toolbar`, `header`, `footer`, `menu`, `sizes`
-
-### Generate Color Override
-
-```bash
+# Generate color override (sets neo variables directly)
 bash scripts/generate-color-override.sh <output-path> \
-
-  --main-color "#E63946" \
-  --main-text "#FFFFFF" \
-  --secondary-color "#F1FAEE" \
-  --secondary-text "#1D3557" \
-  --tertiary-color "#457B9D" \
-  --page-color "#F1FAEE"
+  --main-color "#E63946" --main-text "#FFFFFF" \
+  --secondary-color "#F1FAEE" --secondary-text "#1D3557" \
+  --tertiary-color "#457B9D" --page-color "#F1FAEE"
 ```
 
-### SCSS File Locations
+### Override Priority
 
-Override priority (highest first):
-1. `[Project]/Targets/[Target]/Pages/sass/_colors.scss`
-2. `[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss`
-3. `[Project]/Formats/WebWorks Reverb 2.0.base/Pages/sass/_colors.scss`
+Highest first (file resolver hierarchy):
+1. `[Project]/Targets/[Target]/Pages/sass/_colors.scss` — single target
+2. `[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss` — all targets
+3. `[Project]/Formats/WebWorks Reverb 2.0.base/Pages/sass/_colors.scss` — packaged defaults
+4. `[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss` — installation fallback
+
+**Detailed guidance:** `workflows/scss-theming.md` (layer-specific steps) and `references/scss-architecture.md` (cascade diagrams, compilation model).
 </scss_customization>
 
 <templates>
@@ -297,7 +315,7 @@ bash scripts/generate-color-override.sh \
 
 **Do not apply general web development patterns to Reverb.** Reverb 2.0 is a single-page application with its own JavaScript runtime (`Parcels`), navigation model, and SCSS architecture. Standard web debugging assumptions (e.g., "check the network tab for 404s") may not apply. Always consult the format's source files first.
 
-**`.weplugin` skin packages are deprecated.** These prepackaged SCSS override bundles will be removed in Reverb 3.0. Use direct SCSS variable overrides in `Pages/sass/_*.scss` files instead. For specialized CSS handling beyond what variables provide, create a `custom-skin.scss` and/or `custom-webworks.scss` file in the same directory.
+**`.weplugin` skin packages are deprecated.** These are zip archives typically containing `_colors.scss`, sometimes `_sizes.scss`, and occasionally `Connect.asp`. They will be removed in Reverb 3.0. To migrate: rename to `.zip`, extract, diff against installation defaults to identify actual customizations, then copy customized partials to the appropriate override level (`Formats/WebWorks Reverb 2.0/Pages/sass/` or `Targets/[Target]/Pages/sass/`). Use direct SCSS variable overrides with the `$theme_` naming convention instead. For structural CSS beyond variables, create `_custom-skin.scss` (chrome) or `_custom-webworks.scss` (content) — see `references/scss-architecture.md`.
 
 **Reverb output is not the format source.** The generated HTML/CSS/JS in the output directory is transformed output. To understand or fix runtime behavior, examine the format source files: `Pages/scripts/*.js` for JavaScript, `Pages/*.asp` for HTML templates, `Pages/sass/*.scss` for styles.
 
