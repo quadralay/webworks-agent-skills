@@ -5,7 +5,10 @@ Cross-cutting knowledge that applies to all WebWorks ePublisher skills. Any skil
 ## Platform and Runtime
 
 - **Windows-only**: ePublisher Designer, Express, and AutoMap run only on Windows. Shell scripts execute via Git Bash or WSL.
-- **XSLT 1.0 only**: Output generation uses .NET `XslCompiledTransform`. Never suggest XSLT 2.0/3.0 features in format transforms. DITA preprocessing is the sole exception (uses DITA-OT, which supports XSLT 2.0).
+- **XSLT 1.0 only**: Output generation uses .NET `XslCompiledTransform`. Never suggest XSLT 2.0/3.0 features in format transforms. DITA preprocessing is the sole exception — it uses transforms from the DITA Open Toolkit (DITA-OT) at `Adapters/xml/scripts/dita/ant/xsl/`, supporting XSLT 1.0 and 2.0. The DITA-OT version is selected via ANT template files in `Adapters/xml/scripts/dita/ant/` (e.g., `webworks-4.1.xml` corresponds to `dita-ot-4.1`).
+- **XSLT extension functions**: ePublisher provides custom XSLT extension functions callable from format `.xsl` files (e.g., `wwprojext:GetFormatSetting()`, `wwprojext:GetContextRule()`, `wwlog:Message()`). Published documentation:
+  - **Stable link** (requires JavaScript): `https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4`
+  - **Direct file link** (works without JavaScript, may change if docs restructure): `https://static.webworks.com/docs/epublisher/latest/help/Advanced%20Customizations_%20Overrides_%20and%20Extensions/_xslt-extensions.04.1.html`
 - **.NET runtime**: The publish engine, adapters, and CLI are .NET applications.
 
 ## Product Architecture
@@ -17,11 +20,13 @@ All publishing follows this flow:
 1. **Adapters** convert source documents into WIF (WebWorks Intermediate Format)
 2. **Format transforms** (XSLT) process WIF into final output
 
-Four core adapters exist:
-- **XML** — handles XML and DITA input
-- **helper** — handles Markdown++ input
+Four core adapters exist (in `Adapters/`):
+- **XML** (`xml/`) — handles XML and DITA input (DITA is a subset of the XML adapter)
+- **helper** (`helper/`) — handles Markdown++ input (`helper/markdown/`)
 - **Word** — handles Microsoft Word input
 - **FrameMaker** — handles Adobe FrameMaker input
+
+Adapter configurations (`AdapterConfigurations` in project files) are defined in `Adapters/<input format name>/adapter.fti`. These handle edge cases with different input formats. The `helper` (Markdown++) adapter has no configurations currently.
 
 ### Format Entry Point
 
@@ -63,13 +68,33 @@ The four skills form a pipeline:
 3. **reverb2** — Test and customize Reverb 2.0 output
 4. **markdown-plus-plus** — Author/edit Markdown++ source documents (peer skill, used alongside any of the above)
 
+## Output Localization
+
+Locale strings for generated output (e.g., "Table of Contents", "Search", "Index") are stored in `Formats/Shared/common/locale/locales.xml`. Each format can also have its own `Transforms/locales.xml` that overrides or extends Shared locale strings. This is distinct from the .NET application `.resx` files, which are for the UI applications, not generated output. Customers commonly customize or add locale strings in `locales.xml`.
+
 ## Debugging Fundamentals
 
 - **Build log**: `generate.log` is written after generation to `Logs/<target-name>/` in the project directory
 - **Data directory**: Intermediate files live in `%TEMP%/WebWorks/ePublisher/<workspace-hash>/Data/<target-guid>/`. Use the Designer/Express UI menu **View > Data Directory** to open it.
 - **WIF files**: Adapter output (`.wif`) lives under the data directory at `<target-guid>/<group-guid>/<doc-guid>/<source-filename>.wif` — examine to diagnose adapter issues
 - **XSLT logging**: Use `wwlog:Message(...)` extension functions in `.xsl` files — output appears in `generate.log`
+- **Intermediate XML files**: Behavior, split, link, TOC, and index XML files in the Data directory are defined by `format.wwfmt` stage parameters — examine them to trace how content flows through the pipeline
 - **Format settings**: Defined in `.fti` (Format Trait Info) files located alongside `.xsl` files in the Formats directory
+- **Visual Studio debugger**: Can attach to step through transforms, but only practical for extreme development cases
+
+## Testing Format and Adapter Changes
+
+To validate changes to XSL transforms or adapters, use a golden output comparison workflow:
+
+1. Generate output to produce the current baseline
+2. Manually modify the output to produce the desired result, rename `Output` to `Output.golden`
+3. Optionally, rename the unmodified output to `Output.baseline` (the "before" state)
+4. Modify XSL files and/or adapter code, regenerate
+5. Compare `Output` to `Output.golden` (or `Output.baseline`) to verify the changes produce the desired result
+
+## Technical Support
+
+Support cases are filed at `https://www.webworks.com/Support/`. Users must have an active Contract ID (GUID format: `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`) to submit a case. The Contract ID can be found in the product UI via **Help > License Keys... > "Register" button**.
 
 ## Available Output Formats
 

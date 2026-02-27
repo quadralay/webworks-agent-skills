@@ -91,6 +91,12 @@ Documents are organized into groups within projects:
   <Document Name="chapter2.docx" DocumentID="doc789"/>
 </Group>
 ```
+
+### Format Definition and Pipeline
+
+Each output format has a `format.wwfmt` file that defines the complete publish pipeline — a dependency graph of XSL transform stages that convert WIF to final output. This is the starting point for diagnosing any format or output issue.
+
+**For complete details, see:** references/publish-pipeline-guide.md
 </key_concepts>
 
 <scripts>
@@ -131,6 +137,10 @@ Validates parallel folder structure and creates directories as needed.
 ## Reference Files
 
 - `product-foundations.md` - Cross-cutting product knowledge (architecture, platform constraints, debugging)
+- `format-traits-guide.md` - Trait types, reading/writing in project files, accessing in XSL
+- `FormatTraitInfoStrings.resx` - Complete UI display name to internal name mapping (en, de, fr, ja locales)
+- `wif-guide.md` - WIF intermediate format, data directory structure, debugging with intermediate files
+- `publish-pipeline-guide.md` - Pipeline architecture (`format.wwfmt`), stage execution, `files.info` tracking, data flow
 - `file-resolver-guide.md` - Complete file resolution hierarchy
 - `project-parsing-guide.md` - Detailed project file structure
 - `user-interaction-patterns.md` - Disambiguating user intent (query vs. creation)
