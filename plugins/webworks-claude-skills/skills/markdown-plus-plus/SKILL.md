@@ -69,7 +69,7 @@ Styles override default formatting. Placement depends on element type.
 > This is a styled blockquote.
 ```
 
-**IMPORTANT:** Block commands must be attached to the element (no blank line between). A blank line breaks the association and renders the comment as visible text.
+**IMPORTANT:** Block commands must be attached to the element (no blank line between). A blank line breaks the association and passes through as a regular Markdown comment with no Markdown++ association/effect.
 
 **Inline** (place immediately before the element, no space):
 ```markdown
@@ -254,9 +254,9 @@ See `references/syntax-reference.md` for complete syntax rules.
 
 ## Common Mistakes
 
-**A blank line between a style comment and its element breaks the association.** The style comment must be on the line directly above the element — no blank line. This is the most common authoring error and produces visible `<!--style:...-->` text in output.
+**A blank line between a Markdown++ comment tag and its element breaks the association.** See style-association rule above: detached or misindented comments pass through as regular Markdown comments and have no Markdown++ effect.
 
-**Indentation of style comments must match the content line.** In nested lists, if the style comment is indented but the following content is not (or vice versa), the style renders as visible text instead of being applied.
+**Indentation of Markdown++ comment tags must match the content line.** In nested lists, if the comment tag is indented but the following content is not (or vice versa), the style passes through as a regular Markdown comment and is not applied.
 
 **Variables without a trailing semicolon are not recognized.** `$product_name` is literal text; `$product_name;` is a variable reference. The semicolon is required.
 
