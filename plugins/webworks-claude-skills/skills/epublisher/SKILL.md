@@ -136,15 +136,15 @@ Validates parallel folder structure and creates directories as needed.
 
 ## Reference Files
 
-- `product-foundations.md` - Cross-cutting product knowledge (architecture, platform constraints, debugging)
-- `format-traits-guide.md` - Trait types, reading/writing in project files, accessing in XSL
-- `FormatTraitInfoStrings.resx` - Complete UI display name to internal name mapping (en, de, fr, ja locales)
-- `wif-guide.md` - WIF intermediate format, data directory structure, debugging with intermediate files
-- `publish-pipeline-guide.md` - Pipeline architecture (`format.wwfmt`), stage execution, `files.info` tracking, data flow
 - `file-resolver-guide.md` - Complete file resolution hierarchy
+- `format-traits-guide.md` - Trait types, reading/writing in project files, accessing in XSL
+- `FormatTraitInfoStrings.resx` - Complete UI display name to internal name mapping (English)
+- `product-foundations.md` - Cross-cutting product knowledge (architecture, platform constraints, debugging)
 - `project-parsing-guide.md` - Detailed project file structure
+- `publish-pipeline-guide.md` - Pipeline architecture (`format.wwfmt`), stage execution, `files.info` tracking, data flow
 - `user-interaction-patterns.md` - Disambiguating user intent (query vs. creation)
 - `version-compatibility.md` - Supported versions and breaking changes
+- `wif-guide.md` - WIF intermediate format, data directory structure, debugging with intermediate files
 </references>
 
 <common_tasks>

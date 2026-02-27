@@ -155,16 +155,7 @@ Properties are also accessible via an XSL key defined in the transform:
 
 ### Using the .resx Files
 
-The `FormatTraitInfoStrings.resx` files in this directory contain the complete mapping between internal trait names and UI display names. Four locale variants are included:
-
-| File | Language |
-|------|----------|
-| `FormatTraitInfoStrings.resx` | English (default) |
-| `FormatTraitInfoStrings.de.resx` | German |
-| `FormatTraitInfoStrings.fr.resx` | French |
-| `FormatTraitInfoStrings.ja.resx` | Japanese |
-
-Each `.resx` file is XML with `<data>` elements mapping internal names to display strings:
+The `FormatTraitInfoStrings.resx` file in this directory contains the complete mapping between internal trait names and English UI display names. It is XML with `<data>` elements mapping internal names to display strings:
 
 ```xml
 <data name="connect-browser-tab-title" xml:space="preserve">
@@ -193,6 +184,6 @@ When the `.resx` lookup is insufficient (e.g., you need to know the default valu
 
 ### Updating .resx Files
 
-These files are sourced from the ePublisher product source code at `dev/source/windows/dotnet/WebWorks/Publish/Core/Resources/`. Update them when a new ePublisher version is released. The format is backward compatible — new entries are added but existing entries are not renamed or removed.
+This file is sourced from the ePublisher product source code at `dev/source/windows/dotnet/WebWorks/Publish/Core/Resources/FormatTraitInfoStrings.resx`. Update it when a new ePublisher version is released. The format is backward compatible — new entries are added but existing entries are not renamed or removed.
 
 **Note:** Settings and Options have a direct one-to-one mapping between their `.resx` display name and their internal `.fti` name. Properties do not — the UI organizes Properties into a hierarchical tree (e.g., `text-indent` appears under **Text > Flow > Indent**), so there is no single UI label that matches the internal name. Property internal names follow the standard CSS property naming model, so they can usually be extrapolated from the CSS property name (e.g., `font-size`, `margin-left`, `text-indent`, `color`).

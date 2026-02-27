@@ -1,5 +1,7 @@
 # Knowledge Gaps Discovered During Audit
 
+> **Status:** Audit record. Items 0-15 (epublisher skill) are addressed in PR #55. Items 16-17 (reverb2 skill) remain pending.
+
 Gaps identified during a Q&A session testing Claude's ability to work effectively as an ePublisher developer. Each item notes where the knowledge should live.
 
 ## Cross-Cutting Concern
@@ -70,7 +72,7 @@ Gaps identified during a Q&A session testing Claude's ability to work effectivel
   - All input adapters convert source documents into WIF (`.wif`), and all output format transforms start from the WIF file
   - No formal schema — WIF is designed to evolve easily
   - The adapter creates a copy of the source file as `<source name>.<md|fm|docx|ditamap>wif`, then generates the final `<source name>.wif`
-  - WIF files are generated in a temp directory with GUID-based hierarchy: `%TEMP%/WebWorks/ePublisher/<project name-guid-hash>/<format target guid><group guid>/<document guid>/<source name>.wif`
+  - WIF files are generated in a temp directory with GUID-based hierarchy: `%TEMP%/WebWorks/ePublisher/<workspace-hash>/Data/<target-guid>/<group-guid>/<document-guid>/<source name>.wif`
   - **Practical tip**: Use the Designer/Express UI menu **View > Data Directory** to open the temp folder for the current project — this is the easiest way to locate WIF files for debugging, since the GUID hierarchy is not human-navigable
   - **Algorithm for workspace directory name** (from `WorkspaceManager.cs`):
     1. Concatenate `"{projectPath}:{projectID}"` (projectID is a GUID stored in the `.wep` file)
@@ -132,4 +134,4 @@ Gaps identified during a Q&A session testing Claude's ability to work effectivel
 
 ## ePublisher Repo (`CLAUDE.md`) Gaps
 
-See separate plan file: `C:\Repo\ePublisher_debug\trunk\plans\knowledge-gaps-from-audit.md`
+See separate plan file: `<repo-dir>/plans/knowledge-gaps-from-audit.md`

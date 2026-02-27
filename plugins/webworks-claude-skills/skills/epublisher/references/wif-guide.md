@@ -214,33 +214,9 @@ These files are generated at the `Data/<target-guid>/<group-guid>/<doc-guid>/` l
 | `baggage_document.xml` | Baggage file references |
 | `reports_*.xml` | Report data (styles, images, links, topics, etc.) |
 
-## files.info Structure
+## files.info — Dependency Tracking
 
-`files.info` is the master tracking file at the target level. It records every generated file with dependency tracking:
-
-```xml
-<Files version="1.0" xmlns="urn:WebWorks-Engine-Files-Schema">
-  <File path="...\quantum-sync.wif"
-        type="engine:wif"
-        checksum="639077517772509816:73338"
-        groupID="QeGxWoyPnS0"
-        documentID="fID4z7dZCjw"
-        pipeline="..."
-        deploy="">
-    <Depends path="...\quantum-sync.mdwif"
-             checksum="639077517760986849:18546"
-             groupID="QeGxWoyPnS0"
-             documentID="fID4z7dZCjw" />
-  </File>
-</Files>
-```
-
-Key attributes:
-- `@type` — file category (`engine:wif`, `engine:conversion`, `behaviors:document`, `splits:priorities`, etc.)
-- `@checksum` — file timestamp and size for change detection
-- `@pipeline` — which pipeline stage produced this file
-- `@deploy` — whether this file should be deployed to the output location
-- `<Depends>` — files this file depends on (used for incremental builds)
+The `files.info` file at `Data/<target-guid>/files.info` is the master manifest tracking every file produced during a build. For complete details on its structure, attributes, dependency chains, and special file types, see the **files.info** section in `publish-pipeline-guide.md`.
 
 ## Debugging with WIF
 
