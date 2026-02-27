@@ -73,7 +73,6 @@ Reverb 2.0 is a responsive HTML5 help system with:
 | Browser Testing | `browser-test.js` | Load output in headless Chrome, check for errors |
 | CSH Analysis | `parse-url-maps.py` | Extract topic mappings from url_maps.xml |
 | SCSS Theming | `extract-scss-variables.py` | Read current theme values |
-| Color Override | `generate-color-override.sh` | Generate brand color files (legacy — sets neo vars, not `$theme_` convention) |
 | Entry Detection | `detect-entry-point.sh` | Find output location from project |
 | Report Generation | `generate-report.py` | Create formatted test reports |
 </capabilities>
@@ -353,7 +352,7 @@ python scripts/extract-scss-variables.py /path/to/project neo
 1. Validate hex color format (#RRGGBB)
 2. Check for missing semicolons
 3. Verify variable names match Reverb schema
-4. Use `--validate-only` flag to check before copying
+4. Compare against installation file for structural differences
 
 </troubleshooting>
 

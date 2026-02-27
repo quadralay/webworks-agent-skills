@@ -16,8 +16,8 @@ Ask the user what they want to customize, then route to the correct layer:
 
 | Request | Layer | Jump to |
 |---------|-------|---------|
-| "Change brand colors" | 1 — Variable overrides | Step 3b (recommended) or Step 3a (legacy script) |
-| "Adjust font sizes / spacing" | 1 — Variable overrides | Step 3b |
+| "Change brand colors" | 1 — Variable overrides | Step 3 |
+| "Adjust font sizes / spacing" | 1 — Variable overrides | Step 3 |
 | "Customize toolbar / TOC / navigation look" | 2 — Skin CSS | Step 4 |
 | "Style content page elements" | 3 — Content page CSS | Step 5 |
 | "Show current theme values" | — | Step 2 only |
@@ -45,29 +45,7 @@ python scripts/extract-scss-variables.py <project-dir> [layout|toolbar|header|fo
 
 **Script limitation:** `extract-scss-variables.py` only reads `_colors.scss` and `_sizes.scss`. For variables in `_fonts.scss`, `_icons.scss`, or `_borders.scss`, read those files directly from the resolved location.
 
-## Step 3a: Layer 1 — Legacy Quick Colors (Script-Assisted)
-
-**Note:** This script sets `$neo_*` variables directly without the `$theme_` naming convention. It works but produces output that is harder to maintain during upgrades. **Prefer Step 3b** for new projects.
-
-```bash
-bash scripts/generate-color-override.sh <output-path> \
-  --main-color "#E63946" \
-  --main-text "#FFFFFF" \
-  --secondary-color "#F1FAEE" \
-  --secondary-text "#1D3557" \
-  --tertiary-color "#457B9D" \
-  --page-color "#F1FAEE"
-```
-
-Output path follows the override level from Step 2:
-- Target: `[Project]/Targets/[Target]/Pages/sass/_colors.scss`
-- Format: `[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss`
-
-Skip to **Step 7** after generating.
-
-## Step 3b: Layer 1 — Manual Variable Override (With `$theme_` Convention)
-
-Use when the user needs fine-grained control or wants the recommended naming pattern.
+## Step 3: Layer 1 — Variable Override (With `$theme_` Convention)
 
 ### 1. Copy the target partial to the project
 
