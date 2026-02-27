@@ -39,14 +39,14 @@ Intermediate files live in a temp directory organized by GUID-based hierarchy:
 
 ### How to Find the Data Directory
 
-**Easiest method:** In Designer/Express, use the menu **View > Data Directory** to open the temp folder for the current project.
-
 **Programmatic method:** The workspace hash is computed from the project path and project ID:
 
 1. Concatenate `"{projectPath}:{projectID}"` (ProjectID is a GUID stored in the `.wep` file's `<Project ProjectID="...">` attribute)
 2. UTF-8 encode, then SHA1 hash (20 bytes)
 3. XOR-fold to 10 bytes: `xorBytes[i] = hash[i*2] ^ hash[i*2+1]`
 4. Base64 encode, then replace `/`→`_`, `+`→`-`, remove `=`
+
+**UI method (for users):** In Designer/Express, use the menu **View > Data Directory** to open the temp folder for the current project.
 
 ### Mapping GUIDs to Project Elements
 
@@ -229,8 +229,16 @@ The `files.info` file at `Data/<target-guid>/files.info` is the master manifest 
 
 ### Inspection Tips
 
-1. **Use View > Data Directory** in Designer/Express to open the data directory
-2. **WIF files are large** — use search/grep to find specific content rather than reading the entire file
-3. **Compare pre-WIF to source** to verify adapter preprocessing (includes, variables, conditions)
-4. **Check `files.info`** to understand the dependency chain and identify which pipeline stage produced each file
-5. **Intermediate XML files** (behaviors, splits, links) are defined by `format.wwfmt` stage parameters — examine that file to understand what each intermediate file represents
+General debugging tools (build logs, XSLT logging, Visual Studio) are documented in `product-foundations.md`. WIF-specific tips:
+
+1. **WIF files are large** — use search/grep to find specific content rather than reading the entire file
+2. **Compare pre-WIF to source** to verify adapter preprocessing (includes, variables, conditions)
+3. **Check `files.info`** to understand the dependency chain and identify which pipeline stage produced each file
+4. **Trace through surrounding intermediate files** — the XML files adjacent to the WIF (behaviors, splits, links) show how WIF content was processed through later pipeline stages. Examine `format.wwfmt` to understand what each file represents.
+5. **For users**: **View > Data Directory** in Designer/Express opens the data directory directly
+
+---
+
+**Version**: 1.0.0
+**Last Updated**: 2026-02-26
+**Compatibility**: ePublisher 2024.1+

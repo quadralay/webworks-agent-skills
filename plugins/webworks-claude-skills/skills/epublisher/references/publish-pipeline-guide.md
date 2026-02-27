@@ -307,3 +307,9 @@ To find which XSL files are involved in generating a specific output type:
 2. The containing `<Stage>` shows the XSL file (`action` attribute)
 3. Trace backward through `ParameterDependsType` to find upstream stages
 4. The pipeline's `<Depends>` elements show which other pipelines must complete first
+
+---
+
+**Version**: 1.0.0
+**Last Updated**: 2026-02-26
+**Compatibility**: ePublisher 2024.1+

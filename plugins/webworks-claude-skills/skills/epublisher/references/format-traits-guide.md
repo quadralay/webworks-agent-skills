@@ -18,7 +18,7 @@ ePublisher has three types of format traits, each serving a different purpose:
 
 **Internal names differ from UI display names.** The `.fti` files and project files use internal names (e.g., `connect-browser-tab-title`). The ePublisher Designer/Express UI shows display names (e.g., "Browser Tab Title"). The mapping between them is defined in `FormatTraitInfoStrings.resx` in the product source code, not in the format files.
 
-**When a user refers to a setting by its UI name**, you must translate to the internal name before reading or writing project files. Search the `.resx` files in this directory for the mapping, or search `.fti` files by keyword for edge cases.
+**When a user refers to a setting by its UI name**, you must translate to the internal name before reading or writing project files. Search the `.resx` file in this directory for the mapping, or search `.fti` files by keyword for edge cases.
 
 ## How Traits Are Defined (.fti Files)
 
@@ -153,7 +153,7 @@ Properties are also accessible via an XSL key defined in the transform:
 
 ## Looking Up Trait Names
 
-### Using the .resx Files
+### Using the .resx File
 
 The `FormatTraitInfoStrings.resx` file in this directory contains the complete mapping between internal trait names and English UI display names. It is XML with `<data>` elements mapping internal names to display strings:
 
@@ -171,8 +171,10 @@ The `name` attribute follows patterns that help identify trait type and category
 
 - **Settings**: Named directly (e.g., `connect-browser-tab-title`, `footer-generate`, `company-name`)
 - **Options/Properties**: Same naming pattern, but used within `<RuleTraits>` in `.fti` files
-- **Descriptions**: Suffixed with `.Description` (e.g., `connect-browser-tab-title.Description`) — these are tooltip/help text
-- **Group headers**: Suffixed with `.Group` — these are category labels in the UI
+- **Descriptions**: Suffixed with `.Description` (e.g., `connect-browser-tab-title.Description`) — these are tooltip/help text in the full product source
+- **Group headers**: Suffixed with `.Group` — these are category labels in the full product source
+
+**Note:** The shipped `.resx` file contains only display name entries. The `.Description` and `.Group` entries exist in the full product source code but are not included here — they are not needed for trait name lookups.
 
 ### Searching .fti Files
 
@@ -187,3 +189,9 @@ When the `.resx` lookup is insufficient (e.g., you need to know the default valu
 This file is sourced from the ePublisher product source code at `dev/source/windows/dotnet/WebWorks/Publish/Core/Resources/FormatTraitInfoStrings.resx`. Update it when a new ePublisher version is released. The format is backward compatible — new entries are added but existing entries are not renamed or removed.
 
 **Note:** Settings and Options have a direct one-to-one mapping between their `.resx` display name and their internal `.fti` name. Properties do not — the UI organizes Properties into a hierarchical tree (e.g., `text-indent` appears under **Text > Flow > Indent**), so there is no single UI label that matches the internal name. Property internal names follow the standard CSS property naming model, so they can usually be extrapolated from the CSS property name (e.g., `font-size`, `margin-left`, `text-indent`, `color`).
+
+---
+
+**Version**: 1.0.0
+**Last Updated**: 2026-02-26
+**Compatibility**: ePublisher 2024.1+
