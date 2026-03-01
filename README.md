@@ -50,7 +50,7 @@ Claude: Validates syntax, corrects errors using authoritative reference
 **Theming:**
 ```
 You: "Change the primary color to #2563eb"
-Claude: Generates SCSS override file with proper variable mappings
+Claude: Guides you through SCSS variable overrides with proper cascade mappings
 ```
 
 ## Requirements
@@ -61,22 +61,6 @@ Claude: Generates SCSS override file with proper variable mappings
 | epublisher | Windows | ePublisher 2024.1+ |
 | automap | Windows | ePublisher + AutoMap |
 | reverb | Windows | ePublisher + browser |
-
-## Migration from v1.x
-
-If you previously installed the separate plugins, use `/plugin` to:
-
-1. Uninstall `epublisher-automation` and `markdown-plus-plus`
-2. Install the new `webworks-claude-skills` plugin
-
-### Invocation changes
-
-| Old (v1.x) | New (v2.x) |
-|------------|------------|
-| `epublisher-automation:automap` | `webworks-claude-skills:automap` |
-| `epublisher-automation:epublisher` | `webworks-claude-skills:epublisher` |
-| `epublisher-automation:reverb` | `webworks-claude-skills:reverb` |
-| `markdown-plus-plus:markdown-plus-plus` | `webworks-claude-skills:markdown-plus-plus` |
 
 ## Contributing
 

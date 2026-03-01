@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
 copy-customization.py
-Copy ePublisher format files from installation to project while maintaining parallel structure
+Copy ePublisher installation files from installation to project while maintaining parallel structure
 
 Usage:
     ./copy-customization.py [OPTIONS] --source SOURCE --destination DEST
 
 Features:
-    - Validates parallel folder structure requirements
+    - Validates parallel folder structure requirements for Formats/Adapters/Helpers
     - Preserves exact directory hierarchy from installation
     - Creates intermediate directories as needed
     - Verifies source file exists before copying
@@ -27,7 +27,14 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
+
+# Exit codes
+EXIT_SUCCESS = 0
+EXIT_INVALID_ARGS = 1
+EXIT_SOURCE_NOT_FOUND = 2
+EXIT_INVALID_DESTINATION = 3
+EXIT_COPY_FAILED = 4
 
 # Color codes for output
 class Colors:
@@ -92,15 +99,16 @@ def extract_relative_path(
     verbose: bool = False
 ) -> Optional[Path]:
     """
-    Extract relative path from installation Formats directory
+    Extract relative path from installation component directory.
 
     Args:
         source_path: Full path to source file in installation
-        installation_root: Root of ePublisher installation (optional)
+        installation_root: VersionRoot of ePublisher installation (optional),
+            e.g. C:\\Program Files\\WebWorks\\ePublisher\\2024.1
         verbose: Enable verbose logging
 
     Returns:
-        Relative path from Formats directory, or None if invalid
+        Relative path from one of: Formats/Adapters/Helpers, or None if invalid
 
     Example:
         Input: C:\\Program Files\\WebWorks\\ePublisher\\2024.1\\Formats\\WebWorks Reverb 2.0\\Pages\\Connect.asp
@@ -110,20 +118,52 @@ def extract_relative_path(
 
     # Convert to absolute path
     source_path = source_path.resolve()
+    anchors = ("Formats", "Adapters", "Helpers")
 
-    # Try to find "Formats" in the path
-    parts = source_path.parts
-    try:
-        formats_idx = parts.index("Formats")
-        relative_parts = parts[formats_idx + 1:]
-        relative_path = Path(*relative_parts)
+    def extract_after_anchor(parts: tuple[str, ...]) -> Optional[Path]:
+        lower_parts = [part.lower() for part in parts]
+        for anchor in anchors:
+            anchor_lower = anchor.lower()
+            if anchor_lower in lower_parts:
+                anchor_idx = lower_parts.index(anchor_lower)
+                relative_parts = parts[anchor_idx + 1:]
+                if not relative_parts:
+                    log_error(f"Path ends at '{anchor}' without a relative file path: {source_path}")
+                    return None
+                return Path(*relative_parts)
+        return None
 
+    # If installation root was provided, validate source is inside it first.
+    if installation_root is not None:
+        installation_root = installation_root.resolve()
+        log_verbose(f"Using explicit installation root: {installation_root}", verbose)
+
+        try:
+            source_within_root = source_path.relative_to(installation_root)
+        except ValueError:
+            log_error("Source path is not under the provided installation root")
+            log_error(f"  Installation root: {installation_root}")
+            log_error(f"  Source path: {source_path}")
+            return None
+
+        relative_path = extract_after_anchor(source_within_root.parts)
+        if relative_path is not None:
+            log_verbose(f"Extracted relative path: {relative_path}", verbose)
+            return relative_path
+
+        log_error("Could not find Formats/Adapters/Helpers under provided installation root")
+        log_error(f"  Source path: {source_path}")
+        return None
+
+    # Fallback: infer anchor directly from source path.
+    relative_path = extract_after_anchor(source_path.parts)
+    if relative_path is not None:
         log_verbose(f"Extracted relative path: {relative_path}", verbose)
         return relative_path
-    except ValueError:
-        log_error(f"Could not find 'Formats' directory in source path: {source_path}")
-        log_error("Source path must be within installation Formats directory")
-        return None
+
+    log_error(f"Could not find installation component anchor in source path: {source_path}")
+    log_error("Source path must contain one of: Formats, Adapters, Helpers")
+    return None
 
 def validate_destination_structure(
     destination_path: Path,
@@ -135,7 +175,7 @@ def validate_destination_structure(
 
     Args:
         destination_path: Destination path in project
-        relative_path: Relative path from Formats directory
+        relative_path: Relative path from component anchor directory (Formats/Adapters/Helpers)
         verbose: Enable verbose logging
 
     Returns:
@@ -199,7 +239,7 @@ def create_parent_directories(
         parent_dir.mkdir(parents=True, exist_ok=True)
         log_success(f"Created directories: {parent_dir}")
         return True
-    except Exception as e:
+    except OSError as e:
         log_error(f"Failed to create directories: {e}")
         return False
 
@@ -256,7 +296,7 @@ def copy_file(
                 log_warning(f"Size mismatch: source={source_size}, dest={dest_size}")
 
         return True
-    except Exception as e:
+    except OSError as e:
         log_error(f"Failed to copy file: {e}")
         return False
 
@@ -275,7 +315,7 @@ def perform_copy_customization(
     Args:
         source: Source file path in installation
         destination: Destination file path in project
-        installation_root: Root of ePublisher installation (optional)
+        installation_root: VersionRoot of ePublisher installation (optional)
         force: Overwrite existing files
         dry_run: Simulate operation without making changes
         validate_only: Only validate paths without copying
@@ -295,30 +335,30 @@ def perform_copy_customization(
 
     # Validate source file
     if not validate_source_file(source_path, verbose):
-        return 2
+        return EXIT_SOURCE_NOT_FOUND
 
     # Extract relative path from installation
     relative_path = extract_relative_path(source_path, inst_root, verbose)
     if relative_path is None:
-        return 3
+        return EXIT_INVALID_DESTINATION
 
-    log_info(f"Format relative path: {relative_path}")
+    log_info(f"Installation relative path: {relative_path}")
 
     # Validate destination structure
     if not validate_destination_structure(destination_path, relative_path, verbose):
-        return 3
+        return EXIT_INVALID_DESTINATION
 
     if validate_only:
         log_success("Validation passed - structure is correct")
-        return 0
+        return EXIT_SUCCESS
 
     # Create parent directories
     if not create_parent_directories(destination_path, dry_run, verbose):
-        return 4
+        return EXIT_COPY_FAILED
 
     # Copy file
     if not copy_file(source_path, destination_path, force, dry_run, verbose):
-        return 4
+        return EXIT_COPY_FAILED
 
     # Final summary
     log_info("")
@@ -327,12 +367,12 @@ def perform_copy_customization(
     log_info(f"Destination: {destination_path}")
     log_info(f"Structure: {relative_path}")
 
-    return 0
+    return EXIT_SUCCESS
 
-def main():
+def main() -> None:
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description="Copy ePublisher format files while maintaining parallel structure",
+        description="Copy ePublisher installation files while maintaining parallel structure",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -349,6 +389,9 @@ Examples:
 
     # Dry run (simulate operation)
     %(prog)s --source "..." --destination "..." --dry-run
+
+    # Use explicit VersionRoot for source validation
+    %(prog)s --source "..." --destination "..." --installation-root "C:\\Program Files\\WebWorks\\ePublisher\\2024.1"
         """
     )
 
@@ -367,8 +410,9 @@ Examples:
 
     # Optional arguments
     parser.add_argument(
-        "-i", "--installation-root",
-        help="Root directory of ePublisher installation (optional)"
+        "-i", "--installation-root", "--version-root",
+        dest="installation_root",
+        help="VersionRoot of ePublisher installation (optional), e.g. C:\\Program Files\\WebWorks\\ePublisher\\2024.1"
     )
 
     parser.add_argument(

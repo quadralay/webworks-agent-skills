@@ -255,7 +255,3 @@ As a last resort:
 
 - **1.0** (2025-01-27): Initial documentation of registry-based detection method
 
----
-
-**Author:** ePublisher Claude Code Skills Team
-**Last Updated:** 2025-01-27

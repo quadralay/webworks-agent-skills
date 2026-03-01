@@ -328,7 +328,7 @@ Mixing versions can cause build errors or unexpected output.
 
 Reverb uses SASS variables to make customization easier. **Always try modifying SASS variables first:**
 - **First choice:** Customize `_colors.scss`, `_sizes.scss`, `_borders.scss` (copy to project, modify variables)
-- **Second choice:** Use `_overrides.scss` pattern (when variables aren't enough)
+- **Second choice:** Use `_custom-skin.scss` / `_custom-webworks.scss` pattern (when variables aren't enough)
 
 **Use the override pattern when:**
 - No SASS variable exists for the desired customization
@@ -338,21 +338,28 @@ Reverb uses SASS variables to make customization easier. **Always try modifying 
 
 **Why this pattern:** Easier to upgrade and maintain; clear separation of custom vs. default styles
 
-**Steps:**
+**Two override files for two entry points:**
+
+| Override file | Entry point | Scope |
+|---------------|-------------|-------|
+| `_custom-skin.scss` | `skin.scss` | Toolbar, TOC, navigation chrome (`.ww_skin_*` selectors) |
+| `_custom-webworks.scss` | `webworks.scss` | Content page inside iframe (fonts, links, tables) |
+
+**Steps (example: skin chrome override):**
 
 1. **Copy `skin.scss` to project** (format or target level)
 
-2. **Create `_overrides.scss` in same directory:**
+2. **Create `_custom-skin.scss` in same directory:**
    ```scss
-   // Custom Toolbar layout
-   // Modified: 2025-01-27 - Change search input box width to fixed size
+   // Custom skin overrides — toolbar, TOC, navigation chrome
+   // Targets .ww_skin_* selectors
 
    .ww_skin_search_input_container {
      width: unset;
    }
 
    .ww_skin_search_input {
-     width: 300px;  // Set a fixed width for the search input
+     width: 300px;
    }
    ```
 
@@ -360,14 +367,20 @@ Reverb uses SASS variables to make customization easier. **Always try modifying 
    ```scss
    // ... existing skin.scss content ...
 
-   // Custom overrides - keep this import last for proper CSS specificity
-   @import "overrides";
+   // Custom skin overrides — keep this import last
+   @import "custom-skin";
    ```
 
-4. **Benefits:**
-   - All customizations in one file (`_overrides.scss`)
-   - Original `skin.scss` mostly unchanged (easier to compare with installation)
-   - Clear documentation of what was customized
+4. **For content page overrides**, repeat with `webworks.scss` and `_custom-webworks.scss`:
+   ```scss
+   // In copied webworks.scss — add at end:
+   @import "custom-webworks";
+   ```
+
+5. **Benefits:**
+   - Custom CSS separated from default styles
+   - Original entry points mostly unchanged (easier to compare with installation)
+   - Clear naming indicates scope (`skin` = chrome, `webworks` = content)
    - Proper CSS specificity (overrides load last)
 
 ## File Types and Locations
@@ -399,11 +412,15 @@ Reverb uses SASS variables to make customization easier. **Always try modifying 
 **Purpose:** Control visual styling and layout
 
 **Common Files:**
-- `skin.scss` - Reverb toolbar main stylesheet (imports all others)
-- `_overrides.scss` - Reverb custom overrides (create this)
-- `_colors.scss` - Reverb color variables
-- `_sizes.scss` - Reverb size variables
-- `_borders.scss` - Reverb border variables
+- `skin.scss` — Reverb chrome entry point (toolbar, TOC, navigation)
+- `webworks.scss` — Reverb content page entry point (inside iframe)
+- `_custom-skin.scss` — Custom skin CSS overrides (user-created, imported by `skin.scss`)
+- `_custom-webworks.scss` — Custom content CSS overrides (user-created, imported by `webworks.scss`)
+- `_colors.scss` — Color variables (300+, neo cascade)
+- `_sizes.scss` — Size variables (120+, dimensions, spacing)
+- `_fonts.scss` — Font variables (69, families, weights)
+- `_borders.scss` — Border variables (150+, widths, styles, radii)
+- `_icons.scss` — Icon variables (44, Font Awesome codepoints)
 
 **Location:** `Formats\[FormatName]\Pages\sass\`
 
@@ -415,8 +432,8 @@ Reverb uses SASS variables to make customization easier. **Always try modifying 
 - Override default styles
 
 **Best Practice:**
-1. **First:** Modify SASS variables (_colors.scss, _sizes.scss, _borders.scss)
-2. **Second:** Use `_overrides.scss` pattern when variables aren't sufficient
+1. **First:** Modify SASS variables (`_colors.scss`, `_sizes.scss`, `_borders.scss`, `_fonts.scss`, `_icons.scss`)
+2. **Second:** Use `_custom-skin.scss` / `_custom-webworks.scss` when variables aren't sufficient
 
 ### XSL Transforms (`.xsl`)
 
@@ -551,6 +568,39 @@ When upgrading ePublisher:
 
 ## Tools and Scripts
 
+### resolve-version-root.py
+
+Python script for deterministic installation VersionRoot detection (used for `Formats/`, `Adapters/`, and `Helpers/` lookups):
+
+```bash
+python scripts/resolve-version-root.py --project-file "C:\projects\my-proj\project.wep"
+```
+
+**Detection precedence:**
+1. `AUTOMAP_EXE_PATH`
+2. Designer registry (`HKLM\SOFTWARE\WebWorks\ePublisher Designer`)
+3. AutoMap registry (`HKLM\SOFTWARE\WebWorks\ePublisher AutoMap`)
+
+**Output includes:**
+- `versionRoot`
+- `formatsDir`, `adaptersDir`, `helpersDir`
+- `hasFormats`, `hasAdapters`, `hasHelpers`
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--version` | Preferred version (e.g., 2024.1) |
+| `--project-file` | Project file to extract version from |
+| `--path-only` | Print only the path (for shell piping) |
+| `-v, --verbose` | Enable verbose diagnostics |
+
+**Exit Codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | VersionRoot not found |
+| 2 | Invalid arguments |
+
 ### copy-customization.py
 
 Python script for validated file copying with parallel structure enforcement:
@@ -605,11 +655,11 @@ Verify structure manually:
 
 **Key Takeaways:**
 
-1. **Four-level hierarchy:** Target → Format → Installation (highest to lowest priority)
+1. **Four-level hierarchy:** Target → Format → Packaged (.base) → Installation (highest to lowest priority)
 2. **Parallel structure is mandatory:** File and folder names must match exactly
 3. **Never modify installation files:** Always copy to project for customizations
 4. **Use Base Format Version:** Match installation version with project version
-5. **Prefer `_overrides.scss` pattern:** Easier to maintain and upgrade
+5. **Prefer `_custom-skin.scss` / `_custom-webworks.scss` pattern:** Easier to maintain and upgrade
 6. **Test after every customization:** Rebuild and verify changes appear
 7. **Document your changes:** Add comments explaining customizations
 
@@ -619,8 +669,3 @@ Verify structure manually:
 - Rebuild with `-c` flag to clear cache
 - Check build log for file resolution details
 
----
-
-**Document Version:** 1.0
-**Last Updated:** 2025-01-27
-**Compatibility:** ePublisher 2024.1+

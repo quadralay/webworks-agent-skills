@@ -285,8 +285,3 @@ if ($LASTEXITCODE -eq 0) {
 - AutoMap Wrapper Script - Usage and examples
 - WebWorks ePublisher User Guide - Official documentation
 
----
-
-**Version:** 1.0
-**Last Updated:** 2025-01-30
-**Author:** ePublisher Claude Code Skills Team

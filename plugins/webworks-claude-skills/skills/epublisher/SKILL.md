@@ -123,13 +123,23 @@ bash scripts/manage-sources.sh <project-file> [list|add|remove]
 
 ### copy-customization.py
 
-Copy format files from installation to project with structure validation:
+Copy installation files to project with structure validation:
 
 ```bash
 python scripts/copy-customization.py --source <install-file> --destination <project-file>
 ```
 
 Validates parallel folder structure and creates directories as needed.
+
+### resolve-version-root.py
+
+Resolve ePublisher VersionRoot for installation lookups:
+
+```bash
+python scripts/resolve-version-root.py [--project-file <project.wep>] [--version <2024.1>]
+```
+
+Returns JSON with versionRoot path, component directories, and availability flags.
 </scripts>
 
 <references>
