@@ -128,9 +128,9 @@ The `on_` prefix denotes the contrast color for text/icons placed on that surfac
 Create additional `$theme_*` variables for any color need beyond the six layout slots. This ensures **every intentional color value has a greppable name**, which is critical for upgrade traceability:
 
 ```scss
-// Additional brand colors beyond the 6 layout slots
-$theme_accent:           #00b8d4;   // Bright cyan for highlights
-$theme_surface_menu:     #e4eef2;   // Sidebar distinct from content
+// Additional brand colors beyond the 6 layout slots (values are project-specific)
+$theme_accent:           #0088CC;   // Highlight color for links, buttons
+$theme_surface_menu:     #E8EEF2;   // Sidebar distinct from content
 $theme_surface_content:  #f4f7fa;   // Content area background
 ```
 

@@ -622,7 +622,7 @@ Verify structure manually:
 
 **Key Takeaways:**
 
-1. **Four-level hierarchy:** Target → Format → Installation (highest to lowest priority)
+1. **Four-level hierarchy:** Target → Format → Packaged (.base) → Installation (highest to lowest priority)
 2. **Parallel structure is mandatory:** File and folder names must match exactly
 3. **Never modify installation files:** Always copy to project for customizations
 4. **Use Base Format Version:** Match installation version with project version
@@ -636,8 +636,3 @@ Verify structure manually:
 - Rebuild with `-c` flag to clear cache
 - Check build log for file resolution details
 
----
-
-**Document Version:** 1.0
-**Last Updated:** 2025-01-27
-**Compatibility:** ePublisher 2024.1+

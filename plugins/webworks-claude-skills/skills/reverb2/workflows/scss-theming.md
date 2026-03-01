@@ -16,12 +16,12 @@ Ask the user what they want to customize, then route to the correct layer:
 
 | Request | Layer | Jump to |
 |---------|-------|---------|
-| "Change brand colors" | 1 — Variable overrides | Step 3 |
-| "Adjust font sizes / spacing" | 1 — Variable overrides | Step 3 |
-| "Customize toolbar / TOC / navigation look" | 2 — Skin CSS | Step 4 |
-| "Style content page elements" | 3 — Content page CSS | Step 5 |
-| "Show current theme values" | — | Step 2 only |
-| "Migrate .weplugin skin" | — | Step 6 |
+| "Change brand colors" | 1 — Variable overrides | Step 2, then Step 3 |
+| "Adjust font sizes / spacing" | 1 — Variable overrides | Step 2, then Step 3 |
+| "Customize toolbar / TOC / navigation look" | 2 — Skin CSS | Step 2, then Step 4 |
+| "Style content page elements" | 3 — Content page CSS | Step 2, then Step 5 |
+| "Show current theme values" | — | Step 2 (extract only) |
+| "Migrate .weplugin skin" | — | Step 2, then Step 6 |
 
 ## Step 2: Determine Override Level
 
@@ -40,7 +40,7 @@ python scripts/extract-scss-variables.py <project-dir> neo
 
 For detailed exploration of other categories:
 ```bash
-python scripts/extract-scss-variables.py <project-dir> [layout|toolbar|header|footer|menu|sizes]
+python scripts/extract-scss-variables.py <project-dir> [layout|colors|sizes|toolbar|header|footer|menu|page|search|link|all]
 ```
 
 **Script limitation:** `extract-scss-variables.py` only reads `_colors.scss` and `_sizes.scss`. For variables in `_fonts.scss`, `_icons.scss`, or `_borders.scss`, read those files directly from the resolved location.
@@ -49,11 +49,11 @@ python scripts/extract-scss-variables.py <project-dir> [layout|toolbar|header|fo
 
 ### 1. Copy the target partial to the project
 
-Copy from the installation matching the project's Base Format Version (see file-resolver-guide.md):
+Copy from the installation matching the project's Base Format Version. Determine the version by extracting `RuntimeVersion` and `FormatVersion` from the `.wep`/`.wrp`/`.wxsp` file (see file-resolver-guide.md § "Base Format Version"):
 
 ```bash
-# Example: copy _colors.scss to format level
-cp "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss" \
+# Example: copy _colors.scss to format level (replace [version] with Base Format Version)
+cp "C:/Program Files/WebWorks/ePublisher/[version]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss" \
    "[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss"
 ```
 
@@ -96,21 +96,11 @@ $_menu_background_color: $theme_surface_menu;
 $link_default_color:     $theme_accent;
 ```
 
-**Upgrade workflow:** `grep 'theme_'` finds every project customization instantly, making it easy to audit overrides against new Reverb defaults.
-
-See `references/scss-architecture.md` for the full cascade diagram.
+See `references/scss-architecture.md` for the full cascade diagram and upgrade traceability workflow.
 
 ### Other partials
 
-The same copy-and-edit pattern applies to all partials:
-
-| Partial | When to use |
-|---------|-------------|
-| `_colors.scss` | Color scheme changes |
-| `_sizes.scss` | Spacing, padding, dimensions, font sizes |
-| `_fonts.scss` | Font families, weights, styles |
-| `_icons.scss` | Font Awesome icon codepoints |
-| `_borders.scss` | Border widths, styles, colors, radii |
+The same copy-and-edit pattern applies to all partials (`_colors.scss`, `_sizes.scss`, `_fonts.scss`, `_icons.scss`, `_borders.scss`). See `references/scss-architecture.md` § "SCSS Partials Inventory" for the full list with variable counts.
 
 Skip to **Step 7** after editing.
 
@@ -189,16 +179,7 @@ Skip to **Step 7** after editing.
 
 ## Step 6: Migrate `.weplugin` Skin
 
-`.weplugin` files are deprecated zip archives. To migrate:
-
-1. Rename `.weplugin` to `.zip` and extract
-2. Diff extracted files against installation defaults to find actual customizations
-3. Copy customized `_*.scss` partials to the appropriate override level (Step 2)
-4. If `Connect.asp` was customized, copy to `Pages/` at the same override level
-5. Remove the `.weplugin` from the project
-6. Rebuild to verify (Step 7)
-
-See `references/scss-architecture.md` § `.weplugin` Migration for details.
+`.weplugin` files are deprecated zip archives. Follow the detailed migration steps in `references/scss-architecture.md` § `.weplugin` Migration, then rebuild to verify (Step 7).
 
 ## Step 7: Rebuild and Verify
 

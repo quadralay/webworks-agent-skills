@@ -199,7 +199,7 @@ The `on_` prefix denotes contrast color for text/icons on that surface (MD3-insp
 
 ```bash
 python scripts/extract-scss-variables.py <project-dir> neo
-# Categories: neo, layout, toolbar, header, footer, menu, sizes
+# Categories: neo, layout, colors, sizes, toolbar, header, footer, menu, page, search, link, all
 ```
 
 ### Override Priority
