@@ -96,6 +96,7 @@ See [Getting Started](#getting-started) for an introduction.
 - No spaces (alias ends at first space)
 - Must start with `#` inside the comment
 - Keep alias values unique within each file
+- Must be attached to an element (no blank line between alias and element) — same rule as styles
 
 Use `scripts/add-aliases.py` to auto-generate aliases for headings.
 
@@ -254,7 +255,7 @@ See `references/syntax-reference.md` for complete syntax rules.
 
 ## Common Mistakes
 
-**A blank line between a Markdown++ comment tag and its element breaks the association.** See style-association rule above: detached or misindented comments pass through as regular Markdown comments and have no Markdown++ effect.
+**A blank line between a Markdown++ comment tag and its element breaks the association.** This applies to styles, aliases, and markers equally — all must be attached to a paragraph element. Detached or misindented comments pass through as regular Markdown comments and have no Markdown++ effect. Only conditions (which wrap content) are exempt from this rule. See `references/syntax-reference.md` for the complete attachment rules table.
 
 **Indentation of Markdown++ comment tags must match the content line.** In nested lists, if the comment tag is indented but the following content is not (or vice versa), the style passes through as a regular Markdown comment and is not applied.
 

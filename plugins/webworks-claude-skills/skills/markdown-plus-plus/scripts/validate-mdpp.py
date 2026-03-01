@@ -113,6 +113,35 @@ def validate_json(json_str: str) -> tuple[bool, Optional[str]]:
         return False, str(e)
 
 
+# Pattern matching non-exempt MDPP comment tags (style, alias, marker, multiline)
+MDPP_TAG_PATTERN = re.compile(
+    r'<!--\s*(?:style:|#[a-zA-Z0-9_-]+|markers?:|multiline)'
+)
+
+
+def _is_mdpp_tag_line(line: str) -> bool:
+    """True if line's only non-whitespace content is an MDPP comment tag."""
+    stripped = line.strip()
+    if not stripped.startswith('<!--') or not stripped.endswith('-->'):
+        return False
+    return bool(MDPP_TAG_PATTERN.match(stripped))
+
+
+def _has_non_exempt_command(line: str) -> bool:
+    """True if the comment tag contains style, alias, marker, or multiline."""
+    return bool(MDPP_TAG_PATTERN.search(line))
+
+
+def _is_content_line(line: str) -> bool:
+    """True if line is a non-blank, non-MDPP-tag content element."""
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped.startswith('<!--') and MDPP_TAG_PATTERN.match(stripped):
+        return False
+    return True
+
+
 def validate_file(filepath: str, verbose: bool = False) -> list[ValidationIssue]:
     """Validate a Markdown++ file."""
     issues = []
@@ -145,6 +174,10 @@ def validate_file(filepath: str, verbose: bool = False) -> list[ValidationIssue]
         ))
         return issues
 
+    # Code fence tracking — skip all checks inside fenced code blocks
+    code_fence_pattern = re.compile(r'^\s{0,3}(`{3,}|~{3,})')
+    in_code_fence = False
+
     # Track open conditions for matching
     condition_stack = []
 
@@ -152,6 +185,13 @@ def validate_file(filepath: str, verbose: bool = False) -> list[ValidationIssue]
     alias_locations: dict[str, int] = {}  # alias -> first line number
 
     for line_num, line in enumerate(lines, start=1):
+
+        # Toggle code fence state
+        if code_fence_pattern.match(line):
+            in_code_fence = not in_code_fence
+            continue
+        if in_code_fence:
+            continue
 
         # Check for invalid variable names
         for match in PATTERNS['variable_invalid'].finditer(line):
@@ -256,6 +296,41 @@ def validate_file(filepath: str, verbose: bool = False) -> list[ValidationIssue]
                 alias_locations[alias_name] = line_num
                 if verbose:
                     print(f"{Colors.CYAN}[VERBOSE]{Colors.NC} Line {line_num}: Alias defined: #{alias_name}")
+
+    # MDPP009: Check for orphaned comment tags (second pass)
+    in_code_fence = False
+    for line_num, line in enumerate(lines, start=1):
+        # Respect code fence boundaries
+        if code_fence_pattern.match(line):
+            in_code_fence = not in_code_fence
+            continue
+        if in_code_fence:
+            continue
+
+        # Only check lines that are solely an MDPP tag
+        if not _is_mdpp_tag_line(line):
+            continue
+        # Only check non-exempt commands (skip conditions, includes)
+        if not _has_non_exempt_command(line):
+            continue
+
+        # The very next line must be a content element
+        next_line_idx = line_num  # 0-based index of next line (line_num is 1-based)
+        if next_line_idx >= len(lines) or not _is_content_line(lines[next_line_idx]):
+            issues.append(ValidationIssue(
+                type=Severity.WARNING.value,
+                code="MDPP009",
+                message="Orphaned comment tag (not attached to element)",
+                file=filepath,
+                line=line_num,
+                context=line.strip()[:60],
+                suggestion="Remove the blank line between this tag and the element "
+                           "it applies to, or combine with an adjacent tag using "
+                           "semicolons"
+            ))
+            if verbose:
+                print(f"{Colors.CYAN}[VERBOSE]{Colors.NC} Line {line_num}: "
+                      f"Orphaned tag detected")
 
     # Check for unclosed conditions
     for opened_line, opened_expr in condition_stack:

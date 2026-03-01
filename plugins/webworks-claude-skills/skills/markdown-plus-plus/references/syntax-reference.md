@@ -6,6 +6,45 @@ Complete reference for all Markdown++ extensions. This document provides detaile
 
 Markdown++ extends **CommonMark 0.30** with additional features. Standard CommonMark syntax works as expected. GitHub Flavored Markdown (GFM) tables are also supported.
 
+## Attachment Rules
+
+Markdown++ comment tags must be **associated with a paragraph element** — they cannot float alone separated by whitespace. A blank line between a comment tag and its element breaks the association, causing the tag to pass through as a regular HTML comment with no Markdown++ effect.
+
+The following table summarizes attachment requirements for each command type:
+
+| Command | Attachment Required | Blank Line Permitted | Can Be Standalone |
+|---------|:-------------------:|:--------------------:|:-----------------:|
+| Styles (`style:`) | Yes | No | No |
+| Aliases (`#name`) | Yes | No | No |
+| Markers (`marker:`/`markers:`) | Yes | No | No |
+| Conditions (`condition:`) | N/A (wraps content) | Yes (within block) | Yes |
+| Includes (`include:`) | N/A (standalone directive) | N/A | Yes |
+| Multiline (`multiline`) | Yes (above table) | No | No |
+
+**Correct — tag attached to element (no blank line):**
+```markdown
+<!-- marker:IndexMarker="setup" ; #getting-started -->
+## Getting Started
+```
+
+**Correct — document-level markers attached to the Title paragraph:**
+```markdown
+<!-- markers:{"Keywords": "api, docs", "Description": "API reference"} -->
+Heading Title
+=============
+```
+
+**Wrong — blank line breaks the association:**
+```markdown
+## Getting Started
+
+<!-- marker:IndexMarker="setup" ; #getting-started -->
+
+This paragraph will not receive the marker or alias.
+```
+
+---
+
 ## Variables
 
 ### Syntax
@@ -164,13 +203,22 @@ This is <!--style: Emphasis--> **bold text**.
 
 ### Creating Aliases
 
-Place the alias tag on the line above or immediately before the target element:
+Place the alias tag on the line directly above the target element with **no blank line** between them. The same attachment rules that apply to styles apply to aliases — a blank line breaks the association.
 
 ```markdown
 <!--#introduction-->
 ## Introduction
 
 This is the introduction section.
+```
+
+**Wrong — blank line breaks the association:**
+```markdown
+## Introduction
+
+<!--#introduction-->
+
+This paragraph will not receive the alias.
 ```
 
 ### Using Aliases in Links
@@ -366,9 +414,31 @@ Use `marker:key="value"` for single markers, JSON format for multiple.
 
 ### Placement
 
-Markers can be placed:
-- At document start (document-level metadata)
-- Above elements (element-level metadata)
+Markers must be on the line directly above the target element with no blank line between. The same attachment rules that apply to styles and aliases apply to markers.
+
+At the start of a file, markers are typically placed above the Title paragraph — they are attached to the Title, not floating standalone.
+
+**Correct — marker attached to heading:**
+```markdown
+<!-- marker:IndexMarker="setup:initial" -->
+### Installation
+```
+
+**Correct — marker attached to Title paragraph at document start:**
+```markdown
+<!-- markers:{"Keywords": "api", "Description": "API guide"} -->
+API Reference
+=============
+```
+
+**Wrong — blank line breaks the association:**
+```markdown
+### Installation
+
+<!-- marker:IndexMarker="setup:initial" -->
+
+Follow these steps to install...
+```
 
 **Note:** `Keywords` and `Description` markers map to HTML meta tags in web output. See [SKILL.md](../SKILL.md#document-structure) for the recommended document structure combining markers with other commands.
 
@@ -647,6 +717,7 @@ The validation script checks for these issues:
 | MDPP006 | Missing include file | Warning |
 | MDPP007 | Invalid condition syntax | Error |
 | MDPP008 | Duplicate alias within file | Error |
+| MDPP009 | Orphaned comment tag (not attached to element) | Warning |
 
 ---
 
