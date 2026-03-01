@@ -294,7 +294,7 @@ python scripts/generate-report.py project.wep "$PROJECT_INFO" "$CSH_DATA" "$TEST
 python scripts/extract-scss-variables.py /path/to/project neo
 
 # 2. Copy _colors.scss to project, add $theme_* variables, map to $_layout_color_*
-#    See workflows/scss-theming.md Step 3b for detailed instructions
+#    See workflows/scss-theming.md Step 3 for detailed instructions
 
 # 3. Rebuild with automap skill
 ```
