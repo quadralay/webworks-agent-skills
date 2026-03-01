@@ -568,6 +568,39 @@ When upgrading ePublisher:
 
 ## Tools and Scripts
 
+### resolve-version-root.py
+
+Python script for deterministic installation VersionRoot detection (used for `Formats/`, `Adapters/`, and `Helpers/` lookups):
+
+```bash
+python scripts/resolve-version-root.py --project-file "C:\projects\my-proj\project.wep"
+```
+
+**Detection precedence:**
+1. `AUTOMAP_EXE_PATH`
+2. Designer registry (`HKLM\SOFTWARE\WebWorks\ePublisher Designer`)
+3. AutoMap registry (`HKLM\SOFTWARE\WebWorks\ePublisher AutoMap`)
+
+**Output includes:**
+- `versionRoot`
+- `formatsDir`, `adaptersDir`, `helpersDir`
+- `hasFormats`, `hasAdapters`, `hasHelpers`
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--version` | Preferred version (e.g., 2024.1) |
+| `--project-file` | Project file to extract version from |
+| `--path-only` | Print only the path (for shell piping) |
+| `-v, --verbose` | Enable verbose diagnostics |
+
+**Exit Codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | VersionRoot not found |
+| 2 | Invalid arguments |
+
 ### copy-customization.py
 
 Python script for validated file copying with parallel structure enforcement:

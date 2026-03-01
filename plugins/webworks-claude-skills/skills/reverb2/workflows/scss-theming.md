@@ -27,10 +27,12 @@ Ask the user what they want to customize, then route to the correct layer:
 
 Ask: "Apply to a single target or all Reverb 2.0 targets?"
 
-| Scope | Override location |
-|-------|-------------------|
-| Single target | `[Project]/Targets/[Target]/Pages/sass/` |
-| All targets | `[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/` |
+| Scope | `[Override]` directory |
+|-------|----------------------|
+| Single target | `[Project]/Targets/[Target]` |
+| All targets | `[Project]/Formats/WebWorks Reverb 2.0` |
+
+Set `[Override]` to the chosen directory. All subsequent steps use `[Override]` for the destination root.
 
 Extract current values to show what exists:
 
@@ -49,12 +51,17 @@ python scripts/extract-scss-variables.py <project-dir> [layout|colors|sizes|tool
 
 ### 1. Copy the target partial to the project
 
-Copy from the installation matching the project's Base Format Version. Determine the version by extracting `RuntimeVersion` and `FormatVersion` from the `.wep`/`.wrp`/`.wxsp` file (see file-resolver-guide.md § "Base Format Version"):
+Resolve the installation path using `resolve-version-root.py` (from the epublisher skill):
 
 ```bash
-# Example: copy _colors.scss to format level (replace [version] with Base Format Version)
-cp "C:/Program Files/WebWorks/ePublisher/[version]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss" \
-   "[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss"
+python scripts/resolve-version-root.py --project-file <project.wep> --path-only
+```
+
+Then copy from that installation to the override directory:
+
+```bash
+cp "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss" \
+   "[Override]/Pages/sass/_colors.scss"
 ```
 
 ### 2. Add `$theme_` variables at the top of the copied file
@@ -112,7 +119,7 @@ Use when SCSS variables are insufficient and structural CSS changes are needed f
 
 ```bash
 cp "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/skin.scss" \
-   "[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/skin.scss"
+   "[Override]/Pages/sass/skin.scss"
 ```
 
 ### 2. Create `_custom-skin.scss` in the same directory
@@ -147,7 +154,7 @@ Use when customizing the content page inside the iframe (fonts, links, tables, m
 
 ```bash
 cp "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/webworks.scss" \
-   "[Project]/Formats/WebWorks Reverb 2.0/Pages/sass/webworks.scss"
+   "[Override]/Pages/sass/webworks.scss"
 ```
 
 ### 2. Create `_custom-webworks.scss` in the same directory
@@ -179,7 +186,11 @@ Skip to **Step 7** after editing.
 
 ## Step 6: Migrate `.weplugin` Skin
 
-`.weplugin` files are deprecated zip archives. Follow the detailed migration steps in `references/scss-architecture.md` § `.weplugin` Migration, then rebuild to verify (Step 7).
+`.weplugin` files are deprecated zip archives. Follow the detailed migration steps in `references/scss-architecture.md` § `.weplugin` Migration, using:
+- `[Override]/Pages/sass/` for copied `_*.scss` partials
+- `[Override]/Pages/` for copied `Connect.asp` (if present)
+
+Then rebuild to verify (Step 7).
 
 ## Step 7: Rebuild and Verify
 
