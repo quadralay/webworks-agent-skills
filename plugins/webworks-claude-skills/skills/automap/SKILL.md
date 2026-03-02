@@ -50,6 +50,26 @@ Job files inherit format configuration from Stationery projects (.wxsp), enablin
 Do NOT use `detect-installation.sh` to find the CLI path and call it directly. The wrapper is the execution interface.
 </usage>
 
+<script_paths>
+
+## Script Path Convention
+
+All `scripts/` paths in this skill are relative to the skill's base directory (the directory containing this SKILL.md file). When the skill loads, the base directory is provided in the "Base directory for this skill" header.
+
+**When executing scripts, always use the full path from the base directory:**
+
+```bash
+# Correct: use the skill's base directory
+bash /path/to/automap/scripts/automap-wrapper.sh [options] /absolute/path/to/project.waj
+
+# Wrong: assumes scripts/ exists in the current working directory
+bash scripts/automap-wrapper.sh project.waj
+```
+
+**Do NOT `cd` to a project directory before calling scripts.** Pass project and job file paths as arguments — they can be absolute or relative to the current working directory. The wrapper resolves all paths internally.
+
+</script_paths>
+
 <related_skills>
 
 ## Related Skills
@@ -374,6 +394,8 @@ bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 **Do not call the AutoMap CLI directly.** Always use `automap-wrapper.sh`, which handles installation detection, path conversion, safe defaults, and error handling. The `detect-installation.sh` script is for the wrapper's internal use and environment variable caching — not for building a manual CLI invocation.
 
 **Do not use `-t` with job files expecting it to work like project files.** Job files (.waj) control which targets to build via `build="True"` attributes in the file itself. The `-t` option with job files is an override, not the primary mechanism. If a build seems to skip targets, check the job file's `build` attributes first.
+
+**Do not `cd` to a project directory before calling the wrapper.** The wrapper accepts project file paths as arguments. Changing the working directory before calling the script causes `scripts/automap-wrapper.sh` to fail because `scripts/` is relative to the skill directory, not the project directory. Always use the full path to the wrapper script.
 
 </common_mistakes>
 
