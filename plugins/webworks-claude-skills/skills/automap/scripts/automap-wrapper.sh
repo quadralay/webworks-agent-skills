@@ -96,12 +96,12 @@ extract_targets() {
     case "$project_file" in
         *.waj)
             # Job files: <Target name="...">
-            grep -oP '<Target[^>]*\sname="[^"]*"' "$unix_path" 2>/dev/null | \
-                grep -oP 'name="[^"]*"' | sed 's/name="//;s/"$//'
+            grep -o '<Target[^>]* name="[^"]*"' "$unix_path" 2>/dev/null | \
+                grep -o 'name="[^"]*"' | sed 's/name="//;s/"$//'
             ;;
         *.wep|*.wrp|*.wxsp)
             # Project files: <Format TargetName="...">
-            grep -oP 'TargetName="[^"]*"' "$unix_path" 2>/dev/null | \
+            grep -o 'TargetName="[^"]*"' "$unix_path" 2>/dev/null | \
                 sed 's/TargetName="//;s/"$//'
             ;;
     esac
