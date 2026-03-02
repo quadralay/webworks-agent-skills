@@ -27,7 +27,7 @@ import re
 import sys
 from dataclasses import dataclass, asdict
 from enum import Enum
-from typing import Optional
+from collections.abc import Iterator
 
 
 # ANSI color codes
@@ -54,7 +54,7 @@ class ValidationIssue:
     file: str
     line: int
     context: str
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 
 
 # Regex patterns for Markdown++ extensions
@@ -77,7 +77,7 @@ def validate_variable_name(name: str) -> bool:
     return bool(re.match(r'^[a-zA-Z_][a-zA-Z0-9_-]*$', name))
 
 
-def validate_condition_expression(expr: str) -> tuple[bool, Optional[str]]:
+def validate_condition_expression(expr: str) -> tuple[bool, str | None]:
     """
     Validate a condition expression.
     Returns (is_valid, error_message).
@@ -104,7 +104,7 @@ def validate_condition_expression(expr: str) -> tuple[bool, Optional[str]]:
     return True, None
 
 
-def validate_json(json_str: str) -> tuple[bool, Optional[str]]:
+def validate_json(json_str: str) -> tuple[bool, str | None]:
     """Validate JSON string."""
     try:
         json.loads(json_str)
@@ -118,6 +118,9 @@ MDPP_TAG_PATTERN = re.compile(
     r'<!--\s*(?:style:|#[a-zA-Z0-9_-]+|markers?:|multiline)'
 )
 
+# Code fence opening/closing pattern (CommonMark 0.30)
+CODE_FENCE_PATTERN = re.compile(r'^\s{0,3}(`{3,}|~{3,})')
+
 
 def _is_mdpp_tag_line(line: str) -> bool:
     """True if line's only non-whitespace content is an MDPP comment tag."""
@@ -127,19 +130,38 @@ def _is_mdpp_tag_line(line: str) -> bool:
     return bool(MDPP_TAG_PATTERN.match(stripped))
 
 
-def _has_non_exempt_command(line: str) -> bool:
-    """True if the comment tag contains style, alias, marker, or multiline."""
-    return bool(MDPP_TAG_PATTERN.search(line))
-
-
 def _is_content_line(line: str) -> bool:
     """True if line is a non-blank, non-MDPP-tag content element."""
-    stripped = line.strip()
-    if not stripped:
+    if not line.strip():
         return False
-    if stripped.startswith('<!--') and MDPP_TAG_PATTERN.match(stripped):
-        return False
-    return True
+    return not _is_mdpp_tag_line(line)
+
+
+def _iter_outside_fences(lines: list[str]) -> Iterator[tuple[int, str]]:
+    """Yield (1-based line_num, line) for lines outside fenced code blocks.
+
+    Tracks opening fence character and count per CommonMark 0.30:
+    closing fence must use the same character and at least as many repetitions.
+    """
+    in_fence = False
+    fence_char: str | None = None
+    fence_count = 0
+    for line_num, line in enumerate(lines, start=1):
+        m = CODE_FENCE_PATTERN.match(line)
+        if m:
+            char = m.group(1)[0]
+            count = len(m.group(1))
+            if not in_fence:
+                in_fence = True
+                fence_char = char
+                fence_count = count
+                continue
+            elif char == fence_char and count >= fence_count:
+                in_fence = False
+                fence_char = None
+                continue
+        if not in_fence:
+            yield line_num, line
 
 
 def validate_file(filepath: str, verbose: bool = False) -> list[ValidationIssue]:
@@ -174,24 +196,13 @@ def validate_file(filepath: str, verbose: bool = False) -> list[ValidationIssue]
         ))
         return issues
 
-    # Code fence tracking — skip all checks inside fenced code blocks
-    code_fence_pattern = re.compile(r'^\s{0,3}(`{3,}|~{3,})')
-    in_code_fence = False
-
     # Track open conditions for matching
     condition_stack = []
 
     # Track aliases for uniqueness check
     alias_locations: dict[str, int] = {}  # alias -> first line number
 
-    for line_num, line in enumerate(lines, start=1):
-
-        # Toggle code fence state
-        if code_fence_pattern.match(line):
-            in_code_fence = not in_code_fence
-            continue
-        if in_code_fence:
-            continue
+    for line_num, line in _iter_outside_fences(lines):
 
         # Check for invalid variable names
         for match in PATTERNS['variable_invalid'].finditer(line):
@@ -298,20 +309,8 @@ def validate_file(filepath: str, verbose: bool = False) -> list[ValidationIssue]
                     print(f"{Colors.CYAN}[VERBOSE]{Colors.NC} Line {line_num}: Alias defined: #{alias_name}")
 
     # MDPP009: Check for orphaned comment tags (second pass)
-    in_code_fence = False
-    for line_num, line in enumerate(lines, start=1):
-        # Respect code fence boundaries
-        if code_fence_pattern.match(line):
-            in_code_fence = not in_code_fence
-            continue
-        if in_code_fence:
-            continue
-
-        # Only check lines that are solely an MDPP tag
+    for line_num, line in _iter_outside_fences(lines):
         if not _is_mdpp_tag_line(line):
-            continue
-        # Only check non-exempt commands (skip conditions, includes)
-        if not _has_non_exempt_command(line):
             continue
 
         # The very next line must be a content element

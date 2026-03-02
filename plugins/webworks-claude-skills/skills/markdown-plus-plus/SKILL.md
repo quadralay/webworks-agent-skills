@@ -233,6 +233,7 @@ python scripts/validate-mdpp.py document.md
 - Malformed marker JSON
 - Circular file includes
 - Duplicate alias values within a file
+- Orphaned comment tags (tag not attached to element)
 
 ## Alias Generation
 

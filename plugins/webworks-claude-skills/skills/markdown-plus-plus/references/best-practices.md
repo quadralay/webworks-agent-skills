@@ -103,15 +103,6 @@ This is just regular text that doesn't need a style.
 Later: See [Authentication](#api-authentication) for details.
 ```
 
-**Example - Wrong (blank line breaks association):**
-```markdown
-## Authenticating with the API
-
-<!--#api-authentication-->
-
-This paragraph will not receive the alias.
-```
-
 **Generate aliases automatically:**
 ```bash
 python scripts/add-aliases.py document.md --levels 1,2,3

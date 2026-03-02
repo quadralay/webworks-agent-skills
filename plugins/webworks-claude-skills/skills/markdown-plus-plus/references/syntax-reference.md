@@ -203,22 +203,13 @@ This is <!--style: Emphasis--> **bold text**.
 
 ### Creating Aliases
 
-Place the alias tag on the line directly above the target element with **no blank line** between them. The same attachment rules that apply to styles apply to aliases — a blank line breaks the association.
+Place the alias tag on the line directly above the target element with **no blank line** between them. See [Attachment Rules](#attachment-rules) for placement requirements.
 
 ```markdown
 <!--#introduction-->
 ## Introduction
 
 This is the introduction section.
-```
-
-**Wrong — blank line breaks the association:**
-```markdown
-## Introduction
-
-<!--#introduction-->
-
-This paragraph will not receive the alias.
 ```
 
 ### Using Aliases in Links
@@ -414,7 +405,7 @@ Use `marker:key="value"` for single markers, JSON format for multiple.
 
 ### Placement
 
-Markers must be on the line directly above the target element with no blank line between. The same attachment rules that apply to styles and aliases apply to markers.
+Markers must be on the line directly above the target element with no blank line between. See [Attachment Rules](#attachment-rules) for placement requirements.
 
 At the start of a file, markers are typically placed above the Title paragraph — they are attached to the Title, not floating standalone.
 
@@ -429,15 +420,6 @@ At the start of a file, markers are typically placed above the Title paragraph �
 <!-- markers:{"Keywords": "api", "Description": "API guide"} -->
 API Reference
 =============
-```
-
-**Wrong — blank line breaks the association:**
-```markdown
-### Installation
-
-<!-- marker:IndexMarker="setup:initial" -->
-
-Follow these steps to install...
 ```
 
 **Note:** `Keywords` and `Description` markers map to HTML meta tags in web output. See [SKILL.md](../SKILL.md#document-structure) for the recommended document structure combining markers with other commands.
