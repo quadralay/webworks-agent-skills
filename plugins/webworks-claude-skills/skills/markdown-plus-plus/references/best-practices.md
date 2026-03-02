@@ -93,6 +93,8 @@ This is just regular text that doesn't need a style.
 
 **Keep alias values unique within each file.** The validation script checks for duplicates.
 
+**Aliases must be attached to their element** (no blank line between). The same attachment rule that applies to styles applies to aliases and element-level markers. See `syntax-reference.md` for the complete attachment rules table.
+
 **Example - Good:**
 ```markdown
 <!--#api-authentication-->
@@ -402,6 +404,29 @@ header.md includes main.md  <!-- Circular! -->
 
 **Right:**
 Ensure include chains never loop back.
+
+### 7. Orphaned Aliases and Markers
+
+Aliases and element-level markers follow the same attachment rule as styles — they must be on the line directly above the element they apply to, with no blank line between.
+
+**Wrong:**
+```markdown
+### Installation
+
+<!-- marker:IndexMarker="setup" ; #installation -->
+
+Follow these steps to install...
+```
+
+**Right:**
+```markdown
+<!-- marker:IndexMarker="setup" ; #installation -->
+### Installation
+
+Follow these steps to install...
+```
+
+**Note:** Markers at the start of a file are not exempt — they are attached to the Title paragraph that follows them. Conditions are exempt because they wrap content rather than attaching to a single element.
 
 ## Performance Considerations
 
