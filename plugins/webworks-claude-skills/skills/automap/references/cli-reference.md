@@ -148,6 +148,17 @@ bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
 - **Trade-off**: No build reports generated (errors and warnings still shown in console)
 - **Example**: `-c -n --skip-reports project.wep`
 
+### Information
+
+**`--version, -v`** *(2025.1, build 4652+)*
+- **Purpose**: Display the product version and exit
+- **Output format**: `Major.Minor.Build` (e.g., `2025.1.4652`)
+- **Use When**: Determining the build number for golden output naming, verifying which build is installed, scripting build-specific workflows
+- **Examples**:
+  - Display version: `"path/to/WebWorks.Automap.exe" --version`
+  - Extract build number: `"path/to/WebWorks.Automap.exe" --version | awk -F. '{print $3}'`
+- **Note**: Available in all ePublisher products (AutoMap, Designer, Express). Not available in builds prior to 4652.
+
 ### Output Control
 
 **Default behavior:** The wrapper runs in minimal output mode, showing only errors and final build status. This is optimized for AI-assisted workflows where verbose output increases token costs.
@@ -493,6 +504,6 @@ When adding a new AutoMap CLI option to this skill, update these locations:
 
 ---
 
-**Version**: 2.4.0
-**Last Updated**: 2026-01-10
-**Target**: ePublisher 2024.1+ AutoMap CLI (--skip-reports requires 2025.1+)
+**Version**: 2.5.0
+**Last Updated**: 2026-03-19
+**Target**: ePublisher 2024.1+ AutoMap CLI (--skip-reports requires 2025.1+, --version requires 2025.1 build 4652+)
