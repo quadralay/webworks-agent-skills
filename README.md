@@ -26,6 +26,7 @@ All skills activate automatically based on your project context.
 | **epublisher** | ePublisher project knowledge, file resolver hierarchy, customization patterns |
 | **automap** | Automated publishing with AutoMap CLI |
 | **reverb** | Reverb 2.0 output testing, CSH analysis, SCSS theming |
+| **humanizer** | Remove signs of AI-generated writing from text ([submodule](https://github.com/blader/humanizer)) |
 
 ## Example Workflows
 
@@ -61,6 +62,7 @@ Claude: Guides you through SCSS variable overrides with proper cascade mappings
 | epublisher | Windows | ePublisher 2024.1+ |
 | automap | Windows | ePublisher + AutoMap |
 | reverb | Windows | ePublisher + browser |
+| humanizer | Any | Claude Code or Claude Desktop |
 
 ## Contributing
 
