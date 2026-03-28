@@ -1,0 +1,3 @@
+[submodule "plugins/humanizer/skills/humanizer"]
+	path = plugins/humanizer/skills/humanizer
+	url = https://github.com/blader/humanizer.git

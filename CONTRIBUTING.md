@@ -10,14 +10,20 @@
 ## Repository Structure
 
 ```
-plugins/webworks-claude-skills/
-├── plugin.json
-└── skills/
-    └── skill-name/
-        ├── SKILL.md           # Skill definition
-        ├── scripts/           # Helper scripts (optional)
-        │   └── lib/           # Shared Python modules
-        └── references/        # Reference documentation
+plugins/
+├── webworks-claude-skills/        # Native plugin (owned by this repo)
+│   ├── .claude-plugin/plugin.json
+│   └── skills/
+│       └── skill-name/
+│           ├── SKILL.md           # Skill definition
+│           ├── scripts/           # Helper scripts (optional)
+│           │   └── lib/           # Shared Python modules
+│           └── references/        # Reference documentation
+└── humanizer/                     # Submodule-backed plugin
+    ├── .claude-plugin/plugin.json # Plugin wrapper (owned by this repo)
+    └── skills/
+        └── humanizer/             # Git submodule → blader/humanizer
+            └── SKILL.md
 ```
 
 ## SKILL.md Authoring
@@ -62,6 +68,8 @@ The script updates both version locations automatically:
 - `plugins/webworks-claude-skills/.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
 
+**Note:** The `humanizer` plugin version in `plugins/humanizer/.claude-plugin/plugin.json` tracks the upstream [blader/humanizer](https://github.com/blader/humanizer) release and is **not** managed by this script.
+
 **When to bump:**
 
 | Type | Use For | Example |
@@ -71,6 +79,35 @@ The script updates both version locations automatically:
 | `major` | Breaking changes, major restructuring | 2.1.0 → 3.0.0 |
 
 **Note:** Claude Code is aware of this workflow via CLAUDE.md and will run the bump script when preparing PRs.
+
+## Git Submodules
+
+The `humanizer` plugin is backed by a git submodule pointing to [blader/humanizer](https://github.com/blader/humanizer). This repo does not have push access to the upstream — it only tracks a specific commit.
+
+**Cloning with submodules:**
+
+```bash
+git clone --recurse-submodules <repo-url>
+
+# Or if already cloned:
+git submodule update --init --recursive
+```
+
+**Updating to the latest upstream version:**
+
+```bash
+cd plugins/humanizer/skills/humanizer
+git pull origin main
+cd ../../../..
+git add plugins/humanizer/skills/humanizer
+git commit -m "Update humanizer submodule to latest"
+```
+
+**If you need to make changes to the skill:** Fork [blader/humanizer](https://github.com/blader/humanizer), then update the submodule URL:
+
+```bash
+git submodule set-url plugins/humanizer/skills/humanizer https://github.com/<your-fork>/humanizer.git
+```
 
 ## Pull Requests
 
