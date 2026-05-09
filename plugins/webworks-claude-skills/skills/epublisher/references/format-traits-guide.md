@@ -205,6 +205,8 @@ A trimmed `<Project>` skeleton showing both scopes wired up correctly:
 </Project>
 ```
 
+`ChangeID` attributes were elided from this skeleton for readability. Real `.wep` files carry a `ChangeID` attribute on `<GlobalConfiguration>`, each `<Rules>` block, and each `<FormatConfiguration>`. See `templates/project.wep` for the empty-string placeholder pattern (`ChangeID=""`) used when authoring new elements by hand; ePublisher populates the value when the project is opened and saved.
+
 ## Accessing Traits in XSL Transforms
 
 ### FormatSettings
@@ -306,6 +308,8 @@ This file is sourced from the ePublisher product source code at `dev/source/wind
 
 When running diff-based golden tests on Reverb output, three target settings are commonly needed: pretty-print enabled (so HTML diffs are human-readable line-by-line), first document used as the splash page (so the entry point is deterministic), and in-document page breaks disabled (so a single document does not split into multiple HTML files). The snippet below wires all three into a `<FormatConfiguration TargetID="…">` using the corrected schema.
 
+Before adapting the snippet to a real project, look up the actual `TargetID` for your test target by running `python scripts/parse-targets.py --json <project.wep>` and copy the `targetId` for the format you want to configure. The placeholder `rvbDsgn001` will not match an existing `<Format>` element in your project, and ePublisher silently ignores `<FormatConfiguration>` blocks whose `TargetID` does not resolve.
+
 ```xml
 <FormatConfiguration TargetID="rvbDsgn001">
   <FormatSettings>
@@ -337,5 +341,5 @@ Setting `split-priority` to `0` on the Paragraph prototype rule cascades to ever
 ---
 
 **Version**: 1.0.0
-**Last Updated**: 2026-02-26
+**Last Updated**: 2026-05-09
 **Compatibility**: ePublisher 2024.1+

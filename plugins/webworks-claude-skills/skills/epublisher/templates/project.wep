@@ -9,6 +9,7 @@
     <Group Name="Docs" Type="normal" Included="true" GroupID="QeGxWoyPnS0" ChangeID="" />
   </Groups>
   <GlobalConfiguration ChangeID="A6CpOGl6bic">
+    <!-- When adapting the example below: every <Option> and <Property> must carry Source="Explicit", or ePublisher rejects the file at load time with "The specified file is not a valid ePublisher project". -->
     <!-- Example populated rule (uncomment and adapt to apply per-style traits):
     <Rules Type="Paragraph" Default="{WWDefaultRule}" ChangeID="">
       <Rule Key="{WWDefaultRule}" />
