@@ -11,7 +11,7 @@ symptoms:
 root_cause: Backticks, exclamation marks, and pipes in markdown tables are interpreted by bash during skill loading
 date_solved: 2025-12-27
 related_files:
-  - plugins/webworks-claude-skills/skills/markdown-plus-plus/SKILL.md
+  - CONTRIBUTING.md
 ---
 
 # Bash Syntax Errors from Character Sequences in SKILL.md Tables
@@ -99,5 +99,5 @@ Before publishing a SKILL.md file:
 
 ## Related
 
-- PR #11: [Fix skill bash syntax error in operators table](https://github.com/quadralay/webworks-claude-skills/pull/11)
-- File: `plugins/webworks-claude-skills/skills/markdown-plus-plus/SKILL.md`
+- PR #11: [Fix skill bash syntax error in operators table](https://github.com/quadralay/webworks-claude-skills/pull/11) — original fix landed in the bundled `markdown-plus-plus` SKILL.md (since migrated to `quadralay/markdown-plus-plus` in issue #67)
+- `CONTRIBUTING.md` — repo-wide guidance citing this learning

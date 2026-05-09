@@ -1,7 +1,7 @@
 {
   "name": "webworks-claude-skills",
-  "version": "2.8.0",
-  "description": "Claude Code skills for WebWorks ePublisher platform: Markdown++ authoring, project management, AutoMap automation, and Reverb output testing",
+  "version": "2.9.0",
+  "description": "Claude Code skills for WebWorks ePublisher platform: project management, Markdown++ integration, AutoMap automation, and Reverb output testing",
   "author": {
     "name": "Quadralay Corporation",
     "email": "support@webworks.com",

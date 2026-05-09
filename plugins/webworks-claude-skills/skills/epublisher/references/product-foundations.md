@@ -61,12 +61,14 @@ When this skill's references are insufficient, use these authoritative sources i
 
 ## Skill Workflow
 
-The four skills form a pipeline:
+The four skills in this plugin form a pipeline:
 
 1. **epublisher** — Understand project structure, targets, file resolver
-2. **automap** — Execute builds via CLI
-3. **reverb2** — Test and customize Reverb 2.0 output
-4. **markdown-plus-plus** — Author/edit Markdown++ source documents (peer skill, used alongside any of the above)
+2. **markdown-integration** — Wire Markdown++ source documents into the project (variable resolution, style mapping to Stationery, condition layering, helper-adapter behavior)
+3. **automap** — Execute builds via CLI
+4. **reverb2** — Test and customize Reverb 2.0 output
+
+For Markdown++ format syntax, validation, and authoring best practices, install the separate **markdown-plus-plus** skill from the [`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus) plugin. The **markdown-integration** skill in this plugin assumes that knowledge and focuses on the ePublisher integration layer.
 
 ## Output Localization
 
