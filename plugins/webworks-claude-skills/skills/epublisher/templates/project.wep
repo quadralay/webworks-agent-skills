@@ -9,6 +9,16 @@
     <Group Name="Docs" Type="normal" Included="true" GroupID="QeGxWoyPnS0" ChangeID="" />
   </Groups>
   <GlobalConfiguration ChangeID="A6CpOGl6bic">
+    <!-- Example populated rule (uncomment and adapt to apply per-style traits):
+    <Rules Type="Paragraph" Default="{WWDefaultRule}" ChangeID="">
+      <Rule Key="{WWDefaultRule}" />
+      <Rule Key="Heading 1">
+        <Options>
+          <Option Name="split-priority" Value="1" Source="Explicit" />
+        </Options>
+      </Rule>
+    </Rules>
+    -->
     <Rules Type="Paragraph" Default="{WWDefaultRule}" ChangeID="">
       <Rule Key="{WWDefaultRule}" />
     </Rules>

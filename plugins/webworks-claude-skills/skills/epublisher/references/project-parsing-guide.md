@@ -36,6 +36,8 @@ ePublisher project files are XML documents with this high-level structure:
 </Project>
 ```
 
+For per-style trait configuration inside `<GlobalConfiguration>` or `<FormatConfiguration>`, including the `{WWDefaultRule}` prototype literal and the global-vs-per-target scope distinction, see [`format-traits-guide.md`](./format-traits-guide.md).
+
 ## Parsing Targets and Formats
 
 ### Format Element Structure

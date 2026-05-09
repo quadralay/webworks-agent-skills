@@ -65,6 +65,8 @@ The `category` attribute determines which style types this trait applies to: `Pa
 
 ### FormatSettings (target-wide)
 
+In a `.wwfmt` target definition:
+
 ```xml
 <Target Name="WebWorks Reverb 2.0" ...>
   <FormatSettings>
@@ -75,11 +77,24 @@ The `category` attribute determines which style types this trait applies to: `Pa
 </Target>
 ```
 
+In a `.wep` project file, the same `<FormatSettings>` wrapper appears inside a per-target `<FormatConfiguration>`:
+
+```xml
+<FormatConfiguration TargetID="rvbDsgn001">
+  <FormatSettings>
+    <FormatSetting Name="file-processing-pretty-print" Value="true" />
+    <FormatSetting Name="connect-browser-tab-title" Value="My Help System" />
+  </FormatSettings>
+</FormatConfiguration>
+```
+
+The `<FormatSettings>` wrapper is required. Bare `<FormatSetting>` elements placed as direct children of `<FormatConfiguration>` are silently ignored — the build succeeds but the values do not take effect.
+
 ### Options and Properties (per style rule)
 
 ```xml
-<Rules>
-  <Rule StyleName="Heading 1" Category="Paragraph">
+<Rules Type="Paragraph" Default="{WWDefaultRule}">
+  <Rule Key="Heading 1">
     <Options>
       <Option Name="split-priority" Value="1" Source="Explicit" />
       <Option Name="toc-level" Value="1" Source="Explicit" />
@@ -91,7 +106,104 @@ The `category` attribute determines which style types this trait applies to: `Pa
 </Rules>
 ```
 
-The `Source` attribute indicates whether the value was explicitly set (`Explicit`) or inherited (`Inherit`).
+The style category (`Paragraph`, `Character`, `Table`, `Page`, `Marker`, or `Graphic`) lives on the parent `<Rules>` element as `Type=`, not on individual `<Rule>` elements. The `Default=` attribute names the prototype rule that supplies inherited defaults — see [The `{WWDefaultRule}` prototype rule](#the-wwdefaultrule-prototype-rule) below. Each `<Rule>` is identified by `Key=` (a style name string, or the `{WWDefaultRule}` literal for the prototype).
+
+`Source="Explicit"` is required on every `<Option>` and `<Property>` — omitting it causes ePublisher to reject the project at load time with `"The specified file is not a valid ePublisher project"`. Use `Source="Inherit"` only when explicitly recording an inherited value.
+
+### The `{WWDefaultRule}` prototype rule
+
+The literal string `{WWDefaultRule}` (braces included) is the internal `Key` for the row the ePublisher Designer UI displays as `[Prototype]`. Setting Options or Properties on `<Rule Key="{WWDefaultRule}">` applies that value as the default for every style in the category — every Paragraph style inherits from the Paragraph prototype, every Page style from the Page prototype, and so on.
+
+The `Default="{WWDefaultRule}"` attribute on the parent `<Rules>` element ties the block to its prototype rule. ePublisher writes this exact attribute pair on every `<Rules>` block it generates; project files that omit `Default=` will not load.
+
+```xml
+<Rules Type="Paragraph" Default="{WWDefaultRule}">
+  <Rule Key="{WWDefaultRule}">
+    <Options>
+      <Option Name="split-priority" Value="1" Source="Explicit" />
+    </Options>
+  </Rule>
+  <Rule Key="Heading 1">
+    <!-- Heading 1 inherits split-priority=1 from the prototype unless overridden here -->
+  </Rule>
+</Rules>
+```
+
+## Global vs per-target style overrides
+
+Trait values can be configured at two scopes inside a `.wep`. Both scopes use the same `<Rules>` / `<Rule>` shape shown above.
+
+- **`<GlobalConfiguration>`** carries traits that apply to every target in the project. Use this for project-wide defaults — an Option on the Paragraph prototype here cascades into every target's build.
+- **`<FormatConfiguration TargetID="…">`** carries per-target overrides. The `TargetID` must match the `TargetID` on a `<Format>` element in `<Formats>`. Values placed here only apply to that one target and override anything inherited from `<GlobalConfiguration>`.
+
+`<FormatConfiguration>` holds more than just `<Rules>`. Its children:
+
+- `<Rules>` — per-target style rule overrides (Options and Properties), grouped by category.
+- `<Conditions>` — target-specific condition values (which conditions are on or off for this target).
+- `<Variables>` — target-specific variable values that override the project-wide defaults.
+- `<XRefFormats>` — target-specific cross-reference format strings.
+- `<FormatSettings>` — what the UI labels "Target Settings" — target-wide trait values.
+- `<MergeSettings>` — group/document merge configuration for this target's output.
+
+Trait resolution order at build time: explicit per-target value → per-target inherit → explicit global value → prototype default.
+
+### End-to-end example
+
+A trimmed `<Project>` skeleton showing both scopes wired up correctly:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Project Version="1.1.2.0"
+         ProjectID="hMDzxVACF5I"
+         RuntimeVersion="2025.1"
+         FormatVersion="{Current}"
+         xmlns="urn:WebWorks-Publish-Project">
+  <Formats>
+    <Format TargetName="Reverb Design"
+            Name="WebWorks Reverb 2.0"
+            Type="Application"
+            TargetID="rvbDsgn001">
+      <OutputDirectory>Output\Reverb Design</OutputDirectory>
+    </Format>
+  </Formats>
+
+  <!-- ... <Groups> elided ... -->
+
+  <GlobalConfiguration>
+    <Rules Type="Paragraph" Default="{WWDefaultRule}">
+      <Rule Key="{WWDefaultRule}">
+        <Options>
+          <Option Name="split-priority" Value="1" Source="Explicit" />
+        </Options>
+      </Rule>
+      <Rule Key="Heading 1">
+        <Options>
+          <Option Name="toc-level" Value="1" Source="Explicit" />
+        </Options>
+        <Properties>
+          <Property Name="font-size" Value="18pt" Source="Explicit" />
+        </Properties>
+      </Rule>
+    </Rules>
+    <Rules Type="Page" Default="{WWDefaultRule}">
+      <Rule Key="{WWDefaultRule}">
+        <Properties>
+          <Property Name="breadcrumbs-separator" Value=" : " Source="Explicit" />
+        </Properties>
+      </Rule>
+    </Rules>
+  </GlobalConfiguration>
+
+  <FormatConfigurations>
+    <FormatConfiguration TargetID="rvbDsgn001">
+      <FormatSettings>
+        <FormatSetting Name="file-processing-pretty-print" Value="true" />
+      </FormatSettings>
+    </FormatConfiguration>
+  </FormatConfigurations>
+  <!-- ... <AdapterConfigurations>, <ProjectSettings /> elided ... -->
+</Project>
+```
 
 ## Accessing Traits in XSL Transforms
 
@@ -189,6 +301,38 @@ When the `.resx` lookup is insufficient (e.g., you need to know the default valu
 This file is sourced from the ePublisher product source code at `dev/source/windows/dotnet/WebWorks/Publish/Core/Resources/FormatTraitInfoStrings.resx`. Update it when a new ePublisher version is released. The format is backward compatible — new entries are added but existing entries are not renamed or removed.
 
 **Note:** Settings and Options have a direct one-to-one mapping between their `.resx` UI display name and their internal `.fti` name. Properties do not — the UI organizes Properties into a hierarchical tree (e.g., `text-indent` appears under **Text > Flow > Indent**), so there is no single UI label that matches the internal name. Property internal names follow the standard CSS property naming model, so they can usually be extrapolated from the CSS property name (e.g., `font-size`, `margin-left`, `text-indent`, `color`).
+
+## Golden Test Project
+
+When running diff-based golden tests on Reverb output, three target settings are commonly needed: pretty-print enabled (so HTML diffs are human-readable line-by-line), first document used as the splash page (so the entry point is deterministic), and in-document page breaks disabled (so a single document does not split into multiple HTML files). The snippet below wires all three into a `<FormatConfiguration TargetID="…">` using the corrected schema.
+
+```xml
+<FormatConfiguration TargetID="rvbDsgn001">
+  <FormatSettings>
+    <FormatSetting Name="file-processing-pretty-print" Value="true" />
+    <FormatSetting Name="show-first-document" Value="true" />
+  </FormatSettings>
+  <Rules Type="Paragraph" Default="{WWDefaultRule}">
+    <Rule Key="{WWDefaultRule}">
+      <Options>
+        <Option Name="split-priority" Value="0" Source="Explicit" />
+      </Options>
+    </Rule>
+  </Rules>
+</FormatConfiguration>
+```
+
+Trait names used here, with their UI labels:
+
+| Internal name | UI label | Where it lives |
+|---|---|---|
+| `file-processing-pretty-print` | "Pretty Print" | `<FormatSetting>` (target-wide) |
+| `show-first-document` | "Use first document as splash page" | `<FormatSetting>` (target-wide) |
+| `split-priority` | "Page break priority" | `<Option>` on a Paragraph `<Rule>` |
+
+See `FormatTraitInfoStrings.resx` and the [Looking Up Trait Names](#looking-up-trait-names) section above for additional UI-to-internal-name mappings.
+
+Setting `split-priority` to `0` on the Paragraph prototype rule cascades to every Paragraph style, suppressing the splits that would otherwise produce multi-file output. For finer-grained control over individual style behavior, the CSS `page-break-before`, `page-break-after`, and `page-break-inside` Properties are the per-style alternative.
 
 ---
 
