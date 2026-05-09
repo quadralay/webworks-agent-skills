@@ -119,20 +119,13 @@ Changed from simple string author to object format matching Claude Code's offici
 
 Updated `.claude-plugin/marketplace.json` version from 2.0.8 to 2.1.0 to match.
 
-### 4. Fix GitHub Actions Workflow (Secondary Issue)
+### 4. Fix Version-Bump Path References (Secondary Issue)
 
-After the plugin.json move, the version-bump workflow broke because it referenced the old path.
+After the plugin.json move, the version-bump tooling broke because it referenced the old path.
 
-**File:** `.github/workflows/version-bump.yml`
+At the time of this fix, version bumping ran through `.github/workflows/version-bump.yml`, which had three references to `plugins/webworks-claude-skills/plugin.json` that needed to be updated to `plugins/webworks-claude-skills/.claude-plugin/plugin.json`.
 
-Updated 3 path references:
-```yaml
-# Before
-plugins/webworks-claude-skills/plugin.json
-
-# After
-plugins/webworks-claude-skills/.claude-plugin/plugin.json
-```
+That workflow was later removed (commit `fd51c6e`) and replaced by a manual script: `scripts/bump-version.sh`. The script reads the same `.claude-plugin/plugin.json` path, so the principle still applies — when moving plugin config, audit every consumer (CI workflows, scripts, docs) that references the old location.
 
 ## Verification
 
@@ -169,7 +162,7 @@ Always document the correct plugin structure for new developers.
 
 - `plugins/webworks-claude-skills/.claude-plugin/plugin.json` - Plugin configuration
 - `.claude-plugin/marketplace.json` - Marketplace definition
-- `.github/workflows/version-bump.yml` - Version automation
+- `scripts/bump-version.sh` - Manual version-bump script (replaced the removed `.github/workflows/version-bump.yml`)
 - `plans/fix-plugin-structure-for-skill-registration.md` - Original investigation plan
 
 ## References
