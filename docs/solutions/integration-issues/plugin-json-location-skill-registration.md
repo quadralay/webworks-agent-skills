@@ -123,7 +123,7 @@ Updated `.claude-plugin/marketplace.json` version from 2.0.8 to 2.1.0 to match.
 
 After the plugin.json move, the version-bump workflow broke because it referenced the old path.
 
-**File:** `.github/workflows/version-bump.yml`
+**File:** `.github/workflows/version-bump.yml` (since removed — see note below)
 
 Updated 3 path references:
 ```yaml
@@ -133,6 +133,8 @@ plugins/webworks-claude-skills/plugin.json
 # After
 plugins/webworks-claude-skills/.claude-plugin/plugin.json
 ```
+
+> **Note (2026-05-09):** The automated version-bump workflow was later removed (commit `fd51c6e`) and replaced with the manual `scripts/bump-version.sh` script. Version bumps are now run locally before opening a PR. The path-cascade lesson still applies — when moving config files, update every script and workflow that references the old path.
 
 ## Verification
 
@@ -169,7 +171,7 @@ Always document the correct plugin structure for new developers.
 
 - `plugins/webworks-claude-skills/.claude-plugin/plugin.json` - Plugin configuration
 - `.claude-plugin/marketplace.json` - Marketplace definition
-- `.github/workflows/version-bump.yml` - Version automation
+- `scripts/bump-version.sh` - Manual version-bump script (replaced the prior `.github/workflows/version-bump.yml` automation in commit `fd51c6e`)
 - `plans/fix-plugin-structure-for-skill-registration.md` - Original investigation plan
 
 ## References
