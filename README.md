@@ -22,11 +22,13 @@ All skills activate automatically based on your project context.
 
 | Skill | What It Does |
 |-------|--------------|
-| **markdown-plus-plus** | Authoritative reference for Markdown++ syntax (variables, conditions, styles, aliases, includes) |
 | **epublisher** | ePublisher project knowledge, file resolver hierarchy, customization patterns |
+| **markdown-integration** | ePublisher integration patterns for Markdown++ sources (variable resolution, style mapping to Stationery, per-target conditions) |
 | **automap** | Automated publishing with AutoMap CLI |
 | **reverb** | Reverb 2.0 output testing, CSH analysis, SCSS theming |
 | **humanizer** | Remove signs of AI-generated writing from text ([submodule](https://github.com/blader/humanizer)) |
+
+For Markdown++ **format syntax**, validation, and authoring best practices, install the companion plugin [`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus). The `markdown-integration` skill in this plugin defers to it for format-level concerns and focuses on the ePublisher integration layer.
 
 ## Example Workflows
 
@@ -42,10 +44,11 @@ You: "Test the Reverb output for JavaScript errors"
 Claude: Launches browser, checks console, reports issues
 ```
 
-**Markdown++ authoring:**
+**Markdown++ integration:**
 ```
-You: "Fix the Markdown++ syntax in this file"
-Claude: Validates syntax, corrects errors using authoritative reference
+You: "Why does $product_name; render as literal text in the PDF target?"
+Claude: Walks the variable resolution hierarchy (Stationery → project → target → job file)
+        and identifies which level is missing the value
 ```
 
 **Theming:**
@@ -58,8 +61,8 @@ Claude: Guides you through SCSS variable overrides with proper cascade mappings
 
 | Skill | Platform | Requirements |
 |-------|----------|--------------|
-| markdown-plus-plus | Any | Claude Code or Claude Desktop |
 | epublisher | Windows | ePublisher 2024.1+ |
+| markdown-integration | Windows | ePublisher 2024.1+ (paired with `quadralay/markdown-plus-plus` for format syntax) |
 | automap | Windows | ePublisher + AutoMap |
 | reverb | Windows | ePublisher + browser |
 | humanizer | Any | Claude Code or Claude Desktop |

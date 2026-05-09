@@ -32,13 +32,19 @@ This skill provides foundational knowledge used by other skills in this plugin:
 
 | Skill | When to Use |
 |-------|-------------|
+| **markdown-integration** | When source documents are Markdown++; covers variable resolution, style mapping to Stationery, and per-target conditions |
 | **automap** | After understanding project structure, use automap to execute builds |
 | **reverb2** | After building Reverb output, use reverb2 skill to test and customize |
 
+**External:**
+
+- **markdown-plus-plus** ([`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus)) — Markdown++ format syntax, validation, and authoring best practices. Install separately when working with Markdown++ source documents.
+
 **Typical workflow:**
 1. Use **epublisher** to understand project files and targets
-2. Use **automap** to build specific targets
-3. Use **reverb2** to test and customize Reverb 2.0 output
+2. Use **markdown-integration** when wiring Markdown++ sources into the project
+3. Use **automap** to build specific targets
+4. Use **reverb2** to test and customize Reverb 2.0 output
 
 </related_skills>
 

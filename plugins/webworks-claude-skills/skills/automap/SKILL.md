@@ -77,7 +77,12 @@ bash scripts/automap-wrapper.sh project.waj
 | Skill | Relationship |
 |-------|--------------|
 | **epublisher** | Use first to understand project structure, target names, and product foundations; see `../epublisher/references/product-foundations.md` for cross-cutting product knowledge |
+| **markdown-integration** | Use when the project's source documents are Markdown++; covers helper-adapter behavior, variable/condition layering, and silent fallbacks that the AutoMap build does not flag |
 | **reverb2** | Use after building Reverb output to test and customize |
+
+**External:**
+
+- **markdown-plus-plus** ([`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus)) — Markdown++ format syntax and pre-build validation script. Install separately when authoring or validating Markdown++ source documents.
 
 </related_skills>
 

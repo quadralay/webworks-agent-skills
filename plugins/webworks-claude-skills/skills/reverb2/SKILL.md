@@ -34,6 +34,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 | Skill | Relationship |
 |-------|--------------|
 | **epublisher** | Use to understand project structure and product foundations; see `../epublisher/references/product-foundations.md` for cross-cutting product knowledge |
+| **markdown-integration** | When Markdown++ sources feed Reverb output; covers how aliases drive `url_maps.xml` entries and how markers feed the search index |
 | **automap** | Use to rebuild output after SCSS customizations |
 
 **After customizing themes:** Use the automap skill to rebuild the Reverb target.
