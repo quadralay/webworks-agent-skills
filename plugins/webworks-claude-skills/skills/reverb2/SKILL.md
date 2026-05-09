@@ -37,6 +37,10 @@ Reverb 2.0 is a responsive HTML5 help system with:
 | **markdown-integration** | When Markdown++ sources feed Reverb output; covers how aliases drive `url_maps.xml` entries and how markers feed the search index |
 | **automap** | Use to rebuild output after SCSS customizations |
 
+**External:**
+
+- **markdown-plus-plus** ([`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus)) — Markdown++ format syntax for marker and alias authoring. Install separately when authoring the source documents that feed Reverb output.
+
 **After customizing themes:** Use the automap skill to rebuild the Reverb target.
 
 </related_skills>

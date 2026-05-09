@@ -43,18 +43,19 @@ The format-level rules for each are documented in the `markdown-plus-plus` skill
 
 ## Variables — Sources and Resolution
 
-A Markdown++ variable reference (`$product_name;`) is unbound until ePublisher resolves it. There are three sources, in increasing override priority:
+A Markdown++ variable reference (`$product_name;`) is unbound until ePublisher resolves it. There are four sources, in increasing override priority:
 
 1. **Stationery defaults** — defined in the `.wxsp` Stationery project, applied to every project derived from that Stationery.
 2. **Project Variables window** — defined in the `.wep`/`.wrp` project, override Stationery defaults for that project.
 3. **Target-specific overrides** — defined per target inside the project, override project-level values for one output target.
+4. **Job file overrides** — `.waj` job files can override variables per target through the `<Variables>` element under each `<Target>`. These take precedence over all in-project values (target-specific, Project Variables window, and Stationery defaults).
 
-**Job file overrides** — `.waj` job files can also override variables per target through the `<Variables>` element under each `<Target>`. These take precedence over the Stationery defaults inherited via `<Project path="..."/>`.
+See `references/integration-patterns.md` for the full priority table and per-environment / CI-CD layering patterns.
 
 **Diagnosing unresolved variables:**
 
 - Variable renders as literal `$name;` in output → not defined at any level for that target.
-- Variable resolves differently across targets → check target-level overrides, then project, then Stationery.
+- Variable resolves differently across targets → check job file overrides first (if a `.waj` is in use), then target-level overrides, then project, then Stationery.
 - Variable renders correctly in one project but not another derived from the same Stationery → check the project's local override is not blanking the value.
 
 Use the `epublisher` skill's `parse-targets.py` to extract target definitions from the project file.
@@ -151,6 +152,8 @@ Markers and aliases are inert in source — their effect is entirely defined by 
 
 **Practical rule:** every heading that should be deep-linkable from outside the document should have an alias. Generated heading IDs from CommonMark fallback are not stable across heading text changes.
 
+**Bulk alias generation** for documents that lack aliases on existing headings is a format-level authoring task — load the `markdown-plus-plus` skill in the `quadralay/markdown-plus-plus` plugin for the alias-generation script (formerly `add-aliases.py` in this plugin, migrated with the rest of the format spec). If the companion plugin is not installed, alias addition becomes a manual edit per heading.
+
 </markers_and_aliases>
 
 <automap_integration>
@@ -170,7 +173,7 @@ Markdown++ source files build through the helper adapter without special configu
 - Format-level Markdown++ syntax errors (unclosed conditions, malformed marker JSON, invalid variable names) surface in AutoMap output during the helper adapter pass.
 - ePublisher-integration errors (undefined style, unconfigured condition, unresolved variable) typically do **not** fail the build — they degrade silently to default rendering, no condition expansion, or literal `$variable;` text.
 
-**For format-level pre-build validation, use the `markdown-plus-plus` skill's validation script** (in the `quadralay/markdown-plus-plus` plugin). This catches syntax issues before AutoMap runs and avoids debugging silent fallbacks.
+**For format-level pre-build validation, use the `markdown-plus-plus` skill's validation script** (in the `quadralay/markdown-plus-plus` plugin). This catches syntax issues before AutoMap runs and avoids debugging silent fallbacks. Invocation depends on the companion plugin's installed location — load the `markdown-plus-plus` skill (e.g., `webworks-claude-skills:markdown-plus-plus` if the external plugin is installed in this Claude Code instance) for the current script path and arguments. If the companion plugin is not installed, ask the user to install it from `quadralay/markdown-plus-plus` or skip pre-build validation.
 
 </automap_integration>
 

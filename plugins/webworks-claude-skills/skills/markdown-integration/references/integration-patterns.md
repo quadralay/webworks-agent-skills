@@ -81,13 +81,12 @@ See the `epublisher` skill's `references/file-resolver-guide.md` and the `reverb
 
 ## Condition Layering
 
-Conditions are configured in three places that compose at build time.
+The Conditions window in the `.wep`/`.wrp` project defines the set of condition names available. Visibility — which of those conditions are active for a given target — is then resolved by the layering below.
 
 | Priority | Source | Defined in | Scope |
 |----------|--------|------------|-------|
 | 1 (highest) | Job file `<Conditions>` under `<Target>` | `.waj` | One target in one build |
 | 2 | Per-target visibility | `.wep`/`.wrp` | One target across all builds |
-| 3 | Conditions window | `.wep`/`.wrp` | Defines the available conditions for the project |
 
 ### Pattern: Single Source, Multiple Audiences
 
