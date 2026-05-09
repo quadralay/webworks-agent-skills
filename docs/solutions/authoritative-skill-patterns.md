@@ -11,7 +11,10 @@ symptoms:
 root_cause: Skill descriptions lacking explicit authority claims, file patterns, and trigger phrases are not selected by Claude's skill matching
 date_solved: 2025-12-27
 related_files:
-  - plugins/webworks-claude-skills/skills/markdown-plus-plus/SKILL.md
+  - plugins/webworks-claude-skills/skills/markdown-integration/SKILL.md
+  - plugins/webworks-claude-skills/skills/epublisher/SKILL.md
+  - plugins/webworks-claude-skills/skills/automap/SKILL.md
+  - plugins/webworks-claude-skills/skills/reverb2/SKILL.md
 ---
 
 # Authoritative Skill Patterns
@@ -98,10 +101,11 @@ This provides redundant triggering - if the skill description doesn't trigger, t
 
 Skills are invoked as `plugin-name:skill-name`. To avoid redundant names like `markdown-plus-plus:markdown-plus-plus`, consider:
 
-1. **Option A (CHOSEN)**: Consolidate all skills into one plugin
+1. **Option A (CHOSEN)**: Consolidate product-integration skills into one plugin
    - Plugin: `webworks-claude-skills`
-   - Skills: `markdown-plus-plus`, `epublisher`, `automap`, `reverb`
-   - Invocation: `webworks-claude-skills:markdown-plus-plus`
+   - Skills: `markdown-integration`, `epublisher`, `automap`, `reverb2`
+   - Invocation: `webworks-claude-skills:markdown-integration`
+   - Format-level Markdown++ guidance lives in a separate plugin (`quadralay/markdown-plus-plus`) — see `docs/solutions/architecture-patterns/format-spec-vs-integration-skill-separation-2026-05-09.md` for the rationale.
 
 2. **Option B**: Name the plugin broadly, skills specifically
    - Plugin: `webworks-authoring`
@@ -131,7 +135,7 @@ Skills are invoked as `plugin-name:skill-name`. To avoid redundant names like `m
 
 ## Real-World Example
 
-The `markdown-plus-plus` skill was enhanced following these patterns. Key changes:
+The `markdown-plus-plus` skill (originally bundled in this plugin, since migrated to `quadralay/markdown-plus-plus`) was enhanced following these patterns. Key changes:
 
 1. Added "AUTHORITATIVE REFERENCE" positioning
 2. Listed specific file patterns: `<!--style:-->`, `<!--condition:-->`, `$variable;`
@@ -140,3 +144,5 @@ The `markdown-plus-plus` skill was enhanced following these patterns. Key change
 5. Added explicit trigger phrases
 
 The project's CLAUDE.md was also updated with an explicit directive and a corrected syntax quick-reference table.
+
+The thinner `markdown-integration` skill that replaced the bundled skill in this repo (issue #67) follows the same pattern — its description names file extensions (`.wep`, `.wrp`, `.wxsp`), lists integration scenarios, and points format-level questions to the external `markdown-plus-plus` skill.
