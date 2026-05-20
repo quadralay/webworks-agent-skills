@@ -127,6 +127,8 @@ At the time of this fix, version bumping ran through `.github/workflows/version-
 
 That workflow was later removed (commit `fd51c6e`) and replaced by a manual script: `scripts/bump-version.sh`. The script reads the same `.claude-plugin/plugin.json` path, so the principle still applies — when moving plugin config, audit every consumer (CI workflows, scripts, docs) that references the old location.
 
+> **Note (2026-05-09):** The automated version-bump workflow was later removed (commit `fd51c6e`) and replaced with the manual `scripts/bump-version.sh` script. Version bumps are now run locally before opening a PR. The path-cascade lesson still applies — when moving config files, update every script and workflow that references the old path.
+
 ## Verification
 
 After the fix:
@@ -162,7 +164,7 @@ Always document the correct plugin structure for new developers.
 
 - `plugins/webworks-claude-skills/.claude-plugin/plugin.json` - Plugin configuration
 - `.claude-plugin/marketplace.json` - Marketplace definition
-- `scripts/bump-version.sh` - Manual version-bump script (replaced the removed `.github/workflows/version-bump.yml`)
+- `scripts/bump-version.sh` - Manual version-bump script (replaced the prior `.github/workflows/version-bump.yml` automation in commit `fd51c6e`)
 - `plans/fix-plugin-structure-for-skill-registration.md` - Original investigation plan
 
 ## References
