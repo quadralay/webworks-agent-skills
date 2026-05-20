@@ -553,15 +553,20 @@ def cache_decision(
         - past TTL                   -> 'poll' (caller re-fetches landing,
                                                 compares hash, then decides
                                                 between 'use' and 'refetch')
+
+    `last_poll_ts` in the future (clock skew) or non-finite is treated as
+    'poll' rather than 'use' so we never trust a timestamp the clock says
+    can't have happened yet.
     """
     if no_cache:
         return 'refetch'
     if manifest is None:
         return 'refetch'
     last_poll = manifest.get('last_poll_ts')
-    if not isinstance(last_poll, (int, float)):
+    if not isinstance(last_poll, (int, float)) or isinstance(last_poll, bool):
         return 'refetch'
-    if now - last_poll < ttl_seconds:
+    age = now - last_poll
+    if 0 <= age < ttl_seconds:
         return 'use'
     return 'poll'
 
@@ -569,6 +574,17 @@ def cache_decision(
 # ---------------------------------------------------------------------------
 # Remote mode: chunk discovery
 # ---------------------------------------------------------------------------
+
+
+def _ensure_slash(base_url: str) -> str:
+    """Append `/` to base_url if absent — `urljoin` is whitespace-sensitive."""
+    return base_url if base_url.endswith('/') else base_url + '/'
+
+
+def _chunk_name_from_url(url: str) -> str:
+    """Last path segment of `url` — used as the on-disk filename for caching."""
+    path = urllib.parse.urlparse(url).path
+    return path.rsplit('/', 1)[-1] or '_chunk_lx.js'
 
 
 def extract_chunk_srcs_from_html(html: str, base_url: str) -> list[str]:
@@ -639,17 +655,6 @@ def probe_manifest(
             seen.add(absolute)
             result.append(absolute)
     return result
-
-
-def _ensure_slash(base_url: str) -> str:
-    """Append `/` to base_url if absent — `urljoin` is whitespace-sensitive."""
-    return base_url if base_url.endswith('/') else base_url + '/'
-
-
-def _chunk_name_from_url(url: str) -> str:
-    """Last path segment of `url` — used as the on-disk filename for caching."""
-    path = urllib.parse.urlparse(url).path
-    return path.rsplit('/', 1)[-1] or '_chunk_lx.js'
 
 
 def remote_chunk_texts(
@@ -838,10 +843,7 @@ def _load_index(
                 timeout=args.http_timeout,
             )
             return build_index_from_texts(chunks)
-        except RemoteFetchError as e:
-            error_log(str(e))
-            sys.exit(2)
-        except (ValueError, OSError) as e:
+        except (RemoteFetchError, ValueError, OSError) as e:
             error_log(str(e))
             sys.exit(2)
     return _build_or_die(Path(args.source))
@@ -916,10 +918,7 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
         return 1
 
     if args.base_url:
-        prefix = args.base_url
-        if prefix and not prefix.endswith('/'):
-            prefix = prefix + '/'
-        print(prefix + path)
+        print(_ensure_slash(args.base_url) + path)
         return 0
 
     if getattr(args, 'remote_base_url', None):
@@ -927,8 +926,8 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
         return 0
 
     prefix = match.group('prefix')
-    if prefix and not prefix.endswith('/'):
-        prefix = prefix + '/'
+    if prefix:
+        prefix = _ensure_slash(prefix)
     print(prefix + path)
     return 0
 

@@ -26,6 +26,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Optional
 
 THIS_DIR = Path(__file__).resolve().parent
 SKILL_DIR = THIS_DIR.parent
@@ -67,7 +68,7 @@ def check(name: str, condition: bool, detail: str = '') -> None:
         print(f"{RED}FAIL:{NC} {name}" + (f" — {detail}" if detail else ''))
 
 
-def run_cli(*cli_args: str, env: dict = None) -> subprocess.CompletedProcess:
+def run_cli(*cli_args: str, env: Optional[dict] = None) -> subprocess.CompletedProcess:
     proc_env = os.environ.copy()
     if env:
         proc_env.update(env)
@@ -1387,9 +1388,10 @@ class _StderrCapture:
         sys.stderr = self._original
         return False
 
-    def write(self, data):
-        self._buf.append(str(data))
-        return len(str(data))
+    def write(self, data: str) -> int:
+        text = str(data)
+        self._buf.append(text)
+        return len(text)
 
     def flush(self):
         pass
