@@ -125,7 +125,7 @@ The SKILL.md change in this PR is three lines plus a row: intake option 5, routi
 - `docs/solutions/design-patterns/static-mirror-remote-fetch-cache-2026-05-20.md` — issue #76's v2 follow-up extends this pattern over HTTP. It adds the HTTP-fetch/cache/runtime-fidelity half (generation-hash cache key, landing-page double-duty discovery, URL-fragment `decodeURIComponent` parity) without invalidating any rule in this doc — the parser/index half here is carried into v2 unchanged.
 - `plugins/webworks-claude-skills/skills/reverb2/scripts/resolve-landmarks.py` — the resolver (now extended in v2 with `--remote-base-url` and the cache state machine)
 - `plugins/webworks-claude-skills/skills/reverb2/workflows/landmark-resolution.md` — workflow doc (rewritten in v2 to cover both local and remote sources)
-- `plugins/webworks-claude-skills/skills/reverb2/tests/verify-landmark-resolver.py` — verification scenarios (28 in v1 → 80 in v2) covering opaque IDs, multi-chunk merge, last-write-wins, and the full CLI contract
+- `plugins/webworks-claude-skills/skills/reverb2/tests/verify-landmark-resolver.py` — verification scenarios (21 in v1 → 80 in v2) covering opaque IDs, multi-chunk merge, last-write-wins, and the full CLI contract
 - `plugins/webworks-claude-skills/skills/reverb2/tests/fixtures/` — handcrafted `_lx.js` fixtures (single-chunk and multi-chunk)
 - `docs/solutions/documentation-gaps/epublisher-format-traits-xml-schema-2026-05-09.md` — documents the `landmark-id-format` configuration option (the opt-in that introduced the non-hex ID variants the resolver must tolerate)
 - `docs/solutions/architecture-patterns/format-spec-vs-integration-skill-separation-2026-05-09.md` — sibling skill-architecture guidance
