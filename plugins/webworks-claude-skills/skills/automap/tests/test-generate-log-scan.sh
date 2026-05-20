@@ -23,7 +23,6 @@ source "$WRAPPER"
 # Loosen strict mode the wrapper enabled so an individual assertion failure
 # does not abort the entire driver.
 set +e
-set +u
 
 PASS=0
 FAIL=0
@@ -73,31 +72,31 @@ run_case() {
 
 # --- Tests ---
 
-# AE2 + R6, R9, R12: single-target, warnings only, summary format.
+# Single-target, warnings only: summary format.
 run_case "single-warning-target (default)" \
     "$FIXTURES/single-warning-target" \
     false \
     "$FIXTURES/single-warning-target/expected-default.txt"
 
-# AE4 + R7, R10: verbose mode, header, blank-line-between [WARN]s preserved.
+# Verbose mode: per-target header, original line spacing preserved.
 run_case "single-warning-target (verbose)" \
     "$FIXTURES/single-warning-target" \
     true \
     "$FIXTURES/single-warning-target/expected-verbose.txt"
 
-# AE3 + R9, R11: multi-target aggregation, error-only target routes red.
+# Multi-target aggregation: error-only target routes red, clean target emits nothing.
 run_case "multi-target (default)" \
     "$FIXTURES/multi-target" \
     false \
     "$FIXTURES/multi-target/expected-default.txt"
 
-# R10 + cross-target verbose grouping.
+# Verbose mode: per-target grouping across multiple targets.
 run_case "multi-target (verbose)" \
     "$FIXTURES/multi-target" \
     true \
     "$FIXTURES/multi-target/expected-verbose.txt"
 
-# R15: target directory name with embedded space round-trips through quoting.
+# Target directory name with embedded space round-trips through quoting.
 run_case "space-target (default)" \
     "$FIXTURES/space-target" \
     false \
@@ -108,7 +107,19 @@ run_case "space-target (verbose)" \
     true \
     "$FIXTURES/space-target/expected-verbose.txt"
 
-# AE1 + R5: missing Logs/ directory emits nothing.
+# Single target with both [WARN] and [ERROR] in one log: summary routes red,
+# verbose lines route per-line based on which marker is present.
+run_case "mixed-target (default)" \
+    "$FIXTURES/mixed-target" \
+    false \
+    "$FIXTURES/mixed-target/expected-default.txt"
+
+run_case "mixed-target (verbose)" \
+    "$FIXTURES/mixed-target" \
+    true \
+    "$FIXTURES/mixed-target/expected-verbose.txt"
+
+# Missing Logs/ directory emits nothing.
 run_case "no-logs-dir (default)" \
     "$FIXTURES/no-logs-dir" \
     false \
@@ -118,6 +129,18 @@ run_case "no-logs-dir (verbose)" \
     "$FIXTURES/no-logs-dir" \
     true \
     "$FIXTURES/no-logs-dir/expected-verbose.txt"
+
+# Logs/ directory exists but contains no generate.log file: emits nothing.
+# Exercises the literal-pattern-iterated-once branch of the glob expansion.
+run_case "empty-logs-dir (default)" \
+    "$FIXTURES/empty-logs-dir" \
+    false \
+    "$FIXTURES/empty-logs-dir/expected-default.txt"
+
+run_case "empty-logs-dir (verbose)" \
+    "$FIXTURES/empty-logs-dir" \
+    true \
+    "$FIXTURES/empty-logs-dir/expected-verbose.txt"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

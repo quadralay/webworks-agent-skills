@@ -452,8 +452,9 @@ parse_automap_output() {
 #
 
 route_log_line() {
-    # Uses printf (not echo -e) so backslash sequences in log content — e.g.,
-    # Windows paths like C:\path\to\output.pdf — are preserved verbatim. R8.
+    # `$line` is bound to printf's `%s` (not `%b`), so backslash sequences in
+    # log content — e.g., Windows paths like C:\path\to\output.pdf — survive
+    # verbatim. Using echo -e here would mangle them.
     local line="$1"
     if [[ "$line" == *"[ERROR]"* ]]; then
         printf '%b[ERROR]%b %s\n' "$RED" "$NC" "$line" >&2
@@ -466,23 +467,25 @@ scan_generate_logs() {
     local project_dir="$1"
     local logs_root="$project_dir/Logs"
 
-    # Nothing to scan — emit no summary and return clean. (R5)
+    # Missing Logs/ directory: emit no summary and return clean.
     [ -d "$logs_root" ] || return 0
 
-    # Subshell isolates `set +e` so any scan failure (permission denied,
-    # encoding hiccup, vanished log) cannot abort the wrapper under
-    # `set -euo pipefail`. (R14)
+    # Subshell isolates strict mode so any scan failure (permission denied,
+    # encoding hiccup, vanished log, grep | while pipeline exiting non-zero)
+    # cannot abort the wrapper under `set -euo pipefail`.
     (
         set +e
+        set +u
+        set +o pipefail
 
         local log_file relative_log warn_count error_count summary
 
         for log_file in "$logs_root"/*/generate.log; do
             # Handles the glob-matches-nothing case where the literal pattern
-            # is iterated once. (R5)
+            # is iterated once.
             [ -f "$log_file" ] || continue
 
-            # Display path is relative to the project directory. (R12)
+            # Display path is relative to the project directory.
             relative_log="${log_file#"$project_dir"/}"
 
             warn_count=$(grep -c '\[WARN\]' "$log_file" 2>/dev/null || true)
@@ -693,7 +696,7 @@ automap_cmd=$(build_automap_command "$automap_path" "$PROJECT_FILE")
 # Execute AutoMap
 if execute_automap "$automap_cmd"; then
     # Scan generate.log for post-build warnings/errors. The scan is purely
-    # observational — its result never alters the wrapper's exit code. (R1, R2, R13)
+    # observational — its result never alters the wrapper's exit code.
     project_dir=$(dirname "$(cygpath "$PROJECT_FILE" 2>/dev/null || echo "$PROJECT_FILE")")
     scan_generate_logs "$project_dir"
     exit 0
