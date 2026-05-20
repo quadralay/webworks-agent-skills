@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "landmarks": {
+    "12345678": {
+      "anchor": "wwp200",
+      "file": "Group/page.html"
+    },
+    "abc1234567890def": {
+      "anchor": "wwp100",
+      "file": "Group/page.html"
+    },
+    "ascii-control": {
+      "anchor": "",
+      "file": "Topics/getting started.html"
+    },
+    "chunk_a_only": {
+      "anchor": "",
+      "file": "shared/index.html"
+    },
+    "chunk_b_only": {
+      "anchor": "",
+      "file": "shared/index.html"
+    },
+    "common_id": {
+      "anchor": "wwp_b1",
+      "file": "groupB/page.html"
+    },
+    "getting-started-overview": {
+      "anchor": "wwp_anchor",
+      "file": "Group/other.html"
+    },
+    "page-only-id": {
+      "anchor": "",
+      "file": "Group/page.html"
+    },
+    "übersicht": {
+      "anchor": "",
+      "file": "Topics/uebersicht.html"
+    },
+    "概要": {
+      "anchor": "wwp_overview",
+      "file": "Topics/overview.html"
+    }
+  },
+  "source": {
+    "captured_at": "2026-05-20T17:30:58Z",
+    "chunks_found": 4,
+    "path": "reverb2 test-fixtures stand-in (multi-chunk)",
+    "type": "local-directory"
+  }
+}

@@ -8,18 +8,24 @@ emitted alongside every Reverb output. Lets AI consumers fetch documentation
 without executing the Reverb JavaScript runtime.
 
 Usage:
-    python resolve-landmarks.py resolve <id> --from <path> [--json]
-    python resolve-landmarks.py rewrite <url> --from <path> [--base-url <url>]
-    python resolve-landmarks.py dump --from <path> [--table]
+    python resolve-landmarks.py resolve <id> (--from <path> | --lookup-table <file>) [--json]
+    python resolve-landmarks.py rewrite <url> (--from <path> | --lookup-table <file>) [--base-url <url>]
+    python resolve-landmarks.py dump --from <path> [--out <file>] [--source-label <s>] [--table]
 
 Arguments:
-    resolve <id>       Resolve a landmark ID to a relative file path (with optional #anchor).
-    rewrite <url>      Rewrite a full stable URL ("...#/<id>") into a direct file URL.
-    dump               Emit the full {id: relative_path} map for the given source.
-    --from <path>      Path to a single *_lx.js chunk file or a directory containing chunks.
-    --base-url <url>   For "rewrite": replace the inferred URL prefix with this base.
-    --json             For "resolve": emit a JSON object instead of the bare path.
-    --table            For "dump": emit a human-readable table instead of JSON.
+    resolve <id>           Resolve a landmark ID to a relative file path (with optional #anchor).
+    rewrite <url>          Rewrite a full stable URL ("...#/<id>") into a direct file URL.
+    dump                   Emit the full schema'd lookup-table artifact for the given source.
+    --from <path>          Path to a single *_lx.js chunk file or a directory containing chunks.
+    --lookup-table <file>  Path to a previously emitted dump artifact. Mutually exclusive
+                           with --from on resolve and rewrite.
+    --out <file>           For "dump": write JSON to <file> instead of stdout.
+    --source-label <s>     For "dump": override source.path with a semantic label.
+    --base-url <url>       For "rewrite": replace the inferred URL prefix with this base.
+    --json                 For "resolve": emit a JSON object instead of the bare path.
+    --table                For "dump": emit a human-readable table instead of JSON.
+
+See references/landmark-lookup-table.md for the lookup-table artifact schema.
 
 Landmark ID formats (treated as opaque strings):
     - 16-character hex hash (default; all Reverb 2.0 releases)
@@ -33,7 +39,8 @@ the _lx.js data.
 Exit codes:
     0 - Success.
     1 - Resolution failure (ID not found, or URL has no ID after "#/").
-    2 - Parse failure or IO failure (file missing, malformed chunk, empty source).
+    2 - Parse failure or IO failure (file missing, malformed chunk, empty source,
+        unsupported lookup-table format_version, mutually exclusive args).
 
 Examples:
     # Resolve a single ID against one chunk
@@ -42,24 +49,36 @@ Examples:
     # Resolve against every chunk in a directory
     python resolve-landmarks.py resolve abc12345 --from output/
 
+    # Resolve against a pre-built lookup-table artifact
+    python resolve-landmarks.py resolve abc12345 --lookup-table landmarks.json
+
     # Rewrite a published stable URL into a direct URL
     python resolve-landmarks.py rewrite \\
         https://example.com/help/#/e5d3d31c42d8d1d4 --from output/
 
-    # Dump the full index as JSON
+    # Dump the full lookup-table artifact (stdout)
     python resolve-landmarks.py dump --from output/
+
+    # Dump to a file with a semantic source label
+    python resolve-landmarks.py dump --from output/ \\
+        --out landmarks.json --source-label "ePublisher 2026.1 Help (en)"
 
     # Dump the full index as a human-readable table
     python resolve-landmarks.py dump --from output/ --table
 """
 
 import argparse
+import datetime
 import json
 import os
 import re
 import sys
+import urllib.parse
 from pathlib import Path
 from typing import Optional
+
+# Schema version emitted by `dump` and accepted by `--lookup-table`.
+LOOKUP_TABLE_FORMAT_VERSION = 1
 
 # ANSI color codes
 RED = '\033[0;31m'
@@ -138,6 +157,10 @@ def build_index(
         (global_files, global_anchors, id_to_pair)
         where id_to_pair[id] = (global_file_index, global_anchor_index).
 
+    File strings are normalized via `normalize_landmark_path` at index time, so
+    `resolve_id`'s output matches the schema'd dump's normalized form
+    regardless of source kind. Anchors are interned verbatim.
+
     Mirrors the runtime's "last write wins" semantics from Landmarks.Advance()
     in scripts/landmarks.js: when an ID appears multiple times, the most
     recent (file, anchor) pair wins. The paragraph-level row is written after
@@ -162,7 +185,7 @@ def build_index(
         anchors = chunk['a']
         entries = chunk['e']
 
-        file_map = [intern(f, global_files, file_index) for f in files]
+        file_map = [intern(normalize_landmark_path(f), global_files, file_index) for f in files]
         anchor_map = [intern(a, global_anchors, anchor_index) for a in anchors]
 
         for row in entries:
@@ -237,8 +260,149 @@ def _build_or_die(source: Path) -> tuple[list[str], list[str], dict[str, tuple[i
         sys.exit(2)
 
 
+def normalize_landmark_path(raw: str) -> str:
+    """Normalize a raw `_lx.js` file path to forward slashes and URL-decoded form.
+
+    Raw paths in the chunk's `f` array use Windows-style backslashes with
+    URL-encoded special characters (they are designed to drop into a JavaScript
+    string that may become an `href`). Skill consumers should not each reinvent
+    the normalization; the dump applies it once at emit time.
+    """
+    return urllib.parse.unquote(raw.replace('\\', '/'))
+
+
+def build_dump_artifact(
+    files: list[str],
+    anchors: list[str],
+    id_to_pair: dict[str, tuple[int, int]],
+    source_path: str,
+    chunks_count: int,
+) -> dict:
+    """Assemble the schema'd lookup-table artifact in memory.
+
+    See references/landmark-lookup-table.md for the v1 schema. `captured_at` is
+    the only non-deterministic field; everything else derives from the input.
+    """
+    captured_at = (
+        datetime.datetime.now(datetime.timezone.utc)
+        .isoformat(timespec='seconds')
+        .replace('+00:00', 'Z')
+    )
+    landmarks: dict[str, dict[str, str]] = {}
+    for landmark_id, (fi, ai) in id_to_pair.items():
+        landmarks[landmark_id] = {
+            'file': files[fi],
+            'anchor': anchors[ai],
+        }
+    return {
+        'format_version': LOOKUP_TABLE_FORMAT_VERSION,
+        'landmarks': landmarks,
+        'source': {
+            'captured_at': captured_at,
+            'chunks_found': chunks_count,
+            'path': source_path,
+            'type': 'local-directory',
+        },
+    }
+
+
+def load_lookup_table(
+    path: Path,
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
+    """Read a dump artifact and return it in `build_index`'s triple shape.
+
+    Returns (global_files, global_anchors, id_to_pair) so callers can reuse
+    `resolve_id` without branching on the source kind. Raises ValueError on
+    schema errors with a message that names the offending file.
+    """
+    try:
+        text = path.read_text(encoding='utf-8')
+    except (FileNotFoundError, OSError) as e:
+        raise ValueError(f"lookup-table file unreadable ({path}): {e}") from e
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"lookup-table is not valid JSON ({path}): {e}") from e
+
+    if not isinstance(data, dict):
+        raise ValueError(f"lookup-table root must be a JSON object ({path})")
+
+    if 'format_version' not in data:
+        raise ValueError(
+            f"lookup-table is missing required field 'format_version' ({path})"
+        )
+
+    version = data['format_version']
+    if version != LOOKUP_TABLE_FORMAT_VERSION:
+        raise ValueError(
+            f"unsupported lookup-table format_version: {version} "
+            f"(this resolver supports format_version {LOOKUP_TABLE_FORMAT_VERSION})"
+        )
+
+    if 'landmarks' not in data:
+        raise ValueError(
+            f"lookup-table is missing required field 'landmarks' ({path})"
+        )
+    landmarks = data['landmarks']
+    if not isinstance(landmarks, dict):
+        raise ValueError(
+            f"lookup-table field 'landmarks' must be a JSON object ({path})"
+        )
+
+    global_files: list[str] = []
+    global_anchors: list[str] = []
+    file_index: dict[str, int] = {}
+    anchor_index: dict[str, int] = {}
+    id_to_pair: dict[str, tuple[int, int]] = {}
+
+    def intern(value: str, global_list: list[str], index: dict[str, int]) -> int:
+        if value not in index:
+            index[value] = len(global_list)
+            global_list.append(value)
+        return index[value]
+
+    for landmark_id, entry in landmarks.items():
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"lookup-table landmark {landmark_id!r} is not an object ({path})"
+            )
+        for field in ('file', 'anchor'):
+            if field not in entry:
+                raise ValueError(
+                    f"lookup-table landmark {landmark_id!r} is missing "
+                    f"required field {field!r} ({path})"
+                )
+            if not isinstance(entry[field], str):
+                raise ValueError(
+                    f"lookup-table landmark {landmark_id!r} field {field!r} "
+                    f"is not a string ({path})"
+                )
+        fi = intern(entry['file'], global_files, file_index)
+        ai = intern(entry['anchor'], global_anchors, anchor_index)
+        id_to_pair[landmark_id] = (fi, ai)
+
+    return global_files, global_anchors, id_to_pair
+
+
+def _load_index(
+    args: argparse.Namespace,
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
+    """Build the resolver index from whichever source --from / --lookup-table set.
+
+    Maps any source-loading exception to exit-code 2 via `error_log`.
+    """
+    if getattr(args, 'lookup_table', None):
+        try:
+            return load_lookup_table(Path(args.lookup_table))
+        except ValueError as e:
+            error_log(str(e))
+            sys.exit(2)
+    return _build_or_die(Path(args.source))
+
+
 def cmd_resolve(args: argparse.Namespace) -> int:
-    files, anchors, id_to_pair = _build_or_die(Path(args.source))
+    files, anchors, id_to_pair = _load_index(args)
     path = resolve_id(args.id, files, anchors, id_to_pair)
     if path is None:
         if args.json:
@@ -260,7 +424,7 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
         return 1
     landmark_id = match.group('id')
 
-    files, anchors, id_to_pair = _build_or_die(Path(args.source))
+    files, anchors, id_to_pair = _load_index(args)
     path = resolve_id(landmark_id, files, anchors, id_to_pair)
     if path is None:
         error_log(f"ID not found: {landmark_id}")
@@ -274,13 +438,23 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
 
 
 def cmd_dump(args: argparse.Namespace) -> int:
-    files, anchors, id_to_pair = _build_or_die(Path(args.source))
-    rows = {
-        landmark_id: resolve_id(landmark_id, files, anchors, id_to_pair)
-        for landmark_id in id_to_pair
-    }
+    source_path = Path(args.source)
+    try:
+        chunk_paths = discover_chunks(source_path)
+        debug_log(f"Discovered {len(chunk_paths)} chunk(s)")
+        files, anchors, id_to_pair = build_index(chunk_paths)
+    except (FileNotFoundError, ValueError, OSError) as e:
+        error_log(str(e))
+        return 2
 
     if args.table:
+        # --table preserves the v1 human-readable shape, including the original
+        # raw path strings from the chunks. The schema'd JSON path is the one
+        # that normalizes; the table is for humans inspecting the source.
+        rows = {
+            landmark_id: resolve_id(landmark_id, files, anchors, id_to_pair)
+            for landmark_id in id_to_pair
+        }
         if not rows:
             print("No landmarks found")
             return 0
@@ -295,8 +469,22 @@ def cmd_dump(args: argparse.Namespace) -> int:
         for landmark_id in sorted(rows):
             lines.append(f"{landmark_id:<{id_width}}    {rows[landmark_id]}")
         print('\n'.join(lines))
+        return 0
+
+    label = args.source_label if args.source_label else str(source_path.resolve())
+    artifact = build_dump_artifact(
+        files, anchors, id_to_pair, label, len(chunk_paths),
+    )
+    serialized = json.dumps(artifact, sort_keys=True, ensure_ascii=False, indent=2) + '\n'
+
+    if args.out:
+        try:
+            Path(args.out).write_text(serialized, encoding='utf-8', newline='\n')
+        except OSError as e:
+            error_log(f"failed to write --out file ({args.out}): {e}")
+            return 2
     else:
-        print(json.dumps(rows, indent=2, sort_keys=True))
+        sys.stdout.write(serialized)
 
     return 0
 
@@ -307,14 +495,23 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Resolve a single ID
+    # Resolve a single ID against chunks
     %(prog)s resolve e5d3d31c42d8d1d4 --from output/FAQs_lx.js
+
+    # Resolve against a pre-built lookup-table artifact
+    %(prog)s resolve abc12345 --lookup-table landmarks.json
 
     # Rewrite a published stable URL into a direct URL
     %(prog)s rewrite https://example.com/help/#/abc12345 --from output/
 
-    # Dump the entire index as JSON
+    # Dump the lookup-table artifact (stdout)
     %(prog)s dump --from output/
+
+    # Dump to a file with a semantic source label
+    %(prog)s dump --from output/ \\
+        --out landmarks.json --source-label "ePublisher 2026.1 Help (en)"
+
+See references/landmark-lookup-table.md for the lookup-table artifact schema.
 """
     )
 
@@ -325,9 +522,14 @@ Examples:
         help='Resolve a landmark ID to a relative file path',
     )
     resolve_parser.add_argument('id', help='Landmark ID (opaque string)')
-    resolve_parser.add_argument(
-        '--from', dest='source', required=True,
+    resolve_source = resolve_parser.add_mutually_exclusive_group(required=True)
+    resolve_source.add_argument(
+        '--from', dest='source',
         help='Path to a *_lx.js chunk or a directory containing chunks',
+    )
+    resolve_source.add_argument(
+        '--lookup-table', dest='lookup_table',
+        help='Path to a dump artifact (see references/landmark-lookup-table.md)',
     )
     resolve_parser.add_argument(
         '--json', action='store_true',
@@ -339,9 +541,14 @@ Examples:
         help='Rewrite a stable URL into a direct file URL',
     )
     rewrite_parser.add_argument('url', help='Stable URL of the form "<prefix>#/<id>"')
-    rewrite_parser.add_argument(
-        '--from', dest='source', required=True,
+    rewrite_source = rewrite_parser.add_mutually_exclusive_group(required=True)
+    rewrite_source.add_argument(
+        '--from', dest='source',
         help='Path to a *_lx.js chunk or a directory containing chunks',
+    )
+    rewrite_source.add_argument(
+        '--lookup-table', dest='lookup_table',
+        help='Path to a dump artifact (see references/landmark-lookup-table.md)',
     )
     rewrite_parser.add_argument(
         '--base-url', dest='base_url', default=None,
@@ -350,15 +557,23 @@ Examples:
 
     dump_parser = subparsers.add_parser(
         'dump',
-        help='Emit the full {id: relative_path} map',
+        help='Emit a schema\'d lookup-table artifact for the source',
     )
     dump_parser.add_argument(
         '--from', dest='source', required=True,
         help='Path to a *_lx.js chunk or a directory containing chunks',
     )
     dump_parser.add_argument(
+        '--out', dest='out', default=None,
+        help='Write JSON output to this file (default: stdout)',
+    )
+    dump_parser.add_argument(
+        '--source-label', dest='source_label', default=None,
+        help='Override the source.path field (recommended for committed artifacts)',
+    )
+    dump_parser.add_argument(
         '--table', action='store_true',
-        help='Emit a human-readable table instead of JSON',
+        help='Emit a human-readable table instead of the JSON artifact',
     )
 
     args = parser.parse_args()
