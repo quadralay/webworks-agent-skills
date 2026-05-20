@@ -447,6 +447,78 @@ parse_automap_output() {
     fi
 }
 
+#
+# Log Scanning Functions
+#
+
+route_log_line() {
+    # `$line` is bound to printf's `%s` (not `%b`), so backslash sequences in
+    # log content — e.g., Windows paths like C:\path\to\output.pdf — survive
+    # verbatim. Using echo -e here would mangle them.
+    local line="$1"
+    if [[ "$line" == *"[ERROR]"* ]]; then
+        printf '%b[ERROR]%b %s\n' "$RED" "$NC" "$line" >&2
+    else
+        printf '%b[WARNING]%b %s\n' "$YELLOW" "$NC" "$line"
+    fi
+}
+
+scan_generate_logs() {
+    local project_dir="$1"
+    local logs_root="$project_dir/Logs"
+
+    # Missing Logs/ directory: emit no summary and return clean.
+    [ -d "$logs_root" ] || return 0
+
+    # Subshell isolates strict mode so any scan failure (permission denied,
+    # encoding hiccup, vanished log, grep | while pipeline exiting non-zero)
+    # cannot abort the wrapper under `set -euo pipefail`.
+    (
+        set +e
+        set +u
+        set +o pipefail
+
+        local log_file relative_log warn_count error_count summary
+
+        for log_file in "$logs_root"/*/generate.log; do
+            # Handles the glob-matches-nothing case where the literal pattern
+            # is iterated once.
+            [ -f "$log_file" ] || continue
+
+            # Display path is relative to the project directory.
+            relative_log="${log_file#"$project_dir"/}"
+
+            warn_count=$(grep -c '\[WARN\]' "$log_file" 2>/dev/null || true)
+            error_count=$(grep -c '\[ERROR\]' "$log_file" 2>/dev/null || true)
+            warn_count=${warn_count:-0}
+            error_count=${error_count:-0}
+
+            if [ "$warn_count" -eq 0 ] && [ "$error_count" -eq 0 ]; then
+                continue
+            fi
+
+            summary="$warn_count warning(s), $error_count error(s) in $relative_log"
+            if [ "$error_count" -gt 0 ]; then
+                log_error "$summary"
+            else
+                log_warning "$summary"
+            fi
+
+            if [ "$VERBOSE" = true ]; then
+                log_warning "Warnings/errors in $relative_log:"
+                grep -E '\[WARN\]|\[ERROR\]' "$log_file" 2>/dev/null \
+                    | while IFS= read -r line; do
+                        route_log_line "$line"
+                    done
+            fi
+        done
+
+        exit 0
+    )
+
+    return 0
+}
+
 execute_automap() {
     local cmd="$1"
     local exit_code=0
@@ -483,6 +555,10 @@ execute_automap() {
 #
 # Argument Parsing
 #
+
+# Guard the main flow so the test harness can source this file to import the
+# helper functions without running argument parsing or invoking AutoMap.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
 PROJECT_FILE=""
 
@@ -619,7 +695,13 @@ automap_cmd=$(build_automap_command "$automap_path" "$PROJECT_FILE")
 
 # Execute AutoMap
 if execute_automap "$automap_cmd"; then
+    # Scan generate.log for post-build warnings/errors. The scan is purely
+    # observational — its result never alters the wrapper's exit code.
+    project_dir=$(dirname "$(cygpath "$PROJECT_FILE" 2>/dev/null || echo "$PROJECT_FILE")")
+    scan_generate_logs "$project_dir"
     exit 0
 else
     exit 1
 fi
+
+fi  # end main-flow guard

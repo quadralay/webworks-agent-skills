@@ -1,0 +1,7 @@
+Generation started at 9:04:01 PM, 2026-02-11.
+Running WebWorks ePublisher AutoMap version 2025.1.4636.0.
+Using base format version 2024.1.
+Processing pipeline 'PDF', 21 of 25.
+[ERROR] Unable to create PDF file 'C:\path\to\output.pdf'.
+Generation finished at 9:04:42 PM, 2026-02-11.
+Total time: 00:00:41.
