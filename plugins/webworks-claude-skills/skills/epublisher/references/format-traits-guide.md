@@ -336,7 +336,7 @@ Trait names used here, with their UI labels:
 
 See `FormatTraitInfoStrings.resx` and the [Looking Up Trait Names](#looking-up-trait-names) section above for additional UI-to-internal-name mappings.
 
-Setting `split-priority` to `none` on the Paragraph prototype rule cascades to every Paragraph style, suppressing the splits that would otherwise produce multi-file output. For finer-grained control over individual style behavior, the CSS `page-break-before`, `page-break-after`, and `page-break-inside` Properties are the per-style alternative.
+Setting `split-priority` to `none` on the Paragraph prototype rule cascades to every Paragraph style, suppressing the splits that would otherwise produce multi-file output.
 
 ## Diffable HTML Output
 
@@ -349,11 +349,13 @@ Diffable HTML output and golden testing share the same two settings; they differ
 | `file-processing-pretty-print` | `true` | HTML output is emitted with line breaks and indentation; a single edit shows as a localized diff instead of changing an entire minified line. |
 | `split-priority` (on Paragraph `{WWDefaultRule}`) | `none` | Headings no longer start new output files; each source document produces a single HTML file, so diffs show content edits rather than file additions, renames, and block moves. |
 
-### Prototype-only vs explicit-per-heading
+### Override downstream rules of the same Option name
 
-The Golden Test snippet sets `split-priority="none"` on `<Rule Key="{WWDefaultRule}">` once — the prototype-only cascade. Every Paragraph style inherits the value unless that style carries an explicit override.
+The prototype value cascades only to styles that do not declare the same Option themselves. Any downstream `<Rule>` (Heading 1, Heading 2, custom paragraph styles, etc.) that already carries an `<Option Name="split-priority" ...>` **overrides the prototype value for that style** — including an `Explicit` value of anything other than `none`, which silently re-enables a split.
 
-When a project already overrides specific heading rules (Heading 1, Heading 2, etc.), those overrides can intercept the cascade and re-enable splits unintentionally. In that case, set `split-priority` explicitly on each heading rule as well as on the prototype:
+**Skill rule:** when setting an Option on the prototype `<Rule Key="{WWDefaultRule}">`, also set that same Option to the prototype's value on every downstream rule in the same `<Rules>` block that already declares it. Do not leave a downstream `Source="Explicit"` value in place expecting the prototype to win — it will not.
+
+The pattern in practice:
 
 ```xml
 <GlobalConfiguration>
@@ -380,7 +382,7 @@ When a project already overrides specific heading rules (Heading 1, Heading 2, e
 
 Keep the `{WWDefaultRule}` row even when every named heading is enumerated — it catches custom Paragraph styles the project has not yet listed.
 
-**When to choose which pattern:** prefer the prototype-only cascade for greenfield projects where no Paragraph styles are individually overridden. Prefer explicit-per-heading when an existing project already overrides heading rules, or when a reviewer needs every behavior to be visible at the rule level rather than inherited.
+The prototype rule is necessary but not sufficient: it covers styles that have **no** explicit `split-priority`, and the per-rule overrides cover styles that **do**. Together they guarantee the value across the target.
 
 ---
 
