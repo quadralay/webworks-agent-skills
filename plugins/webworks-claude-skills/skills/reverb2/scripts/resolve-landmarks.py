@@ -147,6 +147,18 @@ def parse_chunk(path: Path) -> dict[str, list]:
     return data
 
 
+def _intern(value: str, global_list: list[str], index: dict[str, int]) -> int:
+    """Append `value` to `global_list` on first sight; return its stable index.
+
+    Shared by `build_index` and `load_lookup_table` so both code paths converge
+    on identical `(files, anchors, id_to_pair)` triples for the same content.
+    """
+    if value not in index:
+        index[value] = len(global_list)
+        global_list.append(value)
+    return index[value]
+
+
 def build_index(
     chunk_paths: list[Path],
 ) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
@@ -173,20 +185,14 @@ def build_index(
     anchor_index: dict[str, int] = {}
     id_to_pair: dict[str, tuple[int, int]] = {}
 
-    def intern(value: str, global_list: list[str], index: dict[str, int]) -> int:
-        if value not in index:
-            index[value] = len(global_list)
-            global_list.append(value)
-        return index[value]
-
     for chunk_path in chunk_paths:
         chunk = parse_chunk(chunk_path)
         files = chunk['f']
         anchors = chunk['a']
         entries = chunk['e']
 
-        file_map = [intern(normalize_landmark_path(f), global_files, file_index) for f in files]
-        anchor_map = [intern(a, global_anchors, anchor_index) for a in anchors]
+        file_map = [_intern(normalize_landmark_path(f), global_files, file_index) for f in files]
+        anchor_map = [_intern(a, global_anchors, anchor_index) for a in anchors]
 
         for row in entries:
             # Runtime's defensive `continue`:
@@ -334,10 +340,19 @@ def load_lookup_table(
         )
 
     version = data['format_version']
+    # isinstance(x, bool) check is necessary because bool is a subclass of int
+    # in Python (True == 1, False == 0). Floats like 1.0 also compare equal to
+    # int 1 under `!=`, so we require a true int.
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise ValueError(
+            f"lookup-table format_version must be an integer, got "
+            f"{type(version).__name__} ({path})"
+        )
     if version != LOOKUP_TABLE_FORMAT_VERSION:
         raise ValueError(
             f"unsupported lookup-table format_version: {version} "
-            f"(this resolver supports format_version {LOOKUP_TABLE_FORMAT_VERSION})"
+            f"(this resolver supports format_version {LOOKUP_TABLE_FORMAT_VERSION}) "
+            f"({path})"
         )
 
     if 'landmarks' not in data:
@@ -356,12 +371,6 @@ def load_lookup_table(
     anchor_index: dict[str, int] = {}
     id_to_pair: dict[str, tuple[int, int]] = {}
 
-    def intern(value: str, global_list: list[str], index: dict[str, int]) -> int:
-        if value not in index:
-            index[value] = len(global_list)
-            global_list.append(value)
-        return index[value]
-
     for landmark_id, entry in landmarks.items():
         if not isinstance(entry, dict):
             raise ValueError(
@@ -378,8 +387,8 @@ def load_lookup_table(
                     f"lookup-table landmark {landmark_id!r} field {field!r} "
                     f"is not a string ({path})"
                 )
-        fi = intern(entry['file'], global_files, file_index)
-        ai = intern(entry['anchor'], global_anchors, anchor_index)
+        fi = _intern(entry['file'], global_files, file_index)
+        ai = _intern(entry['anchor'], global_anchors, anchor_index)
         id_to_pair[landmark_id] = (fi, ai)
 
     return global_files, global_anchors, id_to_pair
@@ -390,9 +399,13 @@ def _load_index(
 ) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
     """Build the resolver index from whichever source --from / --lookup-table set.
 
+    Both args attributes are always defined because the argparse mutually
+    exclusive group is registered with `required=True`; one is a path string,
+    the other is None.
+
     Maps any source-loading exception to exit-code 2 via `error_log`.
     """
-    if getattr(args, 'lookup_table', None):
+    if args.lookup_table:
         try:
             return load_lookup_table(Path(args.lookup_table))
         except ValueError as e:
@@ -448,9 +461,9 @@ def cmd_dump(args: argparse.Namespace) -> int:
         return 2
 
     if args.table:
-        # --table preserves the v1 human-readable shape, including the original
-        # raw path strings from the chunks. The schema'd JSON path is the one
-        # that normalizes; the table is for humans inspecting the source.
+        # --table emits the v1 human-readable shape. Paths shown here are the
+        # same normalized form the JSON artifact records (build_index applies
+        # normalize_landmark_path at intern time), not the raw chunk strings.
         rows = {
             landmark_id: resolve_id(landmark_id, files, anchors, id_to_pair)
             for landmark_id in id_to_pair
@@ -484,7 +497,9 @@ def cmd_dump(args: argparse.Namespace) -> int:
             error_log(f"failed to write --out file ({args.out}): {e}")
             return 2
     else:
-        sys.stdout.write(serialized)
+        # Bypass text-mode line-ending translation so Windows stdout emits LF,
+        # matching the LF contract documented in references/landmark-lookup-table.md.
+        sys.stdout.buffer.write(serialized.encode('utf-8'))
 
     return 0
 

@@ -118,9 +118,9 @@ Anchors are emitted verbatim. The runtime does not URL-encode anchors at generat
 
 ## Versioning Policy
 
-`format_version` is an integer. Consumers must reject any file whose `format_version` they do not recognize. v1 of the resolver rejects with exit code 2 and a message naming the unsupported version. Missing `format_version` is the same exit code with a message naming the field.
+`format_version` is an integer. Consumers must reject any file whose `format_version` they do not recognize. v1 of the resolver rejects with exit code 2 and a message naming the unsupported version (and the offending file path). Missing `format_version`, or `format_version` that is not a true integer (a float `1.0`, a string `"1"`, or a boolean), is the same exit code with a message naming the field.
 
-A bump to `format_version` is a breaking change to the schema and is the signal for downstream consumers to update. The schema may add optional fields at v1 without bumping, but no field is currently optional in v1.
+A bump to `format_version` is a breaking change to the schema. Consumers that target v1 must reject v2 files. Consumers that target v2 SHOULD accept v1 files (forward compatibility) unless v2 introduces semantics that change v1 meaning. The schema does not add optional fields at v1: every field listed above is required, so a v1 reader can rely on every documented field being present.
 
 ## Cross-References
 

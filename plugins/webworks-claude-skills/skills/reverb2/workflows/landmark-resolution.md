@@ -109,6 +109,8 @@ The artifact is byte-deterministic across runs (modulo `source.captured_at`), so
 
 ## Schema and Downstream Consumers
 
+> **Migration note:** Earlier prereleases of `dump` emitted a flat `{id: "file#anchor"}` JSON map. Plugin 2.12.0 replaces that shape with the schema'd `{format_version, landmarks, source}` artifact described below. Any captured output from the old shape is no longer compatible; re-run `dump --out <file> --source-label <name>` to regenerate against the current schema. The `--table` output is unchanged.
+
 The `dump` artifact follows a documented contract:
 
 - **Schema reference:** [`../references/landmark-lookup-table.md`](../references/landmark-lookup-table.md) — top-level fields, per-entry shape, encoding, determinism, versioning.

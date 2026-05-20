@@ -546,9 +546,14 @@ def test_cli_mutex_resolve(tmp_path: Path) -> None:
         '--from', str(SINGLE_CHUNK),
         '--lookup-table', str(snapshot),
     )
+    # argparse rephrases the mutex error across Python versions; assert against
+    # the stable flag names rather than the prose ("not allowed", "conflicts
+    # with", ...) so this test does not flip on a CPython refresh.
     check(
         "AE4: resolve --from + --lookup-table exits 2 with mutex error",
-        result.returncode == 2 and 'not allowed' in result.stderr,
+        result.returncode == 2
+        and '--from' in result.stderr
+        and '--lookup-table' in result.stderr,
         f"rc={result.returncode}, stderr={result.stderr!r}",
     )
 
@@ -566,7 +571,9 @@ def test_cli_mutex_rewrite(tmp_path: Path) -> None:
     )
     check(
         "AE4: rewrite --from + --lookup-table exits 2 with mutex error",
-        result.returncode == 2 and 'not allowed' in result.stderr,
+        result.returncode == 2
+        and '--from' in result.stderr
+        and '--lookup-table' in result.stderr,
         f"rc={result.returncode}, stderr={result.stderr!r}",
     )
 
@@ -623,6 +630,48 @@ def test_cli_lookup_table_missing_landmarks(tmp_path: Path) -> None:
     check(
         "Lookup-table missing 'landmarks' field exits 2 with field named",
         result.returncode == 2 and 'landmarks' in result.stderr,
+        f"rc={result.returncode}, stderr={result.stderr!r}",
+    )
+
+
+def test_cli_lookup_table_landmarks_wrong_type(tmp_path: Path) -> None:
+    artifact = tmp_path / 'landmarks-as-array.json'
+    artifact.write_text(
+        json.dumps({"format_version": 1, "landmarks": ["a", "b"]}),
+        encoding='utf-8',
+    )
+    result = run_cli('resolve', 'anything', '--lookup-table', str(artifact))
+    check(
+        "Lookup-table 'landmarks' as array exits 2 with field named",
+        result.returncode == 2 and 'landmarks' in result.stderr,
+        f"rc={result.returncode}, stderr={result.stderr!r}",
+    )
+
+
+def test_cli_lookup_table_entry_not_object(tmp_path: Path) -> None:
+    artifact = tmp_path / 'entry-as-string.json'
+    artifact.write_text(
+        json.dumps({"format_version": 1, "landmarks": {"id": "a-string"}}),
+        encoding='utf-8',
+    )
+    result = run_cli('resolve', 'id', '--lookup-table', str(artifact))
+    check(
+        "Lookup-table entry-as-non-object exits 2 with id named",
+        result.returncode == 2 and "'id'" in result.stderr,
+        f"rc={result.returncode}, stderr={result.stderr!r}",
+    )
+
+
+def test_cli_lookup_table_entry_missing_field(tmp_path: Path) -> None:
+    artifact = tmp_path / 'entry-missing-file.json'
+    artifact.write_text(
+        json.dumps({"format_version": 1, "landmarks": {"id": {"anchor": "x"}}}),
+        encoding='utf-8',
+    )
+    result = run_cli('resolve', 'id', '--lookup-table', str(artifact))
+    check(
+        "Lookup-table entry missing 'file' field exits 2 with field named",
+        result.returncode == 2 and 'file' in result.stderr,
         f"rc={result.returncode}, stderr={result.stderr!r}",
     )
 
@@ -791,6 +840,9 @@ def main() -> int:
         test_cli_missing_format_version(tmp_path)
         test_cli_lookup_table_malformed_json(tmp_path)
         test_cli_lookup_table_missing_landmarks(tmp_path)
+        test_cli_lookup_table_landmarks_wrong_type(tmp_path)
+        test_cli_lookup_table_entry_not_object(tmp_path)
+        test_cli_lookup_table_entry_missing_field(tmp_path)
         test_cli_lookup_table_unknown_id(tmp_path)
         test_dump_out_file_matches_stdout(tmp_path)
 
