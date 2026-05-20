@@ -1,7 +1,7 @@
 ---
 title: "docs: Document ASP template customization workflow for custom images and assets"
 type: docs
-status: active
+status: completed
 created: 2026-05-20
 issue: 49
 depth: lightweight
