@@ -113,6 +113,8 @@ Skip to **Step 7** after editing.
 
 ## Step 4: Layer 2 — Skin CSS Overrides
 
+Skin CSS overrides target the *chrome* (toolbar, TOC, navigation, breadcrumbs, popups). For why this is split from content-page overrides, see `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
+
 Use when SCSS variables are insufficient and structural CSS changes are needed for the chrome (toolbar, TOC, navigation, breadcrumbs, popups).
 
 ### 1. Copy `skin.scss` to the project
@@ -147,6 +149,8 @@ cp "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/skin.scss" \
 Skip to **Step 7** after editing.
 
 ## Step 5: Layer 3 — Content Page CSS Overrides
+
+Content page overrides target the iframe content (fonts, links, tables, mini-TOC, code blocks). Keep `a { }`, paragraph, and table rules here — putting them in `_custom-skin.scss` would incorrectly elevate their cascade specificity. See `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
 
 Use when customizing the content page inside the iframe (fonts, links, tables, mini-TOC, code blocks).
 
@@ -207,6 +211,12 @@ After rebuild, confirm:
 
 Invoke the **browser-testing workflow** if automated verification is needed.
 
+### Remove Redundant Overrides
+
+After verifying the rebuild, check whether any copied entry-point files (for example, `print.scss`, `skin.scss`, `webworks.scss`) match the installed default. If they do — meaning all customization was extracted to `_custom-*.scss` partials or prefixed variables — delete the redundant copy. The file resolver hierarchy will fall through to the installed version, reducing the surface area for upgrade-time merge conflicts.
+
+See `references/scss-architecture.md` § "Removing Redundant Overrides" for the diff workflow.
+
 ### Report
 
 Confirm to user:
@@ -229,4 +239,5 @@ This workflow is complete when:
 - [ ] Import hooks added to copied entry points (Layers 2–3)
 - [ ] User informed of next steps (rebuild)
 - [ ] Build completes without SCSS errors (if rebuild performed)
+- [ ] Redundant override files deleted if they match installed defaults
 </success_criteria>

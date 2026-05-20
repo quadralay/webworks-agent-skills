@@ -218,7 +218,7 @@ Highest first (file resolver hierarchy):
 3. `[Project]/Formats/WebWorks Reverb 2.0.base/Pages/sass/_colors.scss` — packaged defaults
 4. `[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/_colors.scss` — installation fallback
 
-**Detailed guidance:** `workflows/scss-theming.md` (layer-specific steps) and `references/scss-architecture.md` (cascade diagrams, compilation model).
+**Detailed guidance:** `workflows/scss-theming.md` (layer-specific steps), `references/scss-architecture.md` (cascade diagrams, compilation model, strict variable rules), `references/customization-conventions.md` (annotations for non-SCSS overrides, `locales.xml` upgrade).
 </scss_customization>
 
 <templates>
@@ -314,7 +314,7 @@ python scripts/extract-scss-variables.py /path/to/project neo
 
 **Do not apply general web development patterns to Reverb.** Reverb 2.0 is a single-page application with its own JavaScript runtime (`Parcels`), navigation model, and SCSS architecture. Standard web debugging assumptions (e.g., "check the network tab for 404s") may not apply. Always consult the format's source files first.
 
-**`.weplugin` skin packages are deprecated.** These are zip archives typically containing `_colors.scss`, sometimes `_sizes.scss`, and occasionally `Connect.asp`. They will be removed in Reverb 3.0. To migrate: rename to `.zip`, extract, diff against installation defaults to identify actual customizations, then copy customized partials to the appropriate override level (`Formats/WebWorks Reverb 2.0/Pages/sass/` or `Targets/[Target]/Pages/sass/`). Use direct SCSS variable overrides with the `$theme_` naming convention instead. For structural CSS beyond variables, create `_custom-skin.scss` (chrome) or `_custom-webworks.scss` (content) — see `references/scss-architecture.md`.
+**`.weplugin` skin packages are deprecated.** These are zip archives typically containing `_colors.scss`, sometimes `_sizes.scss`, and occasionally `Connect.asp`. They will be removed in Reverb 3.0. To migrate: rename to `.zip`, extract, diff against installation defaults to identify actual customizations, then copy customized partials to the appropriate override level (`Formats/WebWorks Reverb 2.0/Pages/sass/` or `Targets/[Target]/Pages/sass/`). Use direct SCSS variable overrides with the `$theme_` naming convention instead. For structural CSS beyond variables, create `_custom-skin.scss` (chrome) or `_custom-webworks.scss` (content) — see `references/scss-architecture.md` § "Why Two Custom Partials, Not One". For non-SCSS overrides (`locales.xml`, ASP templates), see `references/customization-conventions.md`.
 
 **Reverb output is not the format source.** The generated HTML/CSS/JS in the output directory is transformed output. To understand or fix runtime behavior, examine the format source files: `Pages/scripts/*.js` for JavaScript, `Pages/*.asp` for HTML templates, `Pages/sass/*.scss` for styles.
 
