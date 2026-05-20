@@ -2,31 +2,42 @@
 """
 verify-landmark-resolver.py
 
-Standalone verifier for resolve-landmarks.py. Runs every U1 test scenario from
-the issue #54 plan and prints PASS/FAIL lines. Exits 0 only when every scenario
+Standalone verifier for resolve-landmarks.py. Runs every test scenario from
+the issue #54 plan (v1) and the issue #76 plan (v2: remote fetch, cache,
+URL-decode fix) and prints PASS/FAIL lines. Exits 0 only when every scenario
 passes.
 
 Usage:
     python verify-landmark-resolver.py
 
 Tests use fixtures in tests/fixtures/ and invoke the resolver both as a
-Python module (for internal-function tests) and as a subprocess (for CLI
-contract tests: exit codes, stdout JSON, error formatting).
+Python module (for internal-function tests, including stub-fetcher state-
+machine tests) and as a subprocess (for CLI contract tests: exit codes,
+stdout JSON, error formatting). No network access is required.
 """
 
 import importlib.util
 import json
+import os
+import socket
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
+from typing import Optional
 
 THIS_DIR = Path(__file__).resolve().parent
 SKILL_DIR = THIS_DIR.parent
 SCRIPT_PATH = SKILL_DIR / 'scripts' / 'resolve-landmarks.py'
 FIXTURE_DIR = THIS_DIR / 'fixtures'
 SINGLE_CHUNK = FIXTURE_DIR / 'single-chunk_lx.js'
-MULTI_DIR = FIXTURE_DIR  # contains both multi-chunk-a and multi-chunk-b
+MULTI_DIR = FIXTURE_DIR  # contains every *_lx.js fixture
+UNICODE_CHUNK = FIXTURE_DIR / 'unicode-ids_lx.js'
+LANDING_WITH_HASH = FIXTURE_DIR / 'landing-with-hash.html'
+LANDING_NO_HASH = FIXTURE_DIR / 'landing-no-hash.html'
+LX_MANIFEST = FIXTURE_DIR / 'lx-manifest.json'
 
 
 def _load_resolver_module():
@@ -57,16 +68,50 @@ def check(name: str, condition: bool, detail: str = '') -> None:
         print(f"{RED}FAIL:{NC} {name}" + (f" — {detail}" if detail else ''))
 
 
-def run_cli(*cli_args: str) -> subprocess.CompletedProcess:
+def run_cli(*cli_args: str, env: Optional[dict] = None) -> subprocess.CompletedProcess:
+    proc_env = os.environ.copy()
+    if env:
+        proc_env.update(env)
     return subprocess.run(
         [sys.executable, str(SCRIPT_PATH), *cli_args],
         capture_output=True,
         text=True,
+        env=proc_env,
     )
 
 
 # ---------------------------------------------------------------------------
-# Internal-function tests (import the resolver as a module)
+# Stub fetcher used by remote-mode internal tests
+# ---------------------------------------------------------------------------
+
+
+class StubFetcher:
+    """
+    Records every call and returns canned (status, body) pairs.
+
+    `responses` maps URL string -> (status, body) for static responses, or maps
+    URL -> a callable `(method) -> (status, body)` for per-method handling.
+    """
+
+    def __init__(self, responses: dict):
+        self.calls: list[tuple[str, str, float]] = []
+        self.responses = responses
+
+    def __call__(self, url, *, method='GET', timeout=10.0):
+        self.calls.append((url, method, timeout))
+        if url not in self.responses:
+            raise resolver.RemoteFetchError(url, f"stub: no response for {url}")
+        entry = self.responses[url]
+        if callable(entry):
+            return entry(method)
+        return entry
+
+    def reset_calls(self) -> None:
+        self.calls = []
+
+
+# ---------------------------------------------------------------------------
+# Internal-function tests — v1 (preserved unchanged)
 # ---------------------------------------------------------------------------
 
 def test_internal_parse_chunk() -> None:
@@ -81,7 +126,6 @@ def test_internal_parse_chunk() -> None:
 def test_internal_build_index_single() -> None:
     files, anchors, id_to_pair = resolver.build_index([SINGLE_CHUNK])
 
-    # Paragraph-level row overrides page-level for "abc1234567890def"
     fi, ai = id_to_pair['abc1234567890def']
     check(
         "paragraph-level overrides page-level (last write wins)",
@@ -89,7 +133,6 @@ def test_internal_build_index_single() -> None:
         f"got ({files[fi]!r}, {anchors[ai]!r})",
     )
 
-    # Page-only ID resolves to bare file (empty anchor)
     fi, ai = id_to_pair['page-only-id']
     check(
         "page-only ID has empty anchor",
@@ -97,7 +140,6 @@ def test_internal_build_index_single() -> None:
         f"got ({files[fi]!r}, {anchors[ai]!r})",
     )
 
-    # Out-of-range rows are skipped
     check(
         "out-of-range file index is skipped",
         "out-of-range-file" not in id_to_pair,
@@ -107,7 +149,6 @@ def test_internal_build_index_single() -> None:
         "out-of-range-anchor" not in id_to_pair,
     )
 
-    # Empty ID is skipped
     check(
         "empty landmark ID is skipped",
         "" not in id_to_pair,
@@ -117,19 +158,16 @@ def test_internal_build_index_single() -> None:
 def test_internal_id_format_opacity() -> None:
     files, anchors, id_to_pair = resolver.build_index([SINGLE_CHUNK])
 
-    # 16-char hex
     check(
         "ID format opacity: 16-char hex resolves",
         resolver.resolve_id("abc1234567890def", files, anchors, id_to_pair)
         == "Group/page.html#wwp100",
     )
-    # 8-char hex
     check(
         "ID format opacity: 8-char hex resolves",
         resolver.resolve_id("12345678", files, anchors, id_to_pair)
         == "Group/page.html#wwp200",
     )
-    # Pass-through source ID
     check(
         "ID format opacity: pass-through source ID resolves",
         resolver.resolve_id("getting-started-overview", files, anchors, id_to_pair)
@@ -144,7 +182,6 @@ def test_internal_multi_chunk_merge() -> None:
     ])
     files, anchors, id_to_pair = resolver.build_index(chunks)
 
-    # The shared file string is interned to one global index, used by both chunks.
     fi_a, _ = id_to_pair['chunk_a_only']
     fi_b, _ = id_to_pair['chunk_b_only']
     check(
@@ -153,8 +190,6 @@ def test_internal_multi_chunk_merge() -> None:
         f"chunk_a fi={fi_a}, chunk_b fi={fi_b}, file={files[fi_a]!r}",
     )
 
-    # "common_id" appears in both chunks; chunk B is processed second, so its
-    # binding wins (last write wins, mirroring the runtime).
     fi, ai = id_to_pair['common_id']
     check(
         "multi-chunk merge: last-write-wins across chunks",
@@ -216,8 +251,695 @@ def test_internal_discover_chunks_directory() -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI contract tests (subprocess)
+# Internal-function tests — v2: build_index_from_texts (U5 plumbing)
 # ---------------------------------------------------------------------------
+
+def test_internal_build_index_from_texts() -> None:
+    text = SINGLE_CHUNK.read_bytes()
+    files, anchors, id_to_pair = resolver.build_index_from_texts(
+        [(str(SINGLE_CHUNK), text)]
+    )
+    check(
+        "build_index_from_texts mirrors build_index on the same chunk bytes",
+        resolver.resolve_id("abc1234567890def", files, anchors, id_to_pair)
+        == "Group/page.html#wwp100",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Internal-function tests — v2 U1: URL fragment decoder fix
+# ---------------------------------------------------------------------------
+
+def test_unicode_id_resolves_with_unquote_in_index() -> None:
+    # Sanity: the fixture contains the raw Unicode key.
+    files, anchors, id_to_pair = resolver.build_index([UNICODE_CHUNK])
+    check(
+        "unicode-ids fixture contains raw '概要' ID",
+        '概要' in id_to_pair,
+    )
+    check(
+        "unicode-ids fixture: '概要' resolves to expected path with spaces",
+        resolver.resolve_id('概要', files, anchors, id_to_pair)
+        == "Advanced Customizations/_xslt-extensions.04.1.html#wwp_overview",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Internal-function tests — v2 U2: HTTP primitives with stubbed urlopen
+# ---------------------------------------------------------------------------
+
+
+class _FakeResponse:
+    def __init__(self, body: bytes, status: int = 200):
+        self._body = body
+        self.status = status
+
+    def read(self):
+        return self._body
+
+    def getcode(self):
+        return self.status
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeOpener:
+    def __init__(self, behavior):
+        self.behavior = behavior
+        self.calls = []
+
+    def open(self, url_or_request, timeout=None):
+        # Normalize argument to a URL string.
+        url = url_or_request if isinstance(url_or_request, str) else url_or_request.full_url
+        self.calls.append((url, timeout))
+        if callable(self.behavior):
+            result = self.behavior(len(self.calls) - 1, url, timeout)
+        else:
+            result = self.behavior
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+
+def _install_fake_opener(behavior):
+    """Replace _build_opener with one returning a fake. Returns the fake."""
+    fake = _FakeOpener(behavior)
+    resolver._build_opener = lambda: fake
+    return fake
+
+
+def _restore_default_opener():
+    resolver._build_opener = _build_opener_default
+
+
+_build_opener_default = resolver._build_opener
+
+
+def test_http_get_happy_path() -> None:
+    fake = _install_fake_opener(_FakeResponse(b"hello world"))
+    try:
+        body = resolver.http_get("https://example.com/x", timeout=5.0, max_attempts=3, base_delay=0.0)
+        check(
+            "http_get returns bytes on 2xx response",
+            body == b"hello world" and len(fake.calls) == 1,
+            f"body={body!r}, calls={fake.calls}",
+        )
+    finally:
+        _restore_default_opener()
+
+
+def test_http_get_transient_retry() -> None:
+    sleep_calls: list[float] = []
+
+    def behavior(attempt, url, timeout):
+        if attempt < 2:
+            return urllib.error.URLError(socket.timeout("simulated timeout"))
+        return _FakeResponse(b"recovered")
+
+    fake = _install_fake_opener(behavior)
+    original_sleep = resolver._sleep
+    resolver._sleep = lambda secs: sleep_calls.append(secs)
+    try:
+        body = resolver.http_get("https://example.com/x", timeout=5.0, max_attempts=3, base_delay=1.0)
+        check(
+            "http_get retries transient URLError (timeout) and recovers",
+            body == b"recovered" and len(fake.calls) == 3 and sleep_calls == [1.0, 2.0],
+            f"body={body!r}, calls={len(fake.calls)}, sleeps={sleep_calls}",
+        )
+    finally:
+        resolver._sleep = original_sleep
+        _restore_default_opener()
+
+
+def test_http_get_exhausted_retries() -> None:
+    def behavior(attempt, url, timeout):
+        return urllib.error.URLError(socket.timeout("persistent timeout"))
+
+    fake = _install_fake_opener(behavior)
+    original_sleep = resolver._sleep
+    resolver._sleep = lambda secs: None
+    try:
+        try:
+            resolver.http_get("https://example.com/x", timeout=5.0, max_attempts=3, base_delay=1.0)
+            check("http_get raises RemoteFetchError after exhausted retries", False, "did not raise")
+        except resolver.RemoteFetchError as e:
+            check(
+                "http_get raises RemoteFetchError after exhausted retries (URL in message)",
+                "https://example.com/x" in str(e) and len(fake.calls) == 3,
+                f"calls={len(fake.calls)}, error={e}",
+            )
+    finally:
+        resolver._sleep = original_sleep
+        _restore_default_opener()
+
+
+def test_http_get_4xx_not_retried() -> None:
+    def behavior(attempt, url, timeout):
+        return urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+
+    fake = _install_fake_opener(behavior)
+    original_sleep = resolver._sleep
+    resolver._sleep = lambda secs: None
+    try:
+        try:
+            resolver.http_get("https://example.com/x", timeout=5.0, max_attempts=3, base_delay=1.0)
+            check("http_get does not retry on 4xx", False, "did not raise")
+        except resolver.RemoteFetchError as e:
+            check(
+                "http_get does not retry on 4xx; raises with URL and status",
+                "https://example.com/x" in str(e) and "404" in str(e) and len(fake.calls) == 1,
+                f"calls={len(fake.calls)}, error={e}",
+            )
+    finally:
+        resolver._sleep = original_sleep
+        _restore_default_opener()
+
+
+def test_http_get_5xx_retried() -> None:
+    def behavior(attempt, url, timeout):
+        if attempt < 2:
+            return urllib.error.HTTPError(url, 503, "Service Unavailable", {}, None)
+        return _FakeResponse(b"recovered after 5xx")
+
+    fake = _install_fake_opener(behavior)
+    original_sleep = resolver._sleep
+    resolver._sleep = lambda secs: None
+    try:
+        body = resolver.http_get("https://example.com/x", timeout=5.0, max_attempts=3, base_delay=1.0)
+        check(
+            "http_get retries on 5xx and recovers",
+            body == b"recovered after 5xx" and len(fake.calls) == 3,
+            f"body={body!r}, calls={len(fake.calls)}",
+        )
+    finally:
+        resolver._sleep = original_sleep
+        _restore_default_opener()
+
+
+def test_proxy_handler_constructed_from_getproxies() -> None:
+    captured: list = []
+    real_build_opener = urllib.request.build_opener
+    original_getproxies = urllib.request.getproxies
+
+    def fake_getproxies():
+        return {'https': 'http://proxy.example:8080'}
+
+    def fake_build_opener(*handlers):
+        for h in handlers:
+            if isinstance(h, urllib.request.ProxyHandler):
+                captured.append(h.proxies)
+        return real_build_opener(*handlers)
+
+    urllib.request.getproxies = fake_getproxies
+    urllib.request.build_opener = fake_build_opener
+    try:
+        resolver._build_opener_default = resolver._build_opener  # backup
+        opener = resolver._build_opener()
+        check(
+            "_build_opener installs ProxyHandler built from getproxies()",
+            len(captured) == 1 and captured[0].get('https') == 'http://proxy.example:8080',
+            f"captured={captured}",
+        )
+    finally:
+        urllib.request.build_opener = real_build_opener
+        urllib.request.getproxies = original_getproxies
+
+
+# ---------------------------------------------------------------------------
+# Internal-function tests — v2 U3: cache layout and state machine
+# ---------------------------------------------------------------------------
+
+
+def test_default_cache_root_windows() -> None:
+    original_env = os.environ.get('LOCALAPPDATA')
+    original_system = resolver.platform.system
+    resolver.platform.system = lambda: 'Windows'
+    os.environ['LOCALAPPDATA'] = r'C:\Users\test\AppData\Local'
+    try:
+        root = resolver.default_cache_root()
+        expected = Path(r'C:\Users\test\AppData\Local') / 'webworks' / 'reverb-landmarks'
+        check(
+            "default_cache_root: Windows uses %LOCALAPPDATA%",
+            root == expected,
+            f"got {root}, expected {expected}",
+        )
+    finally:
+        if original_env is None:
+            del os.environ['LOCALAPPDATA']
+        else:
+            os.environ['LOCALAPPDATA'] = original_env
+        resolver.platform.system = original_system
+
+
+def test_default_cache_root_linux_xdg() -> None:
+    original_xdg = os.environ.get('XDG_CACHE_HOME')
+    original_system = resolver.platform.system
+    resolver.platform.system = lambda: 'Linux'
+    if 'XDG_CACHE_HOME' in os.environ:
+        del os.environ['XDG_CACHE_HOME']
+    try:
+        root = resolver.default_cache_root()
+        expected = Path.home() / '.cache' / 'webworks' / 'reverb-landmarks'
+        check(
+            "default_cache_root: Linux without XDG_CACHE_HOME falls back to ~/.cache",
+            root == expected,
+            f"got {root}",
+        )
+    finally:
+        if original_xdg is not None:
+            os.environ['XDG_CACHE_HOME'] = original_xdg
+        resolver.platform.system = original_system
+
+
+def test_default_cache_root_macos() -> None:
+    original_system = resolver.platform.system
+    resolver.platform.system = lambda: 'Darwin'
+    try:
+        root = resolver.default_cache_root()
+        expected = Path.home() / 'Library' / 'Caches' / 'webworks' / 'reverb-landmarks'
+        check(
+            "default_cache_root: macOS uses ~/Library/Caches",
+            root == expected,
+            f"got {root}",
+        )
+    finally:
+        resolver.platform.system = original_system
+
+
+def test_base_cache_dir_with_path() -> None:
+    root = Path('/cache-root')
+    base_dir = resolver.base_cache_dir(root, 'https://static.example.com/docs/help/')
+    expected = root / 'static.example.com' / 'docs%2Fhelp%2F'
+    check(
+        "base_cache_dir: encodes nested path as percent-encoded segment",
+        base_dir == expected,
+        f"got {base_dir}, expected {expected}",
+    )
+
+
+def test_base_cache_dir_root_url() -> None:
+    root = Path('/cache-root')
+    base_dir = resolver.base_cache_dir(root, 'https://static.example.com/')
+    expected = root / 'static.example.com'
+    check(
+        "base_cache_dir: root path produces no doubled separator",
+        base_dir == expected,
+        f"got {base_dir}, expected {expected}",
+    )
+
+
+def test_base_cache_dir_trailing_slash_distinct() -> None:
+    root = Path('/cache-root')
+    with_slash = resolver.base_cache_dir(root, 'https://x.example/help/')
+    no_slash = resolver.base_cache_dir(root, 'https://x.example/help')
+    check(
+        "base_cache_dir: trailing-slash sensitivity preserved",
+        with_slash != no_slash,
+        f"with_slash={with_slash}, no_slash={no_slash}",
+    )
+
+
+def test_read_cache_manifest_missing(tmp_path: Path) -> None:
+    base_dir = tmp_path / 'absent'
+    check(
+        "read_cache_manifest returns None for missing directory",
+        resolver.read_cache_manifest(base_dir) is None,
+    )
+
+
+def test_read_cache_manifest_malformed(tmp_path: Path) -> None:
+    base_dir = tmp_path / 'malformed'
+    base_dir.mkdir()
+    (base_dir / '_manifest.json').write_text('not json at all', encoding='utf-8')
+    check(
+        "read_cache_manifest returns None for malformed JSON",
+        resolver.read_cache_manifest(base_dir) is None,
+    )
+
+
+def test_write_cache_atomic_replaces_old_files(tmp_path: Path) -> None:
+    base_dir = tmp_path / 'base'
+    # Prior cache with extra files.
+    base_dir.mkdir()
+    (base_dir / 'OLD_lx.js').write_bytes(b"old chunk")
+    (base_dir / '_manifest.json').write_text('{"old": true}', encoding='utf-8')
+
+    new_chunks = {'A_lx.js': b"chunk A", 'B_lx.js': b"chunk B"}
+    manifest = {'generation_hash': 'newhash', 'last_poll_ts': 1234.5, 'chunks': [
+        {'name': 'A_lx.js', 'url': 'https://x/A_lx.js'},
+        {'name': 'B_lx.js', 'url': 'https://x/B_lx.js'},
+    ]}
+    resolver.write_cache_atomic(base_dir, manifest, new_chunks)
+
+    contents = set(p.name for p in base_dir.iterdir())
+    check(
+        "write_cache_atomic replaces prior cache (old files gone)",
+        contents == {'A_lx.js', 'B_lx.js', '_manifest.json'},
+        f"contents={contents}",
+    )
+
+    read_back = resolver.read_cache_manifest(base_dir)
+    check(
+        "write_cache_atomic round-trips manifest contents",
+        read_back is not None and read_back.get('generation_hash') == 'newhash',
+        f"manifest={read_back}",
+    )
+
+
+def test_cache_decision_branches() -> None:
+    check(
+        "cache_decision: no_cache=True forces refetch",
+        resolver.cache_decision({'last_poll_ts': 0}, ttl_seconds=3600, now=0, no_cache=True) == 'refetch',
+    )
+    check(
+        "cache_decision: missing manifest forces refetch",
+        resolver.cache_decision(None, ttl_seconds=3600, now=0, no_cache=False) == 'refetch',
+    )
+    check(
+        "cache_decision: within TTL returns 'use'",
+        resolver.cache_decision({'last_poll_ts': 100}, ttl_seconds=3600, now=200, no_cache=False) == 'use',
+    )
+    check(
+        "cache_decision: past TTL returns 'poll'",
+        resolver.cache_decision({'last_poll_ts': 100}, ttl_seconds=10, now=200, no_cache=False) == 'poll',
+    )
+    check(
+        "cache_decision: missing last_poll_ts forces refetch",
+        resolver.cache_decision({'generation_hash': 'x'}, ttl_seconds=3600, now=0, no_cache=False) == 'refetch',
+    )
+
+
+def test_cache_partial_write_isolated(tmp_path: Path) -> None:
+    base_dir = tmp_path / 'partial-base'
+    base_dir.mkdir()
+    (base_dir / 'good_lx.js').write_bytes(b"good")
+    (base_dir / '_manifest.json').write_text(
+        json.dumps({'generation_hash': 'h1', 'last_poll_ts': 1.0, 'chunks': [
+            {'name': 'good_lx.js', 'url': 'https://x/good_lx.js'},
+        ]}),
+        encoding='utf-8',
+    )
+    # Simulate a partial write that did not yet swap.
+    staging = tmp_path / 'partial-base.tmp'
+    staging.mkdir()
+    (staging / '_manifest.json').write_text('{"halfway": true}', encoding='utf-8')
+
+    manifest = resolver.read_cache_manifest(base_dir)
+    check(
+        "partial-write tolerance: pre-swap reader sees old cache (not the .tmp staging dir)",
+        manifest is not None and manifest.get('generation_hash') == 'h1',
+        f"manifest={manifest}",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Internal-function tests — v2 U4: chunk discovery
+# ---------------------------------------------------------------------------
+
+
+def test_extract_chunk_srcs_basic() -> None:
+    html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    srcs = resolver.extract_chunk_srcs_from_html(html, 'https://x.example/help/')
+    expected = [
+        'https://x.example/help/A_lx.js',
+        'https://x.example/help/B_lx.js',
+        'https://x.example/help/C_lx.js',
+    ]
+    check(
+        "extract_chunk_srcs_from_html: returns abs URLs in source order, no dupes, ignores non-_lx.js",
+        srcs == expected,
+        f"got {srcs}",
+    )
+
+
+def test_extract_chunk_srcs_quote_variants() -> None:
+    html = """
+    <script src="A_lx.js"></script>
+    <script src='B_lx.js'></script>
+    <script type="text/javascript" src="C_lx.js" defer></script>
+    <script src="not_landmarks.js"></script>
+    """
+    srcs = resolver.extract_chunk_srcs_from_html(html, 'https://x.example/help/')
+    check(
+        "extract_chunk_srcs_from_html: tolerant of quote and attribute variants",
+        srcs == [
+            'https://x.example/help/A_lx.js',
+            'https://x.example/help/B_lx.js',
+            'https://x.example/help/C_lx.js',
+        ],
+        f"got {srcs}",
+    )
+
+
+def test_extract_generation_hash() -> None:
+    html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    check(
+        "extract_generation_hash: recovers constant from landing fixture",
+        resolver.extract_generation_hash(html) == "abc123def456",
+    )
+    check(
+        "extract_generation_hash: const declaration variant",
+        resolver.extract_generation_hash('const GLOBAL_GENERATION_HASH = "xyz789";') == "xyz789",
+    )
+    check(
+        "extract_generation_hash: returns None when absent",
+        resolver.extract_generation_hash(LANDING_NO_HASH.read_text(encoding='utf-8')) is None,
+    )
+
+
+def _make_remote_chunks_responses(landing_html: str, manifest_status: int = 404) -> dict:
+    """Build a stub-fetcher response map for a base URL exposing the unicode fixture chunks."""
+    chunk_bytes = SINGLE_CHUNK.read_bytes()
+    base = 'https://x.example/help/'
+    responses = {
+        base: (200, landing_html.encode('utf-8')),
+        base + '_lx-manifest.json': (manifest_status, b'{}'),
+        base + 'A_lx.js': (200, chunk_bytes),
+        base + 'B_lx.js': (200, chunk_bytes),
+        base + 'C_lx.js': (200, chunk_bytes),
+    }
+    return responses
+
+
+def test_remote_chunk_texts_first_call_writes_cache(tmp_path: Path) -> None:
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    fetcher = StubFetcher(_make_remote_chunks_responses(landing_html))
+    cache_dir = tmp_path / 'cache'
+
+    chunks = resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir,
+        ttl=3600.0,
+        no_cache=False,
+        fetcher=fetcher,
+        now=1000.0,
+    )
+    chunk_urls = [u for u, _ in chunks]
+    check(
+        "remote_chunk_texts: first call discovers and fetches every chunk",
+        chunk_urls == [
+            'https://x.example/help/A_lx.js',
+            'https://x.example/help/B_lx.js',
+            'https://x.example/help/C_lx.js',
+        ],
+        f"chunk_urls={chunk_urls}",
+    )
+
+    cached_names = set(p.name for p in cache_dir.iterdir())
+    check(
+        "remote_chunk_texts: first call populates cache directory",
+        cached_names == {'A_lx.js', 'B_lx.js', 'C_lx.js', '_manifest.json'},
+        f"cached={cached_names}",
+    )
+
+    manifest = resolver.read_cache_manifest(cache_dir)
+    check(
+        "remote_chunk_texts: cached manifest records generation hash",
+        manifest is not None and manifest.get('generation_hash') == 'abc123def456',
+        f"manifest={manifest}",
+    )
+
+
+def test_remote_chunk_texts_second_call_uses_cache(tmp_path: Path) -> None:
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    fetcher = StubFetcher(_make_remote_chunks_responses(landing_html))
+    cache_dir = tmp_path / 'cache'
+
+    resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher, now=1000.0,
+    )
+    fetcher.reset_calls()
+
+    chunks = resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher, now=1500.0,
+    )
+    check(
+        "remote_chunk_texts: second call within TTL makes zero fetches",
+        len(fetcher.calls) == 0 and len(chunks) == 3,
+        f"calls={fetcher.calls}, chunks={len(chunks)}",
+    )
+
+
+def test_remote_chunk_texts_hash_unchanged_reuses_cache(tmp_path: Path) -> None:
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    fetcher = StubFetcher(_make_remote_chunks_responses(landing_html))
+    cache_dir = tmp_path / 'cache'
+
+    resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher, now=1000.0,
+    )
+    fetcher.reset_calls()
+
+    # Past TTL — should poll the landing page but skip chunk re-fetch.
+    chunks = resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir, ttl=10.0, no_cache=False, fetcher=fetcher, now=2000.0,
+    )
+    landing_calls = [c for c in fetcher.calls if c[0] == 'https://x.example/help/' and c[1] == 'GET']
+    chunk_calls = [c for c in fetcher.calls if c[0].endswith('_lx.js')]
+    check(
+        "remote_chunk_texts: hash unchanged after TTL polls landing only, no chunk re-fetch",
+        len(landing_calls) == 1 and len(chunk_calls) == 0 and len(chunks) == 3,
+        f"calls={fetcher.calls}",
+    )
+
+
+def test_remote_chunk_texts_hash_changed_refetches(tmp_path: Path) -> None:
+    landing_html_v1 = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    landing_html_v2 = landing_html_v1.replace('abc123def456', 'xyz999')
+    base = 'https://x.example/help/'
+    cache_dir = tmp_path / 'cache'
+    fetcher = StubFetcher(_make_remote_chunks_responses(landing_html_v1))
+    resolver.remote_chunk_texts(
+        base_url=base, cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher, now=1000.0,
+    )
+
+    new_responses = _make_remote_chunks_responses(landing_html_v2)
+    new_responses[base + 'A_lx.js'] = (200, b"new chunk A")
+    new_responses[base + 'B_lx.js'] = (200, b"new chunk B")
+    new_responses[base + 'C_lx.js'] = (200, b"new chunk C")
+    fetcher2 = StubFetcher(new_responses)
+
+    chunks = resolver.remote_chunk_texts(
+        base_url=base, cache_dir=cache_dir, ttl=10.0, no_cache=False, fetcher=fetcher2, now=2000.0,
+    )
+    chunk_bodies = [body for _, body in chunks]
+    check(
+        "remote_chunk_texts: hash changed forces re-fetch of every chunk",
+        chunk_bodies == [b"new chunk A", b"new chunk B", b"new chunk C"],
+        f"bodies={chunk_bodies}",
+    )
+
+    manifest = resolver.read_cache_manifest(cache_dir)
+    check(
+        "remote_chunk_texts: cache manifest updated to new generation hash",
+        manifest is not None and manifest.get('generation_hash') == 'xyz999',
+        f"manifest={manifest}",
+    )
+
+
+def test_remote_chunk_texts_no_cache_forces_refetch(tmp_path: Path) -> None:
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    fetcher = StubFetcher(_make_remote_chunks_responses(landing_html))
+    cache_dir = tmp_path / 'cache'
+
+    resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher, now=1000.0,
+    )
+    first_calls = len(fetcher.calls)
+    fetcher.reset_calls()
+
+    resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir, ttl=3600.0, no_cache=True, fetcher=fetcher, now=1100.0,
+    )
+    chunk_fetches = [c for c in fetcher.calls if c[0].endswith('_lx.js')]
+    check(
+        "remote_chunk_texts: --no-cache re-fetches every chunk despite fresh cache",
+        len(chunk_fetches) == 3 and first_calls > 0,
+        f"first_calls={first_calls}, second chunk fetches={len(chunk_fetches)}",
+    )
+
+
+def test_remote_chunk_texts_no_hash_warns_and_succeeds(tmp_path: Path, capture_stderr) -> None:
+    landing_html = LANDING_NO_HASH.read_text(encoding='utf-8')
+    responses = _make_remote_chunks_responses(landing_html)
+    fetcher = StubFetcher(responses)
+    cache_dir = tmp_path / 'cache'
+
+    chunks = resolver.remote_chunk_texts(
+        base_url='https://x.example/help/',
+        cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher, now=1000.0,
+    )
+    manifest = resolver.read_cache_manifest(cache_dir)
+    stderr_text = capture_stderr.read()
+    check(
+        "remote_chunk_texts: missing GLOBAL_GENERATION_HASH warns and stores null",
+        len(chunks) == 2 and manifest is not None and manifest.get('generation_hash') is None
+        and 'GLOBAL_GENERATION_HASH' in stderr_text,
+        f"chunks={len(chunks)}, manifest={manifest}, stderr={stderr_text[:200]!r}",
+    )
+
+
+def test_remote_chunk_texts_empty_discovery_raises(tmp_path: Path) -> None:
+    base = 'https://empty.example/help/'
+    fetcher = StubFetcher({
+        base: (200, b"<html><body>no scripts here</body></html>"),
+        base + '_lx-manifest.json': (404, b''),
+    })
+    cache_dir = tmp_path / 'cache'
+    try:
+        resolver.remote_chunk_texts(
+            base_url=base, cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher,
+            now=1000.0,
+        )
+        check("remote_chunk_texts: empty discovery raises", False, "no error raised")
+    except resolver.RemoteFetchError as e:
+        check(
+            "remote_chunk_texts: empty discovery raises RemoteFetchError naming base URL and methods",
+            base in str(e) and 'manifest' in str(e).lower() and 'scrape' in str(e).lower(),
+            f"error={e}",
+        )
+
+
+def test_remote_chunk_texts_manifest_preferred(tmp_path: Path) -> None:
+    base = 'https://m.example/help/'
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    manifest_bytes = LX_MANIFEST.read_bytes()
+    responses = {
+        base: (200, landing_html.encode('utf-8')),
+        base + '_lx-manifest.json': (200, manifest_bytes),
+        base + 'A_lx.js': (200, b"chunk A from manifest"),
+        base + 'B_lx.js': (200, b"chunk B from manifest"),
+    }
+    fetcher = StubFetcher(responses)
+    cache_dir = tmp_path / 'cache'
+
+    chunks = resolver.remote_chunk_texts(
+        base_url=base, cache_dir=cache_dir, ttl=3600.0, no_cache=False, fetcher=fetcher, now=1000.0,
+    )
+    chunk_bytes = [body for _, body in chunks]
+    fetched_urls = [c[0] for c in fetcher.calls if c[1] == 'GET']
+    check(
+        "remote_chunk_texts: manifest probe preferred over HTML scrape",
+        chunk_bytes == [b"chunk A from manifest", b"chunk B from manifest"]
+        and (base + 'C_lx.js') not in fetched_urls,
+        f"chunk_bytes={chunk_bytes}, fetched={fetched_urls}",
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI contract tests — v1 (preserved)
+# ---------------------------------------------------------------------------
+
 
 def test_cli_resolve_happy_single() -> None:
     result = run_cli('resolve', 'abc1234567890def', '--from', str(SINGLE_CHUNK))
@@ -362,6 +1084,322 @@ def test_cli_rewrite_no_id_after_hash() -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# CLI contract tests — v2 U1: URL fragment decode (local mode)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_rewrite_percent_encoded_unicode_local() -> None:
+    encoded_url = 'https://example.com/help/#/%E6%A6%82%E8%A6%81'
+    decoded_url = 'https://example.com/help/#/概要'
+    enc_result = run_cli('rewrite', encoded_url, '--from', str(UNICODE_CHUNK))
+    dec_result = run_cli('rewrite', decoded_url, '--from', str(UNICODE_CHUNK))
+    expected_suffix = '_xslt-extensions.04.1.html#wwp_overview'
+    check(
+        "CLI rewrite (local): percent-encoded Unicode ID resolves identically to decoded form",
+        enc_result.returncode == 0
+        and dec_result.returncode == 0
+        and enc_result.stdout.strip() == dec_result.stdout.strip()
+        and enc_result.stdout.strip().endswith(expected_suffix),
+        f"enc={enc_result.stdout!r}, dec={dec_result.stdout!r}",
+    )
+
+
+def test_cli_rewrite_malformed_percent_exits_1() -> None:
+    bad_url = 'https://example.com/help/#/%E6%A6'  # truncated percent sequence
+    result = run_cli('rewrite', bad_url, '--from', str(UNICODE_CHUNK))
+    check(
+        "CLI rewrite: malformed percent sequence exits 1 and stderr names the URL",
+        result.returncode == 1 and bad_url in result.stderr,
+        f"rc={result.returncode}, stderr={result.stderr!r}",
+    )
+
+
+def test_cli_rewrite_ascii_id_no_double_decode() -> None:
+    url = 'https://example.com/help/#/abc1234567890def'
+    result = run_cli('rewrite', url, '--from', str(SINGLE_CHUNK))
+    expected = 'https://example.com/help/Group/page.html#wwp100'
+    check(
+        "CLI rewrite: ASCII landmark ID unchanged after unquote step",
+        result.returncode == 0 and result.stdout.strip() == expected,
+        f"stdout={result.stdout!r}",
+    )
+
+
+def test_cli_rewrite_literal_plus_preserved() -> None:
+    # Create a fixture chunk with a literal '+' in the ID so unquote (not
+    # unquote_plus) is verified — unquote_plus would convert '+' to ' ' and break the lookup.
+    with tempfile.TemporaryDirectory() as tmp:
+        fixture = Path(tmp) / 'plus_lx.js'
+        fixture.write_text(
+            'var landmarks = {"f": ["x.html"], "a": ["a1"], "e": [[0, 0, "a+b"]]};Landmarks.Advance(landmarks);',
+            encoding='utf-8',
+        )
+        url = 'https://example.com/help/#/a+b'
+        result = run_cli('rewrite', url, '--from', str(fixture))
+        check(
+            "CLI rewrite: literal '+' in ID is preserved (unquote, not unquote_plus)",
+            result.returncode == 0 and 'x.html#a1' in result.stdout,
+            f"rc={result.returncode}, stdout={result.stdout!r}, stderr={result.stderr!r}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# CLI contract tests — v2 U5: remote mode & flag plumbing
+# ---------------------------------------------------------------------------
+
+
+def test_cli_rewrite_mutual_exclusion() -> None:
+    url = 'https://example.com/help/#/abc1234567890def'
+    result = run_cli(
+        'rewrite', url,
+        '--from', str(SINGLE_CHUNK),
+        '--remote-base-url', 'https://other.example/help/',
+    )
+    check(
+        "CLI rewrite: --from and --remote-base-url are mutually exclusive",
+        result.returncode != 0 and 'not allowed' in result.stderr.lower(),
+        f"rc={result.returncode}, stderr={result.stderr!r}",
+    )
+
+
+def test_cli_rewrite_from_wins_over_http_url() -> None:
+    # Auto-infer should NOT fire when --from is supplied.
+    url = 'https://static.webworks.com/docs/epublisher/latest/help/#/abc1234567890def'
+    result = run_cli('rewrite', url, '--from', str(SINGLE_CHUNK))
+    expected = 'https://static.webworks.com/docs/epublisher/latest/help/Group/page.html#wwp100'
+    check(
+        "CLI rewrite: --from takes priority over auto-infer for HTTP URLs",
+        result.returncode == 0 and result.stdout.strip() == expected,
+        f"stdout={result.stdout!r}",
+    )
+
+
+def test_cli_no_source_and_non_http_url_exits_1() -> None:
+    result = run_cli('rewrite', 'relative-doc/#/abc')
+    check(
+        "CLI rewrite: no source and non-HTTP URL exits 1 with clear error",
+        result.returncode == 1 and 'no source' in result.stderr.lower(),
+        f"rc={result.returncode}, stderr={result.stderr!r}",
+    )
+
+
+def test_cli_resolve_remote_mode_via_proxy_script(tmp_path: Path) -> None:
+    """End-to-end CLI test: rewrite an HTTP URL via a stub fetcher.
+
+    The stub lives in a separate wrapper script that monkey-patches
+    resolver.default_fetcher before invoking main(). We launch the wrapper as a
+    subprocess so we exercise the same CLI parsing the resolver normally goes
+    through.
+    """
+    base = 'https://stub.example/help/'
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    unicode_chunk = UNICODE_CHUNK.read_bytes()
+
+    wrapper = tmp_path / 'wrapper.py'
+    wrapper.write_text(_make_wrapper_script(
+        base=base,
+        landing_html=landing_html.encode('utf-8'),
+        chunk_payload=unicode_chunk,
+    ), encoding='utf-8')
+
+    cache_dir = tmp_path / 'cli-cache'
+    proc = subprocess.run(
+        [sys.executable, str(wrapper),
+         'rewrite', base + '#/概要',
+         '--cache-dir', str(cache_dir),
+         '--cache-ttl', '3600',
+         '--http-timeout', '5'],
+        capture_output=True, text=True, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+    )
+    expected = 'https://stub.example/help/Advanced%20Customizations/_xslt-extensions.04.1.html#wwp_overview'
+    check(
+        "CLI rewrite (remote, auto-inferred): resolves and percent-quotes path portion",
+        proc.returncode == 0 and proc.stdout.strip() == expected,
+        f"rc={proc.returncode}, stdout={proc.stdout!r}, stderr={proc.stderr!r}",
+    )
+
+    # A second call against the same cache makes no fetcher calls because
+    # the wrapper's stub crashes loudly if called twice — verified by reading
+    # the wrapper's lock file.
+    second_cache = tmp_path / 'second-cache'
+    wrapper_once = tmp_path / 'wrapper_once.py'
+    wrapper_once.write_text(_make_wrapper_script(
+        base=base,
+        landing_html=landing_html.encode('utf-8'),
+        chunk_payload=unicode_chunk,
+    ), encoding='utf-8')
+    proc2 = subprocess.run(
+        [sys.executable, str(wrapper_once),
+         'rewrite', base + '#/概要',
+         '--cache-dir', str(second_cache),
+         '--cache-ttl', '3600',
+         '--http-timeout', '5'],
+        capture_output=True, text=True, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+    )
+    # Reuse the same cache: second invocation should skip every fetch.
+    proc3 = subprocess.run(
+        [sys.executable, str(wrapper_once),
+         'resolve', '概要',
+         '--remote-base-url', base,
+         '--cache-dir', str(second_cache),
+         '--cache-ttl', '3600',
+         '--http-timeout', '5',
+         '--block-fetcher'],
+        capture_output=True, text=True, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+    )
+    check(
+        "CLI resolve (remote): second call against same cache requires no network",
+        proc2.returncode == 0 and proc3.returncode == 0
+        and proc3.stdout.strip() == 'Advanced Customizations/_xslt-extensions.04.1.html#wwp_overview',
+        f"proc2 rc={proc2.returncode}, stderr={proc2.stderr!r}; proc3 rc={proc3.returncode}, stdout={proc3.stdout!r}, stderr={proc3.stderr!r}",
+    )
+
+
+def _make_wrapper_script(base: str, landing_html: bytes, chunk_payload: bytes) -> str:
+    """Build a wrapper that monkey-patches default_fetcher to a stub before calling main()."""
+    return f'''
+import importlib.util
+import sys
+
+SCRIPT_PATH = {str(SCRIPT_PATH)!r}
+spec = importlib.util.spec_from_file_location("resolve_landmarks", SCRIPT_PATH)
+resolver = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(resolver)
+
+BASE = {base!r}
+LANDING_HTML = {landing_html!r}
+CHUNK_PAYLOAD = {chunk_payload!r}
+
+block_fetcher = '--block-fetcher' in sys.argv
+sys.argv = [a for a in sys.argv if a != '--block-fetcher']
+
+responses = {{
+    BASE: (200, LANDING_HTML),
+    BASE + '_lx-manifest.json': (404, b''),
+    BASE + 'A_lx.js': (200, CHUNK_PAYLOAD),
+    BASE + 'B_lx.js': (200, CHUNK_PAYLOAD),
+    BASE + 'C_lx.js': (200, CHUNK_PAYLOAD),
+}}
+
+def stub(url, *, method='GET', timeout=10.0):
+    if block_fetcher:
+        raise resolver.RemoteFetchError(url, "fetcher should not have been called (cache hit expected)")
+    if url not in responses:
+        raise resolver.RemoteFetchError(url, "stub: no response")
+    return responses[url]
+
+resolver.default_fetcher = stub
+
+sys.exit(resolver.main())
+'''
+
+
+def test_cli_dump_remote_mode(tmp_path: Path) -> None:
+    base = 'https://dump.example/help/'
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    chunk = SINGLE_CHUNK.read_bytes()
+
+    wrapper = tmp_path / 'wrap.py'
+    wrapper.write_text(_make_wrapper_script(
+        base=base,
+        landing_html=landing_html.encode('utf-8'),
+        chunk_payload=chunk,
+    ), encoding='utf-8')
+    cache_dir = tmp_path / 'cache'
+    proc = subprocess.run(
+        [sys.executable, str(wrapper),
+         'dump', '--remote-base-url', base,
+         '--cache-dir', str(cache_dir),
+         '--cache-ttl', '3600'],
+        capture_output=True, text=True,
+        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+    )
+    try:
+        rows = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        rows = None
+    check(
+        "CLI dump --remote-base-url: emits same JSON shape as local dump",
+        proc.returncode == 0
+        and isinstance(rows, dict)
+        and 'abc1234567890def' in rows,
+        f"rc={proc.returncode}, stderr={proc.stderr!r}, stdout (first 200)={proc.stdout[:200]!r}",
+    )
+
+
+def test_cli_remote_fetch_failure_exits_2(tmp_path: Path) -> None:
+    base = 'https://fail.example/help/'
+    wrapper = tmp_path / 'wrap.py'
+    wrapper.write_text(f'''
+import importlib.util
+import sys
+
+spec = importlib.util.spec_from_file_location("resolve_landmarks", {str(SCRIPT_PATH)!r})
+resolver = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(resolver)
+
+BASE = {base!r}
+
+def stub(url, *, method='GET', timeout=10.0):
+    if url == BASE:
+        return (404, b'')
+    raise resolver.RemoteFetchError(url, "stub: no response")
+
+resolver.default_fetcher = stub
+sys.exit(resolver.main())
+''', encoding='utf-8')
+    cache_dir = tmp_path / 'cache'
+    proc = subprocess.run(
+        [sys.executable, str(wrapper),
+         'resolve', 'abc',
+         '--remote-base-url', base,
+         '--cache-dir', str(cache_dir),
+         '--cache-ttl', '3600'],
+        capture_output=True, text=True,
+        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+    )
+    check(
+        "CLI remote: 404 on landing page exits 2 and names the URL",
+        proc.returncode == 2 and base in proc.stderr,
+        f"rc={proc.returncode}, stderr={proc.stderr!r}",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test harness: stderr capture helper for the no-hash warning test
+# ---------------------------------------------------------------------------
+
+
+class _StderrCapture:
+    """Tee sys.stderr so a test can read what was written to it."""
+
+    def __init__(self):
+        self._buf: list[str] = []
+        self._original = sys.stderr
+
+    def __enter__(self):
+        self._buf.clear()
+        self._original = sys.stderr
+        sys.stderr = self
+        return self
+
+    def __exit__(self, *exc):
+        sys.stderr = self._original
+        return False
+
+    def write(self, data: str) -> int:
+        text = str(data)
+        self._buf.append(text)
+        return len(text)
+
+    def flush(self):
+        pass
+
+    def read(self):
+        return ''.join(self._buf)
+
+
 def main() -> int:
     if not SCRIPT_PATH.exists():
         print(f"{RED}FAIL:{NC} resolver script not found at {SCRIPT_PATH}", file=sys.stderr)
@@ -372,6 +1410,7 @@ def main() -> int:
 
     print(f"{YELLOW}Running landmark-resolver verification...{NC}\n")
 
+    # Internal: v1
     test_internal_parse_chunk()
     test_internal_build_index_single()
     test_internal_id_format_opacity()
@@ -385,6 +1424,64 @@ def main() -> int:
         test_internal_empty_e_array(tmp_path)
         test_internal_malformed_chunk(tmp_path)
 
+    # Internal: v2 plumbing
+    test_internal_build_index_from_texts()
+    test_unicode_id_resolves_with_unquote_in_index()
+
+    # Internal: v2 U2 (HTTP primitives)
+    test_http_get_happy_path()
+    test_http_get_transient_retry()
+    test_http_get_exhausted_retries()
+    test_http_get_4xx_not_retried()
+    test_http_get_5xx_retried()
+    test_proxy_handler_constructed_from_getproxies()
+
+    # Internal: v2 U3 (cache state machine)
+    test_default_cache_root_windows()
+    test_default_cache_root_linux_xdg()
+    test_default_cache_root_macos()
+    test_base_cache_dir_with_path()
+    test_base_cache_dir_root_url()
+    test_base_cache_dir_trailing_slash_distinct()
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_read_cache_manifest_missing(tmp_path)
+        test_read_cache_manifest_malformed(tmp_path)
+        test_write_cache_atomic_replaces_old_files(tmp_path)
+        test_cache_partial_write_isolated(tmp_path)
+    test_cache_decision_branches()
+
+    # Internal: v2 U4 (discovery)
+    test_extract_chunk_srcs_basic()
+    test_extract_chunk_srcs_quote_variants()
+    test_extract_generation_hash()
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_first_call_writes_cache(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_second_call_uses_cache(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_hash_unchanged_reuses_cache(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_hash_changed_refetches(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_no_cache_forces_refetch(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        with _StderrCapture() as cap:
+            test_remote_chunk_texts_no_hash_warns_and_succeeds(tmp_path, cap)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_empty_discovery_raises(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_manifest_preferred(tmp_path)
+
+    # CLI: v1
     test_cli_resolve_happy_single()
     test_cli_resolve_page_level_no_anchor()
     test_cli_resolve_directory_mode()
@@ -397,6 +1494,26 @@ def main() -> int:
     test_cli_rewrite_full_stable_url()
     test_cli_rewrite_with_base_url()
     test_cli_rewrite_no_id_after_hash()
+
+    # CLI: v2 U1 (URL fragment decode)
+    test_cli_rewrite_percent_encoded_unicode_local()
+    test_cli_rewrite_malformed_percent_exits_1()
+    test_cli_rewrite_ascii_id_no_double_decode()
+    test_cli_rewrite_literal_plus_preserved()
+
+    # CLI: v2 U5 (remote-mode flag plumbing)
+    test_cli_rewrite_mutual_exclusion()
+    test_cli_rewrite_from_wins_over_http_url()
+    test_cli_no_source_and_non_http_url_exits_1()
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_resolve_remote_mode_via_proxy_script(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_dump_remote_mode(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_remote_fetch_failure_exits_2(tmp_path)
 
     passed = sum(1 for _, ok, _ in _results if ok)
     failed = sum(1 for _, ok, _ in _results if not ok)
