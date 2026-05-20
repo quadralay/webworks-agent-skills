@@ -383,6 +383,127 @@ Reverb uses SASS variables to make customization easier. **Always try modifying 
    - Clear naming indicates scope (`skin` = chrome, `webworks` = content)
    - Proper CSS specificity (overrides load last)
 
+### Workflow 4: Customizing ASP Templates with Custom Assets
+
+**Scenario:** Restructure an ASP template (`Header.asp`, `Footer.asp`, `Connect.asp`) to add new layout containers and reference custom images or scripts — for example, splitting a single header logo into a left text-mark and a right art-mark.
+
+Four decisions matter, in order: which override level to copy to, what to do with the existing `.ww_skin_*` class hierarchy, where to place the asset files, and where to put any new structural CSS. Skipping any one of them produces a build that succeeds but silently loses theme or breaks asset paths.
+
+**Steps:**
+
+1. **Copy the ASP template to the right override level.**
+
+   Use the override-level decision from Workflows 1 and 2 — format level for changes that apply to every target using this format, target level for one target only. Copy with `copy-customization.py` so parallel structure is validated:
+
+   ```bash
+   python scripts/copy-customization.py \
+       --source "C:\Program Files\WebWorks\ePublisher\2024.1\Formats\WebWorks Reverb 2.0\Pages\Header.asp" \
+       --destination "C:\projects\my-proj\Formats\WebWorks Reverb 2.0\Pages\Header.asp"
+   ```
+
+2. **Wrap, do not strip, existing `.ww_skin_*` classes.**
+
+   When adding new structural elements around a themed element, the new elements must **wrap** the existing class hierarchy, not replace it. The intermediate `.ww_skin_*` wrappers carry variable-driven rules from `skin.scss` (`$header_logo_container_padding`, `$header_logo_height`, `$header_logo_width`, and similar). Removing a wrapper to "simplify" the markup silently disables those rules — the build succeeds, the output loses its theme.
+
+   **WRONG — strips the existing `.ww_skin_header_logo_container` wrapper:**
+
+   ```html
+   <div class="ww_skin_header_logo_left">
+     <img class="ww_skin_header_logo"
+          src="images/logo-text.png"
+          wwpage:attribute-src="copy-relative-to-output-root" />
+   </div>
+   ```
+
+   **CORRECT — new structural div wraps the existing class hierarchy:**
+
+   ```html
+   <div class="ww_skin_header_logo_left">
+     <div class="ww_skin_header_logo_container">
+       <img class="ww_skin_header_logo"
+            src="images/logo-text.png"
+            wwpage:attribute-src="copy-relative-to-output-root" />
+     </div>
+   </div>
+   ```
+
+   The rule generalizes beyond headers: any `.ww_skin_*` wrapper in the template that has matching rules in `skin.scss` must remain in the customized markup, with new structural elements wrapped around it rather than substituted for it.
+
+3. **Place custom assets in the override directory next to the ASP file.**
+
+   Assets referenced from the customized template live under the same `Pages/` override directory the template was copied to, in a subdirectory whose name matches the `src` value:
+
+   ```
+   Formats/WebWorks Reverb 2.0/Pages/
+   ├── Header.asp                      ← Customized template (src="images/logo-text.png")
+   └── images/                         ← Subdirectory matching the src path
+       ├── logo-text.png               ← Custom asset
+       └── logo-art.png                ← Custom asset
+   ```
+
+   The `wwpage:attribute-src` attribute on the `<img>` tells ePublisher to copy the file into the output and rewrite the `src` path automatically. **For the full mechanism — syntax, variant table, `Files/` contrast, file-based vs setting-based resolvers — see `### Copying Custom Assets in ASP Templates` under `## Advanced Topics`** in this file. Workflow 4 does not duplicate that content.
+
+   Variant choice: branding images that should match the rebuild cycle use `copy-relative-to-output-root`; scripts and assets that need cache-busting use `copy-relative-to-output-root-with-generation-hash` (the base install uses the hashed variant for the script and splash-image references in `Connect.asp`, `Page.asp`, and `Splash.asp`).
+
+4. **Add new structural CSS in `_custom-skin.scss`, not the copied `skin.scss`.**
+
+   When the new wrappers added in Step 2 (`.ww_skin_header_logo_left`, `.ww_skin_header_logo_right`, etc.) need rules of their own — different sizing, alignment, margins — those rules belong in `_custom-skin.scss`, the partial dedicated to chrome (`.ww_skin_*`) customizations. Putting them in the copied `skin.scss` makes the file diff against the installation noisy and hard to compare during upgrades; inventing a fresh partial with a different name (e.g., `_custom.scss`) hides the rules from anyone looking in the well-known `_custom-skin.scss` / `_custom-webworks.scss` pair.
+
+   **See `### Workflow 3: SCSS Override Pattern (For Structural CSS Changes)` above** for the partial setup steps (creating `_custom-skin.scss`, adding `@import "custom-skin";` to the copied `skin.scss`). Workflow 4 does not duplicate that content.
+
+   Use the `$theme_` prefix for new variables — greppable across the project and consistent with the reverb2 skill's `$theme_` Naming Convention. Projects may substitute their own greppable prefix if they have one already established.
+
+   ```scss
+   // _custom-skin.scss — wrapper rules for split-logo header
+
+   $theme_header_art_logo_height: $header_logo_height;
+   $theme_header_art_logo_width:  auto;
+
+   .ww_skin_header_logo_right {
+     margin-left: auto;
+
+     .ww_skin_header_logo_container img {
+       height: $theme_header_art_logo_height;
+       width:  $theme_header_art_logo_width;
+     }
+   }
+   ```
+
+**Common pitfalls:**
+
+| Pitfall | Symptom | Fix |
+|---------|---------|-----|
+| Stripped intermediate `.ww_skin_*` wrapper | Variable-driven padding/sizing from `skin.scss` silently disappears in the output | Wrap new structural elements around the existing class hierarchy — do not replace it (Step 2) |
+| Assets dropped into `Files/` | Image copied into every output group folder; relative path from chrome pages is wrong | Place assets under `Pages/<subdir>/` and reference with `wwpage:attribute-src` (Step 3) |
+| New wrapper rules added to the copied `skin.scss` | Noisy diff against the installation; rules invisible to anyone searching the standard custom partials | Put new chrome rules in `_custom-skin.scss` (Step 4) |
+
+**End-to-end example — split-logo Header.asp:**
+
+```html
+<div class="ww_skin_header" wwpage:condition="header-enabled">
+  <div class="ww_skin_header_logo_container_outer">
+    <div class="ww_skin_header_logo_left">
+      <div class="ww_skin_header_logo_container">
+        <img class="ww_skin_header_logo"
+             src="images/logo-text.png"
+             wwpage:attribute-src="copy-relative-to-output-root" />
+      </div>
+    </div>
+    <div class="ww_skin_header_logo_right">
+      <div class="ww_skin_header_logo_container">
+        <img class="ww_skin_header_logo"
+             src="images/logo-art.png"
+             wwpage:attribute-src="copy-relative-to-output-root" />
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+`logo-text.png` and `logo-art.png` live in `Formats/WebWorks Reverb 2.0/Pages/images/`. The wrapper rules for `.ww_skin_header_logo_left` and `.ww_skin_header_logo_right` live in `Formats/WebWorks Reverb 2.0/Pages/sass/_custom-skin.scss`. Every `.ww_skin_header_logo_container` from the base template is preserved, so variable-driven padding and sizing from `skin.scss` continue to apply.
+
+**Note on naming:** Project-specific examples sometimes use a different SCSS partial (e.g., `_custom.scss`) or a project prefix (e.g., `$rad_*`). The skill convention is `_custom-skin.scss` for chrome selectors and `_custom-webworks.scss` for content-page styles, with the `$theme_` prefix for custom variables. Map any project-specific naming onto these conventions when working from the skill so future customizers find the same partials and prefixes.
+
 ## File Types and Locations
 
 ### ASP Templates (`.asp`)
