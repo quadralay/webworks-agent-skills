@@ -55,3 +55,7 @@ The script updates both `plugin.json` and `marketplace.json` to keep versions sy
 2. Run `scripts/bump-version.sh <type>`
 3. Include the version bump in your PR
 4. Merge PR - version is already updated
+
+## Documented Solutions
+
+`docs/solutions/` — documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when implementing or debugging in documented areas.
