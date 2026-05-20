@@ -1,0 +1,3 @@
+[WARNING] 1 warning(s), 0 error(s) in Logs/My Target/generate.log
+[WARNING] Warnings/errors in Logs/My Target/generate.log:
+[WARNING] [WARN] Target name contains a space.
