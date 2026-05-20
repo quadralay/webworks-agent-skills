@@ -160,4 +160,4 @@ companion plugin is not installed, ask the user to install it from
 - Issue: #67 — refactor: replace markdown-plus-plus skill with thinner markdown-integration skill
 - Implementation commit: `f4130ac`
 - Plan: `docs/plans/2026-05-09-refactor-markdown-integration-skill-plan.md`
-- Existing learning: `docs/solutions/authoritative-skill-patterns.md` (its `related_files` reference to the old `markdown-plus-plus/SKILL.md` is now stale; the authority pattern itself still applies and is followed by both new skills)
+- Existing learning: `docs/solutions/authoritative-skill-patterns.md` — the authority pattern still applies and is followed by both new skills; its `related_files` already names `markdown-integration/SKILL.md` rather than the migrated `markdown-plus-plus/SKILL.md`.
