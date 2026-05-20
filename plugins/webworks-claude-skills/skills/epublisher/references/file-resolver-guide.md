@@ -566,6 +566,77 @@ When upgrading ePublisher:
 4. Test all customizations after upgrade
 5. Consider updating FormatVersion to {Current}
 
+### Copying Custom Assets in ASP Templates
+
+When customizing an ASP template (`Header.asp`, `Footer.asp`, `Connect.asp`, etc.), assets the template references (custom logos, scripts, stylesheets) can be placed alongside the template and tagged with the `wwpage:attribute-src` attribute. ePublisher then copies the file into the output and rewrites the `src` path automatically — no hardcoded relative paths, no misplaced files in the `Files/` directory.
+
+**How it works:**
+
+- ePublisher copies the referenced file into the output during publish
+- ePublisher rewrites the element's `src` attribute to the correct path relative to the output location (so the reference resolves regardless of how deep the page sits in the output group hierarchy)
+
+**Syntax:**
+
+```html
+<img src="images/my-logo.png" wwpage:attribute-src="copy-relative-to-output-root" />
+<script src="scripts/custom.js" wwpage:attribute-src="copy-relative-to-output-root"></script>
+```
+
+**Variants:**
+
+| Value | Behavior |
+|-------|----------|
+| `copy-relative-to-output-root` | Copies file, rewrites path relative to output root |
+| `copy-relative-to-output-root-with-generation-hash` | Same, plus appends a generation hash query parameter for cache-busting on rebuild |
+
+The `-with-generation-hash` variant is used extensively by the base install (`Connect.asp`, `Page.asp`, `Splash.asp`) for scripts and images that need cache invalidation when the project is rebuilt.
+
+**File placement:**
+
+Place assets in subdirectories alongside the overridden ASP template, mirroring the structure ePublisher expects under `Pages/`:
+
+```
+Formats/WebWorks Reverb 2.0/Pages/
+├── Header.asp              # Template referencing the assets
+├── images/
+│   ├── logo-left.png       # Custom asset
+│   └── logo-right.png      # Custom asset
+└── sass/
+    └── _custom.scss
+```
+
+The `src` value in the template is relative to the ASP file itself (`src="images/logo-left.png"`); ePublisher resolves it from the override location at publish time.
+
+**Comparison with the `Files/` directory:**
+
+| Approach | Use case |
+|----------|----------|
+| `Files/` directory | Source-document-level assets (icons, CSS referenced from content). Copied into every output group folder. |
+| `wwpage:attribute-src` | Template-level assets (logos in headers/footers, custom scripts loaded by `Connect.asp`). Copied once, path-corrected automatically. |
+
+Placing template-level assets in `Files/` works incidentally but copies them into every group folder and yields incorrect relative paths from chrome pages — use `wwpage:attribute-src` for anything an ASP template references.
+
+**Contrast with setting-based `wwpage:attribute-src` values:**
+
+The base `Header.asp` also uses `wwpage:attribute-src="header-logo-src"` and `wwpage:attribute-src="company-logo-src"`. These are **setting-based** resolvers — they read the asset path from target configuration (the `Header Logo` / `Company Logo` settings). The `copy-relative-to-output-root` value is a **file-based** resolver that copies a specific file from the override directory. When customizing an existing template, both forms may appear in the same file; use the file-based variant when you want the asset bundled with the override, and leave the setting-based variants in place when the asset should remain configurable per target.
+
+**Example — split-logo Header.asp:**
+
+```html
+<div class="ww_skin_header" wwpage:condition="header-enabled">
+  <div class="ww_skin_header_logo_container_outer">
+    <div class="ww_skin_header_logo_left">
+      <img class="ww_skin_header_logo" src="images/logo-text.png" wwpage:attribute-src="copy-relative-to-output-root" />
+    </div>
+    <div class="ww_skin_header_logo_right">
+      <img class="ww_skin_header_logo" src="images/logo-art.png" wwpage:attribute-src="copy-relative-to-output-root" />
+    </div>
+  </div>
+</div>
+```
+
+Drop `logo-text.png` and `logo-art.png` into `Formats/WebWorks Reverb 2.0/Pages/images/` (or the equivalent target-level override) and ePublisher handles the copy and path rewrite at publish time.
+
 ## Tools and Scripts
 
 ### resolve-version-root.py
