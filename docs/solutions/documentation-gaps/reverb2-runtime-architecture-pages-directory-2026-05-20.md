@@ -27,7 +27,7 @@ tags:
 
 ## Context
 
-The `reverb2` skill described what Reverb 2.0 is (responsive HTML5 help system, SPA, full-text search, CSH, SCSS theming) but never named the runtime file structure that builds those features. The three source types in `<format name>/Pages/` were mentioned twice in passing — the `<objective>` proprietary-knowledge warning at SKILL.md:15 and a `<common_mistakes>` source-vs-output note at SKILL.md:319 — but neither gave a structured, discoverable explanation of what lives there or how each source transforms into runtime output.
+The `reverb2` skill described what Reverb 2.0 is (responsive HTML5 help system, SPA, full-text search, CSH, SCSS theming) but never named the runtime file structure that builds those features. The three source types in `<format name>/Pages/` were mentioned twice in passing — the `<objective>` proprietary-knowledge warning at SKILL.md:15 and a `<common_mistakes>` source-vs-output note (now at SKILL.md:336, line 319 before PR #82 inserted the new section) — but neither gave a structured, discoverable explanation of what lives there or how each source transforms into runtime output.
 
 A reader investigating a theme override that didn't apply, a broken search, a navigation glitch, or any other runtime symptom had no single "start here" section to anchor diagnosis. They would either guess from the published output (which is transformed and not the source of truth) or fall back to training data (which is wrong for Reverb 2.0 specifically because it is not a standard website).
 
@@ -71,7 +71,7 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 
 ### When NOT to rewrite adjacent content
 
-The pre-existing references at SKILL.md:15 (`<objective>` proprietary-knowledge warning) and SKILL.md:319 (`<common_mistakes>` source-vs-output note) both name the same three source paths. Do not rewrite them when adding the structured section — they frame complementary points (the warning frames training-data avoidance; the common-mistake frames output-vs-source confusion). Removing or rewording them risks losing that framing. The new structured section consolidates the *explanation*; the existing mentions continue to *gesture* toward it.
+The pre-existing references at SKILL.md:15 (`<objective>` proprietary-knowledge warning) and SKILL.md:336 (`<common_mistakes>` source-vs-output note; was SKILL.md:319 prior to this PR) both name the same three source paths. Do not rewrite them when adding the structured section — they frame complementary points (the warning frames training-data avoidance; the common-mistake frames output-vs-source confusion). Removing or rewording them risks losing that framing. The new structured section consolidates the *explanation*; the existing mentions continue to *gesture* toward it.
 
 ## Why This Matters
 
