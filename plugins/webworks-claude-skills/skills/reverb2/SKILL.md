@@ -27,6 +27,23 @@ Reverb 2.0 is a responsive HTML5 help system with:
 - SCSS-based theming
 </overview>
 
+<runtime_architecture>
+
+## Runtime Architecture
+
+Reverb 2.0 runtime output is built from three source types in `<format name>/Pages/`. Start here when diagnosing any runtime issue.
+
+| Source | Published as | Role |
+|--------|--------------|------|
+| `Pages/scripts/*.js` | `.js` (loaded by runtime) | JavaScript behavior — keyboard shortcuts, search, navigation, runtime initialization |
+| `Pages/*.asp` | `.html` / `.htm` | HTML templates rendered into the published topic and chrome pages |
+| `Pages/sass/*.scss` | `.css` | Stylesheets compiled during publish; `_*.scss` partials are configurable variable collections |
+
+When investigating a runtime issue — a theme override that didn't apply, a broken search, a navigation glitch, a missing chrome element — look in `Pages/` first. The published output is transformed; the source of truth lives in these three directories.
+
+**Detailed SCSS guidance:** `## SCSS Customization` (below) and `references/scss-architecture.md`.
+</runtime_architecture>
+
 <related_skills>
 
 ## Related Skills
