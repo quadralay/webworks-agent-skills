@@ -319,7 +319,7 @@ Before adapting the snippet to a real project, look up the actual `TargetID` for
   <Rules Type="Paragraph" Default="{WWDefaultRule}">
     <Rule Key="{WWDefaultRule}">
       <Options>
-        <Option Name="split-priority" Value="0" Source="Explicit" />
+        <Option Name="split-priority" Value="none" Source="Explicit" />
       </Options>
     </Rule>
   </Rules>
@@ -336,10 +336,54 @@ Trait names used here, with their UI labels:
 
 See `FormatTraitInfoStrings.resx` and the [Looking Up Trait Names](#looking-up-trait-names) section above for additional UI-to-internal-name mappings.
 
-Setting `split-priority` to `0` on the Paragraph prototype rule cascades to every Paragraph style, suppressing the splits that would otherwise produce multi-file output. For finer-grained control over individual style behavior, the CSS `page-break-before`, `page-break-after`, and `page-break-inside` Properties are the per-style alternative.
+Setting `split-priority` to `none` on the Paragraph prototype rule cascades to every Paragraph style, suppressing the splits that would otherwise produce multi-file output. For finer-grained control over individual style behavior, the CSS `page-break-before`, `page-break-after`, and `page-break-inside` Properties are the per-style alternative.
+
+## Diffable HTML Output
+
+When Reverb HTML output participates in a diff workflow — comparing builds across releases, regression testing during a documentation migration, validating that a content change produced only the expected differences, or reviewing documentation edits in a pull request — two target settings control whether the output is reviewable or unreadable as a diff.
+
+Diffable HTML output and golden testing share the same two settings; they differ only in the intent that motivates the configuration. See [the Golden Test Project section](#golden-test-project) for the canonical `<FormatConfiguration>` snippet that wires both settings into a target.
+
+| Setting | Value | Effect |
+|---|---|---|
+| `file-processing-pretty-print` | `true` | HTML output is emitted with line breaks and indentation; a single edit shows as a localized diff instead of changing an entire minified line. |
+| `split-priority` (on Paragraph `{WWDefaultRule}`) | `none` | Headings no longer start new output files; each source document produces a single HTML file, so diffs show content edits rather than file additions, renames, and block moves. |
+
+### Prototype-only vs explicit-per-heading
+
+The Golden Test snippet sets `split-priority="none"` on `<Rule Key="{WWDefaultRule}">` once — the prototype-only cascade. Every Paragraph style inherits the value unless that style carries an explicit override.
+
+When a project already overrides specific heading rules (Heading 1, Heading 2, etc.), those overrides can intercept the cascade and re-enable splits unintentionally. In that case, set `split-priority` explicitly on each heading rule as well as on the prototype:
+
+```xml
+<GlobalConfiguration>
+  <Rules Type="Paragraph" Default="{WWDefaultRule}">
+    <Rule Key="{WWDefaultRule}">
+      <Options>
+        <Option Name="split-priority" Value="none" Source="Explicit" />
+      </Options>
+    </Rule>
+    <Rule Key="Heading 1">
+      <Options>
+        <Option Name="split-priority" Value="none" Source="Explicit" />
+      </Options>
+    </Rule>
+    <Rule Key="Heading 2">
+      <Options>
+        <Option Name="split-priority" Value="none" Source="Explicit" />
+      </Options>
+    </Rule>
+    <!-- Repeat for Heading 3 through Heading 6 -->
+  </Rules>
+</GlobalConfiguration>
+```
+
+Keep the `{WWDefaultRule}` row even when every named heading is enumerated — it catches custom Paragraph styles the project has not yet listed.
+
+**When to choose which pattern:** prefer the prototype-only cascade for greenfield projects where no Paragraph styles are individually overridden. Prefer explicit-per-heading when an existing project already overrides heading rules, or when a reviewer needs every behavior to be visible at the rule level rather than inherited.
 
 ---
 
 **Version**: 1.0.0
-**Last Updated**: 2026-05-09
+**Last Updated**: 2026-05-19
 **Compatibility**: ePublisher 2024.1+

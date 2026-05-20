@@ -153,7 +153,7 @@ Returns JSON with versionRoot path, component directories, and availability flag
 ## Reference Files
 
 - `file-resolver-guide.md` - Complete file resolution hierarchy
-- `format-traits-guide.md` - Trait types, reading/writing in project files, accessing in XSL, global vs per-target scope, Golden Test recipe
+- `format-traits-guide.md` - Trait types, reading/writing in project files, accessing in XSL, global vs per-target scope, Golden Test recipe, Diffable HTML Output recipe
 - `FormatTraitInfoStrings.resx` - Complete UI display name to internal name mapping (English)
 - `product-foundations.md` - Cross-cutting product knowledge (architecture, platform constraints, debugging)
 - `project-parsing-guide.md` - Detailed project file structure
