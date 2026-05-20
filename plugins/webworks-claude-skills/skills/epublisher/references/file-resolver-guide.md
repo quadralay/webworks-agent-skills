@@ -407,6 +407,8 @@ Reverb uses SASS variables to make customization easier. **Always try modifying 
 - Add custom JavaScript
 - Modify page metadata
 
+For copying custom assets (logos, scripts, stylesheets) referenced by overridden ASP templates, see [Copying Custom Assets in ASP Templates](#copying-custom-assets-in-asp-templates) under Advanced Topics.
+
 ### SCSS Stylesheets (`.scss`)
 
 **Purpose:** Control visual styling and layout
@@ -588,6 +590,8 @@ When customizing an ASP template (`Header.asp`, `Footer.asp`, `Connect.asp`, etc
 |-------|----------|
 | `copy-relative-to-output-root` | Copies file, rewrites path relative to output root |
 | `copy-relative-to-output-root-with-generation-hash` | Same, plus appends a generation hash query parameter for cache-busting on rebuild |
+
+Use the plain variant for assets that rarely change (logos, brand artwork); use `-with-generation-hash` for assets that are actively modified and should invalidate browser caches on rebuild (scripts, stylesheets).
 
 The `-with-generation-hash` variant is used extensively by the base install (`Connect.asp`, `Page.asp`, `Splash.asp`) for scripts and images that need cache invalidation when the project is rebuilt.
 
