@@ -32,6 +32,17 @@ The installed `skin.scss` and `webworks.scss` do **not** ship with custom import
 2. Create your custom partial (`_custom-skin.scss` or `_custom-webworks.scss`)
 3. Add the `@import` line to the copied entry point
 
+### Why Two Custom Partials, Not One
+
+Reverb 2.0 loads `webworks.css` before `skin.css` in the page template. Putting content-page overrides (a bare `a { }` link rule, paragraph styling) in `_custom-skin.scss` would elevate their specificity in the cascade and override skin chrome styles like toolbar button link colors. Splitting custom rules along the same boundary as the installed `webworks.scss` / `skin.scss` keeps custom rules at the same cascade depth as the rules they intend to override.
+
+| File | Scope |
+|---|---|
+| `_custom-webworks.scss` | Content page overrides — custom fonts, link styling, paragraph/list formatting |
+| `_custom-skin.scss` | Skin chrome overrides — toolbar, TOC, navigation, breadcrumbs, lightbox, print styles |
+
+**Upgrade workflow:** When upgrading the format, replace `skin.scss` and `webworks.scss` with the new installed versions and re-append the `@import` line for the corresponding custom partial. The `_custom-*.scss` partials need no changes.
+
 ## SCSS Partials Inventory
 
 Six partials control all variable-driven styling:
@@ -107,6 +118,45 @@ When adding custom variables to override files, use the `$theme_` prefix with MD
 - **Greppable:** `grep 'theme_'` finds every project customization across all partials
 - **No collisions:** Avoids Reverb internal prefixes (`$neo_`, `$_layout_color_`, `$ww_skin_`)
 - **Self-documenting:** Signals "this is a project-level theming decision"
+
+### Strict Rules for Prefixed Variables
+
+The prefix is only useful as an upgrade audit tool if every customization actually references it. Three rules keep the convention honest:
+
+- **Always reference the prefixed variable, never an intermediate.** When overriding a component variable, reference `$theme_*` (or `$<project>_*`) directly. Do not reference `$_layout_color_2` or `$neo_main_text_color` in the override — those are intermediaries that obscure intent and break grep-ability.
+- **Do not introduce new auxiliary variables.** If a Reverb component variable like `$link_hover_color` doesn't exist, do not invent one. Reference the prefixed variable directly at the override site. Assigning a Reverb-defined component variable like `$_menu_background_color` to a prefixed variable *is* correct — what's forbidden is introducing *new* names that aren't part of Reverb's variable schema.
+- **Define brand colors once, at the top of the file.** Every prefixed variable has a single definition; component variables reference it.
+
+```scss
+// Correct
+$toolbar_background_color:     $theme_primary_text;
+$toolbar_tab_background_color: darken($theme_primary_text, 10%);
+
+// Incorrect — references intermediate variable, not grep-able
+$toolbar_background_color: $_layout_color_2;
+
+// Incorrect — introduces new auxiliary variable (`$my_hover_color` is not in Reverb's schema)
+$my_hover_color: $theme_accent;
+
+// Incorrect — references another component variable as intermediate
+$toolbar_tab_background_color: darken($toolbar_tabs_container_background_color, 10%);
+```
+
+### Project-Specific Prefix Variant
+
+When a project is a customer engagement or part of a consultant portfolio, replace `$theme_` with a project-identifying prefix (for example, `$dicad_`, `$qs_`). The grep pattern then doubles as project identification across multiple projects:
+
+```scss
+$dicad_primary_brand_color: #00407A;
+$dicad_primary_text_color:  #FFFFFF;
+
+$_layout_color_1: $dicad_primary_brand_color;
+$_layout_color_2: $dicad_primary_text_color;
+```
+
+The Strict Rules above apply identically — only the prefix string changes. Choose one prefix per project and use it consistently across `_colors.scss`, `_sizes.scss`, and any other partials in the override.
+
+For non-SCSS files that also need to be locatable by project (`locales.xml`, ASP templates), see `customization-conventions.md`.
 
 ### Standard Tokens
 
@@ -187,6 +237,21 @@ $link_default_color:     $theme_accent;
 4. If `Connect.asp` was customized, copy to `Pages/` at the same level
 5. Remove the `.weplugin` from the project
 
+## Removing Redundant Overrides
+
+After extracting customizations into `_custom-*.scss` partials and prefixed variables, the copied entry-point files (`skin.scss`, `webworks.scss`, `print.scss`, and similar) may end up byte-identical to the installed version, apart from the `@import "custom-*"` line. Any entry-point file that matches the installed default exactly *and* has no custom imports should be deleted from the override directory. The file resolver hierarchy will fall through to the installed default, reducing the surface area for upgrade-time merge conflicts.
+
+**Example.** A `print.scss` whose only customization is moved to `_custom-skin.scss` as an `@media print` rule then matches the installed default and should be deleted.
+
+**Diff workflow:**
+
+```bash
+diff "[Override]/Pages/sass/print.scss" \
+     "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/print.scss"
+```
+
+If the diff is empty (or contains only the `@import` line and that import is now redundant), delete the override file.
+
 ## File Resolver Integration
 
 All SCSS files follow the ePublisher file resolver hierarchy. See `../epublisher/references/file-resolver-guide.md` for the complete four-level system.
@@ -205,4 +270,5 @@ The same hierarchy applies to all partials, `skin.scss`, `webworks.scss`, and an
 **See also:**
 - `../epublisher/references/file-resolver-guide.md` — full override hierarchy
 - `workflows/scss-theming.md` — step-by-step theming workflow
+- `customization-conventions.md` — annotations for non-SCSS overrides and `locales.xml` upgrade
 - GitHub issue: quadralay/epublisher-express-trial#9 — `$theme_` convention rationale
