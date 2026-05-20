@@ -151,7 +151,7 @@ No new directory hierarchy. v2 modifies existing files in place. New verificatio
 - ASCII landmark ID (e.g., `abc1234567890def`) resolves identically before and after the decode step — regression guard against accidental double-decoding.
 - A fragment ID containing a literal `+` (which `unquote` leaves alone, unlike `unquote_plus`) resolves correctly — guards against picking the wrong decode helper.
 
-**Verification:** New scenarios pass in `verify-landmark-resolver.py`; existing 20 scenarios still pass.
+**Verification:** New scenarios pass in `verify-landmark-resolver.py`; all existing v1 scenarios still pass.
 
 ---
 
@@ -413,6 +413,6 @@ No new directory hierarchy. v2 modifies existing files in place. New verificatio
 ## Verification Strategy
 
 - Every new code path lands with at least one verification scenario in `verify-landmark-resolver.py`. Scenarios use injected stub fetchers; no network calls.
-- All 20 existing v1 scenarios continue to pass — regression guard.
+- All existing v1 scenarios in `verify-landmark-resolver.py` continue to pass — regression guard.
 - One manual smoke test against a real published Reverb mirror is captured as a worked-example block in `workflows/landmark-resolution.md` (the input URL and the expected resolved URL). The smoke test confirms the `GLOBAL_GENERATION_HASH` regex and the script-tag scrape pattern match real-world output.
 - Verification command: `python plugins/webworks-claude-skills/skills/reverb2/tests/verify-landmark-resolver.py` exits 0.
