@@ -113,9 +113,7 @@ Skip to **Step 7** after editing.
 
 ## Step 4: Layer 2 — Skin CSS Overrides
 
-Skin CSS overrides target the *chrome* (toolbar, TOC, navigation, breadcrumbs, popups). For why this is split from content-page overrides, see `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
-
-Use when SCSS variables are insufficient and structural CSS changes are needed for the chrome (toolbar, TOC, navigation, breadcrumbs, popups).
+Use when SCSS variables are insufficient and structural CSS changes are needed for the chrome (toolbar, TOC, navigation, breadcrumbs, popups). For why this is split from content-page overrides, see `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
 
 ### 1. Copy `skin.scss` to the project
 
@@ -150,9 +148,7 @@ Skip to **Step 7** after editing.
 
 ## Step 5: Layer 3 — Content Page CSS Overrides
 
-Content page overrides target the iframe content (fonts, links, tables, mini-TOC, code blocks). Keep `a { }`, paragraph, and table rules here — putting them in `_custom-skin.scss` would incorrectly elevate their cascade specificity. See `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
-
-Use when customizing the content page inside the iframe (fonts, links, tables, mini-TOC, code blocks).
+Use when customizing the content page inside the iframe (fonts, links, tables, mini-TOC, code blocks). Keep `a { }`, paragraph, and table rules here — putting them in `_custom-skin.scss` would incorrectly elevate their cascade specificity. See `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
 
 ### 1. Copy `webworks.scss` to the project
 

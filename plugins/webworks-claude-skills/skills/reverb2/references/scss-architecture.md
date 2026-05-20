@@ -135,8 +135,8 @@ $toolbar_tab_background_color: darken($theme_primary_text, 10%);
 // Incorrect — references intermediate variable, not grep-able
 $toolbar_background_color: $_layout_color_2;
 
-// Incorrect — introduces new auxiliary variable
-$link_hover_color: $theme_accent;
+// Incorrect — introduces new auxiliary variable (`$my_hover_color` is not in Reverb's schema)
+$my_hover_color: $theme_accent;
 
 // Incorrect — references another component variable as intermediate
 $toolbar_tab_background_color: darken($toolbar_tabs_container_background_color, 10%);
