@@ -1,11 +1,17 @@
 ---
 name: claude-md-audit
 description: >
-  Audits and reduces CLAUDE.md or other agent MD files (AGENTS.md, GEMINI.md,
-  and similar context files) by removing content the model can discover on its
-  own and keeping only behavioral steering that prevents repeated mistakes.
-  Use when reviewing, reducing, shrinking, auditing, or creating a CLAUDE.md
-  or agent MD file for any repository.
+  AUTHORITATIVE REFERENCE for CLAUDE.md / AGENTS.md / GEMINI.md audit and reduction.
+  Use this skill WHENEVER working with agent context files (CLAUDE.md, AGENTS.md,
+  GEMINI.md, and similar) to keep them small and behaviorally focused. This includes:
+  (1) auditing an existing agent MD file for bloat, (2) reducing or shrinking a
+  bloated CLAUDE.md, (3) removing discoverable content the model can find on its own,
+  (4) applying the Pink Elephant and Staleness tests to candidate entries, (5)
+  creating a new minimal agent MD file for a repository, (6) reviewing whether
+  existing guidance still earns its place. ALWAYS consult this skill before editing
+  an agent MD file to ensure the result steers the agent only on things it cannot
+  self-correct. Triggers: reduce claude.md, audit agent md, shrink CLAUDE.md, trim
+  AGENTS.md, CLAUDE.md too long, claude md bloated, context file audit, agent md review.
 ---
 
 <objective>
@@ -49,9 +55,11 @@ The methodology applies four steps: categorize each section (KEEP / REMOVE / RED
 
 ## Audit Methodology
 
-### Step 0: Back up the original file
+### Step 0: Locate the file and back it up
 
-Before changing anything, copy the existing file to `<original-name>.bak` in the same directory.
+Find the target agent MD file before any work begins. Use `glob` to locate `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, or the specific filename the user provided, starting from the repository root. If multiple matches exist — for example, a top-level `CLAUDE.md` alongside one under `.claude/` or a sub-package — surface all paths and ask the user to confirm which file to audit before continuing.
+
+Then copy the chosen file to `<original-name>.bak` in the same directory.
 
 - For `CLAUDE.md` → `CLAUDE.md.bak`.
 - For `AGENTS.md` → `AGENTS.md.bak`.
@@ -212,7 +220,7 @@ Keep the command and the link. Remove the explanation — the model reads the pr
 
 ## Success Criteria
 
-- A backup of the original file (e.g., `CLAUDE.md.bak`) exists adjacent to the original *before* any reduction is applied.
+- A backup of the original file exists adjacent to it *before* any reduction is applied (see Step 0).
 - The reduced file is **under 60 lines** for a typical repository. This is a guideline informed by one real reduction (180 → 49 lines), not a hard fail threshold.
 - Every remaining line fails at least one test: the model could not discover it on its own, *or* the model consistently gets it wrong without it.
 - No directory structure descriptions remain.
@@ -220,5 +228,5 @@ Keep the command and the link. Remove the explanation — the model reads the pr
 - No architecture overviews remain.
 - No installation or onboarding instructions written for humans remain.
 - Build commands are present as bare commands plus doc links — no prose summary of what the build does.
-- The reduced file uses the four-section structure (Environment / Build Commands / Behavioral Rules / Configuration), omitting any section that is empty.
+- The reduced file uses the section structure defined in Step 4, omitting any section that is empty.
 </success_criteria>
