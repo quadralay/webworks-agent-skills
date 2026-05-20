@@ -27,12 +27,12 @@ ePublisher project files are XML documents with this high-level structure:
   <Groups>
     <!-- Source document references -->
   </Groups>
-  <FormatConfigurations>
-    <!-- FormatSettings for each target -->
-  </FormatConfigurations>
   <GlobalConfiguration>
     <!-- Project-wide settings -->
   </GlobalConfiguration>
+  <FormatConfigurations>
+    <!-- FormatSettings for each target -->
+  </FormatConfigurations>
 </Project>
 ```
 
