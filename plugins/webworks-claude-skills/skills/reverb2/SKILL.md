@@ -53,6 +53,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 2. Analyze CSH links
 3. Customize SCSS theme
 4. Generate test report
+5. Resolve a stable Reverb landmark URL (or hash) to a direct file path
 
 **Wait for response before proceeding.**
 </intake>
@@ -67,6 +68,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 | 2, "csh", "links" | workflows/csh-analysis.md |
 | 3, "scss", "theme", "colors" | workflows/scss-theming.md |
 | 4, "report" | workflows/generate-report.md |
+| 5, "resolve", "landmark", "hash" | workflows/landmark-resolution.md |
 </routing>
 
 <capabilities>
@@ -80,6 +82,7 @@ Reverb 2.0 is a responsive HTML5 help system with:
 | SCSS Theming | `extract-scss-variables.py` | Read current theme values |
 | Entry Detection | `detect-entry-point.sh` | Find output location from project |
 | Report Generation | `generate-report.py` | Create formatted test reports |
+| Landmark Resolution | `resolve-landmarks.py` | Resolve Reverb stable URLs (#/<id>) to direct file paths using _lx.js chunks |
 </capabilities>
 
 <browser_testing>

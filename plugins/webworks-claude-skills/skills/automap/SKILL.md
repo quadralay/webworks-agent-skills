@@ -346,6 +346,24 @@ pip install defusedxml
 | 4 | Project file not found |
 </exit_codes>
 
+<post_build_log_scan>
+
+## Post-Build Log Scan
+
+After a successful build (exit 0), the wrapper scans every `Logs/<TargetName>/generate.log` under the project directory and reports `[WARN]` and `[ERROR]` counts per target.
+
+- Targets with non-zero counts get a one-line summary — yellow when only warnings are present, red when the target has any errors.
+- Targets with zero counts emit nothing; missing `Logs/` directory emits nothing.
+- `--verbose` additionally echoes each extracted `[WARN]`/`[ERROR]` line under a per-target header.
+- Exit codes are unchanged — the scan is observational. A successful build that records warnings still exits 0.
+
+```text
+[SUCCESS] Build completed in 43s
+[WARNING] 3 warning(s), 0 error(s) in Logs/Reverb2/generate.log
+```
+
+</post_build_log_scan>
+
 <common_workflows>
 
 ## Common Workflows
