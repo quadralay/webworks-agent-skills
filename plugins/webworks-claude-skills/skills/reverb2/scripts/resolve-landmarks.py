@@ -94,12 +94,7 @@ def error_log(message: str) -> None:
     print(f"{RED}[ERROR]{NC} {message}", file=sys.stderr)
 
 
-def success_log(message: str) -> None:
-    """Print success message to stderr."""
-    print(f"{GREEN}[SUCCESS]{NC} {message}", file=sys.stderr)
-
-
-def parse_chunk(path: Path) -> dict:
+def parse_chunk(path: Path) -> dict[str, list]:
     """
     Read a _lx.js chunk and return its landmarks object as a dict.
 
@@ -281,10 +276,8 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
 def cmd_dump(args: argparse.Namespace) -> int:
     files, anchors, id_to_pair = _build_or_die(Path(args.source))
     rows = {
-        landmark_id: (
-            f"{files[fi]}#{anchors[ai]}" if anchors[ai] else files[fi]
-        )
-        for landmark_id, (fi, ai) in id_to_pair.items()
+        landmark_id: resolve_id(landmark_id, files, anchors, id_to_pair)
+        for landmark_id in id_to_pair
     }
 
     if args.table:
@@ -295,9 +288,9 @@ def cmd_dump(args: argparse.Namespace) -> int:
         id_width = max(id_width, len("Landmark ID"))
         lines = [
             "Reverb 2.0 Landmark Index:",
-            "━" * (id_width + 4 + 60),
+            "=" * (id_width + 4 + 60),
             f"{'Landmark ID':<{id_width}}    Resolved Path",
-            "─" * (id_width + 4 + 60),
+            "-" * (id_width + 4 + 60),
         ]
         for landmark_id in sorted(rows):
             lines.append(f"{landmark_id:<{id_width}}    {rows[landmark_id]}")
@@ -305,7 +298,6 @@ def cmd_dump(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(rows, indent=2, sort_keys=True))
 
-    success_log(f"Indexed {len(rows)} landmark(s)")
     return 0
 
 

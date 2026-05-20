@@ -21,12 +21,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-# ANSI color codes
-RED = '\033[0;31m'
-GREEN = '\033[0;32m'
-YELLOW = '\033[1;33m'
-NC = '\033[0m'
-
 THIS_DIR = Path(__file__).resolve().parent
 SKILL_DIR = THIS_DIR.parent
 SCRIPT_PATH = SKILL_DIR / 'scripts' / 'resolve-landmarks.py'
@@ -44,6 +38,13 @@ def _load_resolver_module():
 
 
 resolver = _load_resolver_module()
+
+# Reuse ANSI color codes defined in resolve-landmarks.py so PASS/FAIL output
+# stays in sync if the palette ever changes.
+RED = resolver.RED
+GREEN = resolver.GREEN
+YELLOW = resolver.YELLOW
+NC = resolver.NC
 
 _results: list[tuple[str, bool, str]] = []
 
