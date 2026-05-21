@@ -723,7 +723,7 @@ Formats/WebWorks Reverb 2.0/Pages/
 │   ├── logo-left.png       # Custom asset
 │   └── logo-right.png      # Custom asset
 └── sass/
-    └── _custom.scss
+    └── _custom-skin.scss
 ```
 
 The `src` value in the template is relative to the ASP file itself (`src="images/logo-left.png"`); ePublisher resolves it from the override location at publish time.
@@ -747,16 +747,20 @@ The base `Header.asp` also uses `wwpage:attribute-src="header-logo-src"` and `ww
 <div class="ww_skin_header" wwpage:condition="header-enabled">
   <div class="ww_skin_header_logo_container_outer">
     <div class="ww_skin_header_logo_left">
-      <img class="ww_skin_header_logo" src="images/logo-text.png" wwpage:attribute-src="copy-relative-to-output-root" />
+      <div class="ww_skin_header_logo_container">
+        <img class="ww_skin_header_logo" src="images/logo-text.png" wwpage:attribute-src="copy-relative-to-output-root" />
+      </div>
     </div>
     <div class="ww_skin_header_logo_right">
-      <img class="ww_skin_header_logo" src="images/logo-art.png" wwpage:attribute-src="copy-relative-to-output-root" />
+      <div class="ww_skin_header_logo_container">
+        <img class="ww_skin_header_logo" src="images/logo-art.png" wwpage:attribute-src="copy-relative-to-output-root" />
+      </div>
     </div>
   </div>
 </div>
 ```
 
-Drop `logo-text.png` and `logo-art.png` into `Formats/WebWorks Reverb 2.0/Pages/images/` (or the equivalent target-level override) and ePublisher handles the copy and path rewrite at publish time.
+The `.ww_skin_header_logo_container` wrappers must remain inside each new structural div — see `### Workflow 4: Customizing ASP Templates with Custom Assets` Step 2 for why. Drop `logo-text.png` and `logo-art.png` into `Formats/WebWorks Reverb 2.0/Pages/images/` (or the equivalent target-level override) and ePublisher handles the copy and path rewrite at publish time.
 
 ## Tools and Scripts
 
