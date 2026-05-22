@@ -2,10 +2,8 @@
 """
 verify-landmark-resolver.py
 
-Standalone verifier for resolve-landmarks.py. Runs every test scenario from
-the issue #54 plan (v1) and the issue #76 plan (v2: remote fetch, cache,
-URL-decode fix) and prints PASS/FAIL lines. Exits 0 only when every scenario
-passes.
+Standalone verifier for resolve-landmarks.py. Runs every test scenario and
+prints PASS/FAIL lines. Exits 0 only when every scenario passes.
 
 Usage:
     python verify-landmark-resolver.py
@@ -111,7 +109,7 @@ class StubFetcher:
 
 
 # ---------------------------------------------------------------------------
-# Internal-function tests — v1 (preserved unchanged)
+# Internal-function tests
 # ---------------------------------------------------------------------------
 
 def test_internal_parse_chunk() -> None:
@@ -251,7 +249,7 @@ def test_internal_discover_chunks_directory() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Internal-function tests — v2: build_index_from_texts (U5 plumbing)
+# Internal-function tests — build_index_from_texts
 # ---------------------------------------------------------------------------
 
 def test_internal_build_index_from_texts() -> None:
@@ -267,7 +265,7 @@ def test_internal_build_index_from_texts() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Internal-function tests — v2 U1: URL fragment decoder fix
+# Internal-function tests — URL fragment decoder
 # ---------------------------------------------------------------------------
 
 def test_unicode_id_resolves_with_unquote_in_index() -> None:
@@ -285,7 +283,7 @@ def test_unicode_id_resolves_with_unquote_in_index() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Internal-function tests — v2 U2: HTTP primitives with stubbed urlopen
+# Internal-function tests — HTTP primitives with stubbed urlopen
 # ---------------------------------------------------------------------------
 
 
@@ -470,7 +468,7 @@ def test_proxy_handler_constructed_from_getproxies() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Internal-function tests — v2 U3: cache layout and state machine
+# Internal-function tests — cache layout and state machine
 # ---------------------------------------------------------------------------
 
 
@@ -657,7 +655,7 @@ def test_cache_partial_write_isolated(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Internal-function tests — v2 U4: chunk discovery
+# Internal-function tests — chunk discovery
 # ---------------------------------------------------------------------------
 
 
@@ -937,7 +935,7 @@ def test_remote_chunk_texts_manifest_preferred(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI contract tests — v1 (preserved)
+# CLI contract tests
 # ---------------------------------------------------------------------------
 
 
@@ -1001,15 +999,16 @@ def test_cli_dump_directory() -> None:
         check("CLI dump: directory mode emits JSON", False, f"rc={result.returncode}, stderr={result.stderr!r}")
         return
     try:
-        rows = json.loads(result.stdout)
+        artifact = json.loads(result.stdout)
     except json.JSONDecodeError as e:
         check("CLI dump: directory mode emits JSON", False, f"JSON decode error: {e}")
         return
+    landmarks = artifact.get('landmarks', {}) if isinstance(artifact, dict) else {}
     expected_ids = {
         'abc1234567890def', '12345678', 'getting-started-overview', 'page-only-id',
         'chunk_a_only', 'chunk_b_only', 'common_id',
     }
-    missing = expected_ids - rows.keys()
+    missing = expected_ids - landmarks.keys()
     check(
         "CLI dump: emits union of every chunk's IDs",
         not missing,
@@ -1085,7 +1084,7 @@ def test_cli_rewrite_no_id_after_hash() -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI contract tests — v2 U1: URL fragment decode (local mode)
+# CLI contract tests — URL fragment decode (local mode)
 # ---------------------------------------------------------------------------
 
 
@@ -1145,7 +1144,7 @@ def test_cli_rewrite_literal_plus_preserved() -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI contract tests — v2 U5: remote mode & flag plumbing
+# CLI contract tests — remote mode & flag plumbing
 # ---------------------------------------------------------------------------
 
 
@@ -1316,14 +1315,15 @@ def test_cli_dump_remote_mode(tmp_path: Path) -> None:
         env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
     )
     try:
-        rows = json.loads(proc.stdout)
+        artifact = json.loads(proc.stdout)
     except json.JSONDecodeError:
-        rows = None
+        artifact = None
+    landmarks = artifact.get('landmarks', {}) if isinstance(artifact, dict) else {}
     check(
         "CLI dump --remote-base-url: emits same JSON shape as local dump",
         proc.returncode == 0
-        and isinstance(rows, dict)
-        and 'abc1234567890def' in rows,
+        and isinstance(artifact, dict)
+        and 'abc1234567890def' in landmarks,
         f"rc={proc.returncode}, stderr={proc.stderr!r}, stdout (first 200)={proc.stdout[:200]!r}",
     )
 
@@ -1363,6 +1363,343 @@ sys.exit(resolver.main())
         "CLI remote: 404 on landing page exits 2 and names the URL",
         proc.returncode == 2 and base in proc.stderr,
         f"rc={proc.returncode}, stderr={proc.stderr!r}",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Dump artifact + lookup-table consumer path
+# ---------------------------------------------------------------------------
+
+
+EPUBLISHER_FIXTURE = FIXTURE_DIR / 'epublisher-designer-2026.1-help-lookup.json'
+
+
+def test_cli_dump_deterministic(tmp_path: Path) -> None:
+    """Two dump runs against the same source produce byte-identical output
+    (excluding the per-run captured_at timestamp)."""
+    out_a = tmp_path / 'a.json'
+    out_b = tmp_path / 'b.json'
+    r1 = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out_a))
+    r2 = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out_b))
+    if r1.returncode != 0 or r2.returncode != 0:
+        check("dump is byte-deterministic across runs", False,
+              f"r1.rc={r1.returncode}, r2.rc={r2.returncode}")
+        return
+    bytes_a = out_a.read_bytes()
+    bytes_b = out_b.read_bytes()
+    # Strip captured_at line so the test does not depend on identical wall clocks
+    # between subprocess invocations.
+    def _strip_ts(b: bytes) -> bytes:
+        return b'\n'.join(line for line in b.split(b'\n') if b'"captured_at"' not in line)
+    check(
+        "dump is byte-deterministic across runs (excluding captured_at)",
+        _strip_ts(bytes_a) == _strip_ts(bytes_b),
+        f"differ; first {min(80, len(bytes_a))} bytes a={bytes_a[:80]!r} b={bytes_b[:80]!r}",
+    )
+
+
+def test_cli_dump_structured_shape(tmp_path: Path) -> None:
+    """The structured dump shape has format_version, source, landmarks."""
+    out = tmp_path / 'dump.json'
+    r = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out))
+    if r.returncode != 0:
+        check("dump structured shape", False, f"rc={r.returncode}, stderr={r.stderr!r}")
+        return
+    artifact = json.loads(out.read_text(encoding='utf-8'))
+    src = artifact.get('source', {})
+    landmarks = artifact.get('landmarks', {})
+    expected_chunk_count = len(list(MULTI_DIR.glob('*_lx.js')))
+    nested_shape_ok = all(
+        isinstance(v, dict) and set(v.keys()) == {'file', 'anchor'}
+        for v in landmarks.values()
+    )
+    check(
+        "dump structured shape has {format_version, source, landmarks}",
+        set(artifact.keys()) == {'format_version', 'source', 'landmarks'}
+        and artifact['format_version'] == 1
+        and src.get('type') == 'local-directory'
+        and src.get('path') == str(MULTI_DIR)
+        and src.get('chunks_found') == expected_chunk_count
+        and isinstance(src.get('captured_at'), str)
+        and nested_shape_ok,
+        f"artifact_keys={sorted(artifact.keys())}, src={src}, "
+        f"expected chunks_found={expected_chunk_count}, nested_shape_ok={nested_shape_ok}",
+    )
+
+
+def test_cli_dump_sorted_keys(tmp_path: Path) -> None:
+    """The top-level keys and landmark keys appear in sorted order in the file text."""
+    out = tmp_path / 'dump.json'
+    r = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out))
+    if r.returncode != 0:
+        check("dump output is sorted", False, f"rc={r.returncode}, stderr={r.stderr!r}")
+        return
+    text = out.read_text(encoding='utf-8')
+    # Top-level: format_version < landmarks < source alphabetically.
+    fmt_pos = text.find('"format_version"')
+    lm_pos = text.find('"landmarks"')
+    src_pos = text.find('"source"')
+    top_ordered = 0 <= fmt_pos < lm_pos < src_pos
+    # Landmark keys: '12345678' < 'abc1234567890def' alphabetically.
+    pos_8 = text.find('"12345678"')
+    pos_abc = text.find('"abc1234567890def"')
+    landmark_ordered = 0 <= pos_8 < pos_abc
+    check(
+        "dump output has sorted top-level and landmark keys",
+        top_ordered and landmark_ordered,
+        f"top_ordered={top_ordered} (fmt={fmt_pos}, lm={lm_pos}, src={src_pos}); "
+        f"landmark_ordered={landmark_ordered} (12345678={pos_8}, abc...={pos_abc})",
+    )
+
+
+def test_cli_dump_unicode_preservation(tmp_path: Path) -> None:
+    """Unicode landmark IDs appear as raw UTF-8 bytes, not escaped \\uXXXX."""
+    out = tmp_path / 'dump.json'
+    r = run_cli('dump', '--from', str(UNICODE_CHUNK), '--out', str(out))
+    if r.returncode != 0:
+        check("dump preserves Unicode IDs", False, f"rc={r.returncode}, stderr={r.stderr!r}")
+        return
+    raw = out.read_bytes()
+    has_raw_overview = '概要'.encode('utf-8') in raw
+    has_escaped_unicode = b'"\\u' in raw
+    check(
+        "dump preserves raw Unicode IDs (no \\u-escaping in landmark keys)",
+        has_raw_overview and not has_escaped_unicode,
+        f"raw_overview={has_raw_overview}, has_escapes={has_escaped_unicode}",
+    )
+
+
+def test_cli_round_trip_equivalence_chunks(tmp_path: Path) -> None:
+    """Every ID resolves to the same path via --lookup-table as via --from.
+
+    The dump itself goes through the CLI (the artifact contract is what we care
+    about), but the per-ID comparison runs in-process so adding a 1003-landmark
+    fixture later doesn't spawn 2000+ subprocesses.
+    """
+    out = tmp_path / 'dump.json'
+    rd = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out))
+    if rd.returncode != 0:
+        check("round-trip equivalence (chunks)", False, f"dump rc={rd.returncode}")
+        return
+    artifact = json.loads(out.read_text(encoding='utf-8'))
+    files, anchors, id_to_pair = resolver.build_index(
+        sorted(MULTI_DIR.glob('*_lx.js'))
+    )
+    mismatches: list[str] = []
+    for landmark_id in sorted(artifact['landmarks']):
+        from_chunks = resolver.resolve_id(landmark_id, files, anchors, id_to_pair)
+        from_lookup = resolver.resolve_id_from_lookup(landmark_id, artifact)
+        if from_chunks != from_lookup:
+            mismatches.append(
+                f"{landmark_id!r}: chunks={from_chunks!r} lookup={from_lookup!r}"
+            )
+    count = len(artifact['landmarks'])
+    check(
+        f"round-trip equivalence: {count} IDs match between chunk index and lookup-table",
+        not mismatches,
+        '; '.join(mismatches[:3]) + (f" ...({len(mismatches)} mismatches)" if mismatches else ''),
+    )
+
+
+def test_cli_round_trip_equivalence_unicode(tmp_path: Path) -> None:
+    """Unicode IDs round-trip through both resolve and rewrite paths."""
+    out = tmp_path / 'dump.json'
+    rd = run_cli('dump', '--from', str(UNICODE_CHUNK), '--out', str(out))
+    if rd.returncode != 0:
+        check("round-trip equivalence (unicode resolve)", False, f"dump rc={rd.returncode}")
+        return
+    a = run_cli('resolve', '概要', '--from', str(UNICODE_CHUNK))
+    b = run_cli('resolve', '概要', '--lookup-table', str(out))
+    check(
+        "round-trip equivalence: Unicode ID via resolve",
+        a.returncode == 0 and b.returncode == 0 and a.stdout == b.stdout,
+        f"from out={a.stdout!r}; lookup out={b.stdout!r}",
+    )
+
+    url = 'http://example.com/help/#/%E6%A6%82%E8%A6%81'
+    ra = run_cli('rewrite', url, '--from', str(UNICODE_CHUNK))
+    rb = run_cli('rewrite', url, '--lookup-table', str(out), '--base-url', 'http://example.com/help/')
+    # Without --base-url the lookup-table path falls through to the URL prefix
+    # branch; supply --base-url so both invocations produce the same prefix.
+    check(
+        "round-trip equivalence: Unicode ID via rewrite (with --base-url)",
+        ra.returncode == 0 and rb.returncode == 0 and ra.stdout == rb.stdout,
+        f"from out={ra.stdout!r}; lookup out={rb.stdout!r}",
+    )
+
+
+def _write_lookup(path: Path, payload: dict) -> None:
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+
+
+def test_cli_format_version_validation(tmp_path: Path) -> None:
+    """Unsupported / missing format_version exits 2 with a clear stderr message."""
+    bad = tmp_path / 'v99.json'
+    _write_lookup(bad, {
+        "format_version": 99,
+        "source": {"type": "local-directory", "path": "/x", "chunks_found": 0,
+                   "captured_at": "2026-05-21T00:00:00Z"},
+        "landmarks": {},
+    })
+    r = run_cli('resolve', 'some_id', '--lookup-table', str(bad))
+    check(
+        "format_version=99 exits 2 and stderr names the unsupported version",
+        r.returncode == 2 and 'unsupported format_version' in r.stderr and '99' in r.stderr,
+        f"rc={r.returncode}, stderr={r.stderr!r}",
+    )
+
+    zero = tmp_path / 'v0.json'
+    _write_lookup(zero, {
+        "format_version": 0,
+        "source": {"type": "local-directory", "path": "/x", "chunks_found": 0,
+                   "captured_at": "2026-05-21T00:00:00Z"},
+        "landmarks": {},
+    })
+    rz = run_cli('resolve', 'some_id', '--lookup-table', str(zero))
+    check(
+        "format_version=0 (boundary) exits 2",
+        rz.returncode == 2 and 'unsupported format_version' in rz.stderr,
+        f"rc={rz.returncode}, stderr={rz.stderr!r}",
+    )
+
+    missing = tmp_path / 'missing.json'
+    _write_lookup(missing, {
+        "source": {"type": "local-directory", "path": "/x", "chunks_found": 0,
+                   "captured_at": "2026-05-21T00:00:00Z"},
+        "landmarks": {},
+    })
+    rm = run_cli('resolve', 'some_id', '--lookup-table', str(missing))
+    check(
+        "missing format_version exits 2 with a clear message",
+        rm.returncode == 2 and 'format_version' in rm.stderr,
+        f"rc={rm.returncode}, stderr={rm.stderr!r}",
+    )
+
+    bad_json = tmp_path / 'bad.json'
+    bad_json.write_text('not json', encoding='utf-8')
+    rj = run_cli('resolve', 'some_id', '--lookup-table', str(bad_json))
+    check(
+        "non-JSON lookup-table exits 2 and stderr names the file",
+        rj.returncode == 2 and str(bad_json) in rj.stderr,
+        f"rc={rj.returncode}, stderr={rj.stderr!r}",
+    )
+
+
+def test_cli_source_mutual_exclusion(tmp_path: Path) -> None:
+    """Every pair of source flags is rejected by argparse."""
+    out = tmp_path / 'd.json'
+    rd = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out))
+    if rd.returncode != 0:
+        check("source mutual exclusion", False, f"dump rc={rd.returncode}")
+        return
+    pairs = [
+        ('--from', str(MULTI_DIR), '--remote-base-url', 'https://example.com/help/'),
+        ('--from', str(MULTI_DIR), '--lookup-table', str(out)),
+        ('--remote-base-url', 'https://example.com/help/', '--lookup-table', str(out)),
+    ]
+    all_rejected = True
+    detail_bits: list[str] = []
+    for combo in pairs:
+        r = run_cli('resolve', 'some_id', *combo)
+        rejected = r.returncode != 0 and 'not allowed' in r.stderr.lower()
+        if not rejected:
+            all_rejected = False
+            detail_bits.append(f"{' '.join(combo)} -> rc={r.returncode} stderr={r.stderr!r}")
+    check(
+        "every pair of source flags is rejected (argparse mutual exclusion)",
+        all_rejected,
+        '; '.join(detail_bits),
+    )
+
+
+def test_cli_dump_lookup_table_rejected(tmp_path: Path) -> None:
+    """`dump --lookup-table` is rejected even though the flag is registered on the parser."""
+    out = tmp_path / 'd.json'
+    rd = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out))
+    if rd.returncode != 0:
+        check("dump --lookup-table rejected", False, f"dump rc={rd.returncode}")
+        return
+    r = run_cli('dump', '--lookup-table', str(out))
+    check(
+        "dump --lookup-table is rejected at exit 1 with a clear message",
+        r.returncode == 1 and 'not a valid source for dump' in r.stderr,
+        f"rc={r.returncode}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_dump_real_artifact_smoke() -> None:
+    """Real ePublisher Designer 2026.1 fixture loads and resolves correctly."""
+    if not EPUBLISHER_FIXTURE.exists():
+        check("real-artifact smoke (ePublisher 2026.1)", False,
+              f"fixture missing: {EPUBLISHER_FIXTURE}")
+        return
+    artifact = json.loads(EPUBLISHER_FIXTURE.read_text(encoding='utf-8'))
+    src = artifact.get('source', {})
+    landmarks = artifact.get('landmarks', {})
+    shape_ok = (
+        artifact.get('format_version') == 1
+        and src.get('type') == 'local-directory'
+        and src.get('chunks_found') == 7
+        and len(landmarks) > 0
+    )
+    if not shape_ok:
+        check("real-artifact: shape is intact", False,
+              f"format_version={artifact.get('format_version')}, src={src}, "
+              f"landmark_count={len(landmarks)}")
+        return
+    check("real-artifact: format_version=1, type=local-directory, chunks_found=7",
+          True, f"landmark_count={len(landmarks)}")
+    first_id = sorted(landmarks.keys())[0]
+    expected_entry = landmarks[first_id]
+    expected = (
+        f"{expected_entry['file']}#{expected_entry['anchor']}"
+        if expected_entry.get('anchor')
+        else expected_entry['file']
+    )
+    r = run_cli('resolve', first_id, '--lookup-table', str(EPUBLISHER_FIXTURE))
+    check(
+        f"real-artifact: resolve {first_id!r} via --lookup-table",
+        r.returncode == 0 and r.stdout.strip() == expected,
+        f"rc={r.returncode}, stdout={r.stdout!r}, expected={expected!r}",
+    )
+
+
+def test_cli_dump_remote_source_block(tmp_path: Path) -> None:
+    """Remote-mode dump records source.type=remote-base-url with the base URL."""
+    base = 'https://dump-source.example/help/'
+    landing_html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    chunk = SINGLE_CHUNK.read_bytes()
+
+    wrapper = tmp_path / 'wrap.py'
+    wrapper.write_text(_make_wrapper_script(
+        base=base,
+        landing_html=landing_html.encode('utf-8'),
+        chunk_payload=chunk,
+    ), encoding='utf-8')
+    cache_dir = tmp_path / 'cache'
+    out = tmp_path / 'dump.json'
+    proc = subprocess.run(
+        [sys.executable, str(wrapper),
+         'dump', '--remote-base-url', base,
+         '--cache-dir', str(cache_dir),
+         '--cache-ttl', '3600',
+         '--out', str(out)],
+        capture_output=True, text=True,
+        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+    )
+    if proc.returncode != 0:
+        check("remote-mode dump source block", False,
+              f"rc={proc.returncode}, stderr={proc.stderr!r}")
+        return
+    artifact = json.loads(out.read_text(encoding='utf-8'))
+    src = artifact.get('source', {})
+    check(
+        "remote-mode dump: source.type=remote-base-url with base_url and chunks_found>0",
+        src.get('type') == 'remote-base-url'
+        and src.get('base_url') == base
+        and isinstance(src.get('chunks_found'), int)
+        and src['chunks_found'] > 0,
+        f"src={src}",
     )
 
 
@@ -1410,7 +1747,7 @@ def main() -> int:
 
     print(f"{YELLOW}Running landmark-resolver verification...{NC}\n")
 
-    # Internal: v1
+    # Internal: chunk parsing and index building
     test_internal_parse_chunk()
     test_internal_build_index_single()
     test_internal_id_format_opacity()
@@ -1424,11 +1761,11 @@ def main() -> int:
         test_internal_empty_e_array(tmp_path)
         test_internal_malformed_chunk(tmp_path)
 
-    # Internal: v2 plumbing
+    # Internal: build_index_from_texts and Unicode unquote
     test_internal_build_index_from_texts()
     test_unicode_id_resolves_with_unquote_in_index()
 
-    # Internal: v2 U2 (HTTP primitives)
+    # Internal: HTTP primitives
     test_http_get_happy_path()
     test_http_get_transient_retry()
     test_http_get_exhausted_retries()
@@ -1436,7 +1773,7 @@ def main() -> int:
     test_http_get_5xx_retried()
     test_proxy_handler_constructed_from_getproxies()
 
-    # Internal: v2 U3 (cache state machine)
+    # Internal: cache state machine
     test_default_cache_root_windows()
     test_default_cache_root_linux_xdg()
     test_default_cache_root_macos()
@@ -1451,7 +1788,7 @@ def main() -> int:
         test_cache_partial_write_isolated(tmp_path)
     test_cache_decision_branches()
 
-    # Internal: v2 U4 (discovery)
+    # Internal: chunk discovery
     test_extract_chunk_srcs_basic()
     test_extract_chunk_srcs_quote_variants()
     test_extract_generation_hash()
@@ -1481,7 +1818,7 @@ def main() -> int:
         tmp_path = Path(tmp)
         test_remote_chunk_texts_manifest_preferred(tmp_path)
 
-    # CLI: v1
+    # CLI: resolve, dump, rewrite (local mode)
     test_cli_resolve_happy_single()
     test_cli_resolve_page_level_no_anchor()
     test_cli_resolve_directory_mode()
@@ -1495,13 +1832,13 @@ def main() -> int:
     test_cli_rewrite_with_base_url()
     test_cli_rewrite_no_id_after_hash()
 
-    # CLI: v2 U1 (URL fragment decode)
+    # CLI: URL fragment decode in rewrite
     test_cli_rewrite_percent_encoded_unicode_local()
     test_cli_rewrite_malformed_percent_exits_1()
     test_cli_rewrite_ascii_id_no_double_decode()
     test_cli_rewrite_literal_plus_preserved()
 
-    # CLI: v2 U5 (remote-mode flag plumbing)
+    # CLI: remote-mode flag plumbing
     test_cli_rewrite_mutual_exclusion()
     test_cli_rewrite_from_wins_over_http_url()
     test_cli_no_source_and_non_http_url_exits_1()
@@ -1514,6 +1851,39 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         test_cli_remote_fetch_failure_exits_2(tmp_path)
+
+    # CLI: dump artifact + --lookup-table consumer path
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_dump_deterministic(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_dump_structured_shape(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_dump_sorted_keys(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_dump_unicode_preservation(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_round_trip_equivalence_chunks(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_round_trip_equivalence_unicode(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_format_version_validation(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_source_mutual_exclusion(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_dump_lookup_table_rejected(tmp_path)
+    test_cli_dump_real_artifact_smoke()
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_dump_remote_source_block(tmp_path)
 
     passed = sum(1 for _, ok, _ in _results if ok)
     failed = sum(1 for _, ok, _ in _results if not ok)

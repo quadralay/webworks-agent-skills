@@ -14,15 +14,18 @@ GLOBAL_GENERATION_HASH (emitted by Reverb into the landing page) with a TTL
 fallback for mirrors that ship without the constant.
 
 Usage:
-    python resolve-landmarks.py resolve <id> [--from <path> | --remote-base-url <url>] [--json]
-    python resolve-landmarks.py rewrite <url> [--from <path> | --remote-base-url <url>] [--base-url <url>]
-    python resolve-landmarks.py dump [--from <path> | --remote-base-url <url>] [--table]
+    python resolve-landmarks.py resolve <id> [--from <path> | --remote-base-url <url> | --lookup-table <file>] [--json]
+    python resolve-landmarks.py rewrite <url> [--from <path> | --remote-base-url <url> | --lookup-table <file>] [--base-url <url>]
+    python resolve-landmarks.py dump [--from <path> | --remote-base-url <url>] [--out <file>] [--table]
 
 Sources (mutually exclusive):
     --from <path>           Local *_lx.js chunk file or directory containing chunks.
     --remote-base-url <url> Help mirror base URL (e.g., https://host/docs/help/).
                             `rewrite` auto-infers this from an HTTP/HTTPS URL when
-                            neither --from nor --remote-base-url is set.
+                            neither --from, --remote-base-url, nor --lookup-table is set.
+    --lookup-table <file>   Pre-built dump artifact (see Step 6 / "Dump Artifact Schema"
+                            in workflows/landmark-resolution.md). Valid on `resolve`
+                            and `rewrite` only; rejected by `dump`.
 
 Remote-mode flags:
     --no-cache              Skip cache freshness/hash checks; re-fetch every chunk.
@@ -33,6 +36,8 @@ Remote-mode flags:
 Other flags:
     --base-url <url>        For "rewrite": replace the inferred URL prefix with this base.
     --json                  For "resolve": emit a JSON object instead of the bare path.
+    --out <file>            For "dump": write structured JSON to <file> (default stdout;
+                            "-" is an explicit stdout alias).
     --table                 For "dump": emit a human-readable table instead of JSON.
 
 Landmark ID formats (treated as opaque strings):
@@ -75,11 +80,17 @@ Examples:
     python resolve-landmarks.py resolve e5d3d31c42d8d1d4 \\
         --remote-base-url https://example.com/help/
 
-    # Local: dump the full index as JSON
+    # Local: dump the full index as structured JSON to a file
+    python resolve-landmarks.py dump --from output/ --out landmarks.json
+
+    # Local: dump the full index as JSON to stdout
     python resolve-landmarks.py dump --from output/
 
     # Local: dump the full index as a human-readable table
     python resolve-landmarks.py dump --from output/ --table
+
+    # Resolve from a pre-built dump artifact (no chunk parsing)
+    python resolve-landmarks.py resolve e5d3d31c42d8d1d4 --lookup-table landmarks.json
 """
 
 import argparse
@@ -95,6 +106,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -134,9 +146,19 @@ _GENERATION_HASH_RE = re.compile(
 # Cache schema. Bumped only on incompatible manifest changes.
 _CACHE_MANIFEST = '_manifest.json'
 
+# Dump artifact `source.type` values. Closed set; kept here so producers and
+# consumers reference the same constant.
+SOURCE_TYPE_LOCAL = 'local-directory'
+SOURCE_TYPE_REMOTE = 'remote-base-url'
+
 # Module-level seams so tests can monkey-patch without unittest.mock.
 _sleep = time.sleep
 _now = time.time
+
+
+def _now_iso_utc() -> str:
+    """Return current UTC time as an ISO-8601 string with trailing 'Z' (second precision)."""
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
 def debug_log(message: str) -> None:
@@ -156,7 +178,7 @@ def warn_log(message: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Chunk parsing and index building (v1 — unchanged behavior)
+# Chunk parsing and index building
 # ---------------------------------------------------------------------------
 
 
@@ -198,6 +220,50 @@ def parse_chunk(path: Path) -> dict[str, list]:
     """
     debug_log(f"Parsing chunk: {path}")
     return parse_chunk_text(path.read_text(encoding='utf-8'), str(path))
+
+
+def _format_path(file_path: str, anchor: str) -> str:
+    """`file#anchor` when `anchor` is non-empty, bare `file` otherwise.
+
+    Single source of truth for the runtime's GetPathById formatting; shared by
+    chunk-based and lookup-table-based resolution so they stay byte-identical.
+    """
+    return f"{file_path}#{anchor}" if anchor else file_path
+
+
+def load_lookup_table(path: Path) -> dict:
+    """Read and validate a pre-built dump artifact.
+
+    Raises ValueError on missing/invalid format_version or malformed `landmarks`.
+    Caller is responsible for converting ValueError/OSError into CLI exit 2.
+    """
+    try:
+        text = path.read_text(encoding='utf-8')
+    except OSError as e:
+        raise ValueError(f"{path}: cannot read lookup-table file: {e}") from e
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"{path}: lookup-table file is not valid JSON: {e}") from e
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: lookup-table root must be a JSON object")
+    if 'format_version' not in data:
+        raise ValueError(f"{path}: missing 'format_version'; this build understands 1")
+    if data['format_version'] != 1:
+        raise ValueError(
+            f"unsupported format_version {data['format_version']!r}; this build understands 1"
+        )
+    if not isinstance(data.get('landmarks'), dict):
+        raise ValueError(f"{path}: 'landmarks' is missing or not an object")
+    return data
+
+
+def resolve_id_from_lookup(landmark_id: str, lookup: dict) -> Optional[str]:
+    """Look up a landmark ID in a loaded dump artifact and format file[#anchor]."""
+    entry = lookup['landmarks'].get(landmark_id)
+    if entry is None:
+        return None
+    return _format_path(entry.get('file', ''), entry.get('anchor', ''))
 
 
 def _merge_chunks(
@@ -294,9 +360,7 @@ def resolve_id(
     if pair is None:
         return None
     file_idx, anchor_idx = pair
-    file_path = files[file_idx]
-    anchor = anchors[anchor_idx]
-    return f"{file_path}#{anchor}" if anchor else file_path
+    return _format_path(files[file_idx], anchors[anchor_idx])
 
 
 def discover_chunks(source: Path) -> list[Path]:
@@ -810,12 +874,18 @@ def _update_manifest_poll_ts(cache_dir: Path, manifest: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _build_or_die(source: Path) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
-    """Run discover_chunks + build_index, mapping exceptions to exit-code 2."""
+def _build_or_die(
+    source: Path,
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]], int]:
+    """Run discover_chunks + build_index, mapping exceptions to exit-code 2.
+
+    Returns (files, anchors, id_to_pair, chunks_found).
+    """
     try:
         chunk_paths = discover_chunks(source)
         debug_log(f"Discovered {len(chunk_paths)} chunk(s)")
-        return build_index(chunk_paths)
+        files, anchors, id_to_pair = build_index(chunk_paths)
+        return files, anchors, id_to_pair, len(chunk_paths)
     except (FileNotFoundError, ValueError, OSError) as e:
         error_log(str(e))
         sys.exit(2)
@@ -823,12 +893,12 @@ def _build_or_die(source: Path) -> tuple[list[str], list[str], dict[str, tuple[i
 
 def _load_index(
     args: argparse.Namespace,
-) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]], int]:
     """
     Dispatch index loading based on which source was specified.
 
-    Returns the same (files, anchors, id_to_pair) shape as _build_or_die. Calls
-    sys.exit(2) on any local or remote fetch failure.
+    Returns (files, anchors, id_to_pair, chunks_found). Calls sys.exit(2) on any
+    local or remote fetch failure.
     """
     if getattr(args, 'remote_base_url', None):
         try:
@@ -842,7 +912,8 @@ def _load_index(
                 fetcher=default_fetcher,
                 timeout=args.http_timeout,
             )
-            return build_index_from_texts(chunks)
+            files, anchors, id_to_pair = build_index_from_texts(chunks)
+            return files, anchors, id_to_pair, len(chunks)
         except (RemoteFetchError, ValueError, OSError) as e:
             error_log(str(e))
             sys.exit(2)
@@ -870,10 +941,26 @@ def _format_remote_rewrite_url(base_url: str, resolved_path: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _load_lookup_or_die(args: argparse.Namespace) -> dict:
+    """Load a lookup-table artifact, mapping ValueError/OSError to exit-code 2."""
+    try:
+        return load_lookup_table(Path(args.lookup_table))
+    except (ValueError, OSError) as e:
+        error_log(str(e))
+        sys.exit(2)
+
+
+def _resolve_one(args: argparse.Namespace, landmark_id: str) -> Optional[str]:
+    """Resolve a single ID via --lookup-table when set, else via the chunk index."""
+    if getattr(args, 'lookup_table', None):
+        return resolve_id_from_lookup(landmark_id, _load_lookup_or_die(args))
+    files, anchors, id_to_pair, _ = _load_index(args)
+    return resolve_id(landmark_id, files, anchors, id_to_pair)
+
+
 def cmd_resolve(args: argparse.Namespace) -> int:
     _require_source(args, allow_autoinfer=False)
-    files, anchors, id_to_pair = _load_index(args)
-    path = resolve_id(args.id, files, anchors, id_to_pair)
+    path = _resolve_one(args, args.id)
     if path is None:
         if args.json:
             print(json.dumps({"error": "ID not found", "id": args.id}))
@@ -904,6 +991,7 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
     if (
         args.source is None
         and getattr(args, 'remote_base_url', None) is None
+        and getattr(args, 'lookup_table', None) is None
         and args.url.lower().startswith(('http://', 'https://'))
     ):
         args.remote_base_url = args.url.split('#/', 1)[0]
@@ -911,8 +999,7 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
 
     _require_source(args, allow_autoinfer=True)
 
-    files, anchors, id_to_pair = _load_index(args)
-    path = resolve_id(landmark_id, files, anchors, id_to_pair)
+    path = _resolve_one(args, landmark_id)
     if path is None:
         error_log(f"ID not found: {landmark_id}")
         return 1
@@ -932,32 +1019,84 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_dump(args: argparse.Namespace) -> int:
-    _require_source(args, allow_autoinfer=False)
-    files, anchors, id_to_pair = _load_index(args)
-    rows = {
-        landmark_id: resolve_id(landmark_id, files, anchors, id_to_pair)
-        for landmark_id in id_to_pair
+def _build_dump_artifact(
+    files: list[str],
+    anchors: list[str],
+    id_to_pair: dict[str, tuple[int, int]],
+    *,
+    source_type: str,
+    source_value: str,
+    chunks_found: int,
+    captured_at: str,
+) -> dict:
+    """Build the structured dump dict: {format_version, source, landmarks}.
+
+    `source_value` is the path (for SOURCE_TYPE_LOCAL) or base URL (for
+    SOURCE_TYPE_REMOTE). The `landmarks` map exposes each ID's resolved
+    (file, anchor) pair directly so consumers do not have to re-split on `#`.
+    """
+    source_block: dict = {
+        'type': source_type,
+        'chunks_found': chunks_found,
+        'captured_at': captured_at,
+    }
+    if source_type == SOURCE_TYPE_REMOTE:
+        source_block['base_url'] = source_value
+    else:
+        source_block['path'] = source_value
+    landmarks = {
+        landmark_id: {'file': files[fi], 'anchor': anchors[ai]}
+        for landmark_id, (fi, ai) in id_to_pair.items()
+    }
+    return {
+        'format_version': 1,
+        'source': source_block,
+        'landmarks': landmarks,
     }
 
+
+def cmd_dump(args: argparse.Namespace) -> int:
+    if getattr(args, 'lookup_table', None):
+        error_log("--lookup-table is not a valid source for dump; use --from or --remote-base-url")
+        return 1
+    _require_source(args, allow_autoinfer=False)
+    files, anchors, id_to_pair, chunks_found = _load_index(args)
+
     if args.table:
-        if not rows:
+        if not id_to_pair:
             print("No landmarks found")
             return 0
-        id_width = max(len(landmark_id) for landmark_id in rows)
-        id_width = max(id_width, len("Landmark ID"))
+        id_width = max(max(len(lm) for lm in id_to_pair), len("Landmark ID"))
         lines = [
             "Reverb 2.0 Landmark Index:",
             "=" * (id_width + 4 + 60),
             f"{'Landmark ID':<{id_width}}    Resolved Path",
             "-" * (id_width + 4 + 60),
         ]
-        for landmark_id in sorted(rows):
-            lines.append(f"{landmark_id:<{id_width}}    {rows[landmark_id]}")
+        for landmark_id in sorted(id_to_pair):
+            fi, ai = id_to_pair[landmark_id]
+            lines.append(f"{landmark_id:<{id_width}}    {_format_path(files[fi], anchors[ai])}")
         print('\n'.join(lines))
-    else:
-        print(json.dumps(rows, indent=2, sort_keys=True))
+        return 0
 
+    if getattr(args, 'remote_base_url', None):
+        source_type, source_value = SOURCE_TYPE_REMOTE, args.remote_base_url
+    else:
+        source_type, source_value = SOURCE_TYPE_LOCAL, args.source
+    artifact = _build_dump_artifact(
+        files, anchors, id_to_pair,
+        source_type=source_type,
+        source_value=source_value,
+        chunks_found=chunks_found,
+        captured_at=_now_iso_utc(),
+    )
+    json_text = json.dumps(artifact, ensure_ascii=False, sort_keys=True, indent=2) + '\n'
+    payload = json_text.encode('utf-8')
+    if args.out is None or args.out == '-':
+        sys.stdout.buffer.write(payload)
+        sys.stdout.flush()
+    else:
+        Path(args.out).write_bytes(payload)
     return 0
 
 
@@ -966,16 +1105,24 @@ def _require_source(args: argparse.Namespace, allow_autoinfer: bool) -> None:
     Exit with code 1 (CLI usage failure) when no source is determinable.
 
     `argparse` covers the mutual-exclusion check; this catches the rewrite case
-    where neither flag was given and auto-infer was also unable to set one.
+    where no source flag was given and auto-infer was also unable to set one.
     """
-    if args.source is None and not getattr(args, 'remote_base_url', None):
+    if (
+        args.source is None
+        and not getattr(args, 'remote_base_url', None)
+        and not getattr(args, 'lookup_table', None)
+    ):
         if allow_autoinfer:
             error_log(
                 "no source provided: pass --from <path>, --remote-base-url <url>, "
-                "or a stable URL (rewrite mode auto-infers the base from the URL)"
+                "--lookup-table <file>, or a stable URL "
+                "(rewrite mode auto-infers the base from the URL)"
             )
         else:
-            error_log("no source provided: pass --from <path> or --remote-base-url <url>")
+            error_log(
+                "no source provided: pass --from <path>, --remote-base-url <url>, "
+                "or --lookup-table <file>"
+            )
         sys.exit(1)
 
 
@@ -985,7 +1132,7 @@ def _require_source(args: argparse.Namespace, allow_autoinfer: bool) -> None:
 
 
 def _add_source_flags(subparser: argparse.ArgumentParser, required: bool) -> None:
-    """Add --from / --remote-base-url and related remote-mode flags."""
+    """Add --from / --remote-base-url / --lookup-table and related remote-mode flags."""
     group = subparser.add_mutually_exclusive_group(required=required)
     group.add_argument(
         '--from', dest='source', default=None,
@@ -994,6 +1141,10 @@ def _add_source_flags(subparser: argparse.ArgumentParser, required: bool) -> Non
     group.add_argument(
         '--remote-base-url', dest='remote_base_url', default=None,
         help='Help mirror base URL (fetched over HTTP, cached locally)',
+    )
+    group.add_argument(
+        '--lookup-table', dest='lookup_table', default=None,
+        help='Path to a pre-built dump artifact (mutually exclusive with --from/--remote-base-url)',
     )
     subparser.add_argument(
         '--no-cache', dest='no_cache', action='store_true',
@@ -1031,8 +1182,11 @@ Examples:
     # Remote: resolve against a published help mirror
     %(prog)s resolve abc12345 --remote-base-url https://example.com/help/
 
-    # Local: dump the entire index as JSON
-    %(prog)s dump --from output/
+    # Local: dump the entire index as structured JSON to a file
+    %(prog)s dump --from output/ --out landmarks.json
+
+    # Resolve from a pre-built dump artifact
+    %(prog)s resolve abc12345 --lookup-table landmarks.json
 """
     )
 
@@ -1062,12 +1216,16 @@ Examples:
 
     dump_parser = subparsers.add_parser(
         'dump',
-        help='Emit the full {id: relative_path} map',
+        help='Emit the full structured landmark index as JSON',
     )
     _add_source_flags(dump_parser, required=True)
     dump_parser.add_argument(
         '--table', action='store_true',
         help='Emit a human-readable table instead of JSON',
+    )
+    dump_parser.add_argument(
+        '--out', dest='out', default=None,
+        help='Write JSON output to <file>. Use "-" or omit for stdout.',
     )
 
     args = parser.parse_args()
