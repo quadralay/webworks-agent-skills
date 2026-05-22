@@ -1,21 +1,21 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "webworks-claude-skills",
-  "version": "2.14.1",
-  "description": "Claude Code skills for WebWorks ePublisher platform: project management, Markdown++ integration, AutoMap automation, and Reverb output testing",
+  "name": "webworks-agent-skills",
+  "version": "3.0.0",
+  "description": "AI agent skills for WebWorks ePublisher platform: project management, Markdown++ integration, AutoMap automation, and Reverb output testing",
   "owner": {
     "name": "Quadralay Corporation",
     "email": "support@webworks.com"
   },
   "plugins": [
     {
-      "name": "webworks-claude-skills",
+      "name": "webworks-agent-skills",
       "description": "Complete skills suite for WebWorks ePublisher platform including project management, Markdown++ source integration, AutoMap publishing automation, and Reverb output testing",
       "author": {
         "name": "Quadralay Corporation",
         "url": "https://github.com/quadralay"
       },
-      "source": "./plugins/webworks-claude-skills",
+      "source": "./plugins/webworks-agent-skills",
       "category": "development-tools",
       "tags": [
         "epublisher",

@@ -19,9 +19,9 @@ nul
 logs/
 
 # Test fixtures need real Logs/<target>/generate.log files
-!plugins/webworks-claude-skills/skills/automap/tests/fixtures/**/Logs/
-!plugins/webworks-claude-skills/skills/automap/tests/fixtures/**/Logs/**
-!plugins/webworks-claude-skills/skills/automap/tests/fixtures/**/*.log
+!plugins/webworks-agent-skills/skills/automap/tests/fixtures/**/Logs/
+!plugins/webworks-agent-skills/skills/automap/tests/fixtures/**/Logs/**
+!plugins/webworks-agent-skills/skills/automap/tests/fixtures/**/*.log
 
 # Temporary files
 *.tmp

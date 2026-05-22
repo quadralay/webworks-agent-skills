@@ -173,7 +173,7 @@ Markdown++ source files build through the helper adapter without special configu
 - Format-level Markdown++ syntax errors (unclosed conditions, malformed marker JSON, invalid variable names) surface in AutoMap output during the helper adapter pass.
 - ePublisher-integration errors (undefined style, unconfigured condition, unresolved variable) typically do **not** fail the build — they degrade silently to default rendering, no condition expansion, or literal `$variable;` text.
 
-**For format-level pre-build validation, use the `markdown-plus-plus` skill's validation script** (in the `quadralay/markdown-plus-plus` plugin). This catches syntax issues before AutoMap runs and avoids debugging silent fallbacks. Invocation depends on the companion plugin's installed location — load the `markdown-plus-plus` skill (e.g., `webworks-claude-skills:markdown-plus-plus` if the external plugin is installed in this Claude Code instance) for the current script path and arguments. If the companion plugin is not installed, ask the user to install it from `quadralay/markdown-plus-plus` or skip pre-build validation.
+**For format-level pre-build validation, use the `markdown-plus-plus` skill's validation script** (in the `quadralay/markdown-plus-plus` plugin). This catches syntax issues before AutoMap runs and avoids debugging silent fallbacks. Invocation depends on the companion plugin's installed location — load the `markdown-plus-plus` skill (e.g., `markdown-plus-plus:markdown-plus-plus` if the external plugin is installed in this Claude Code instance) for the current script path and arguments. If the companion plugin is not installed, ask the user to install it from `quadralay/markdown-plus-plus` or skip pre-build validation.
 
 </automap_integration>
 

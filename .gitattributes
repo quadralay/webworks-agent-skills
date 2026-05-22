@@ -1,5 +1,5 @@
 # Shell scripts and test fixtures must use LF line endings on all platforms
 # so bash and the test driver behave identically across Windows and Unix.
 *.sh                                                                    text eol=lf
-plugins/webworks-claude-skills/skills/automap/tests/fixtures/**         text eol=lf
-plugins/webworks-claude-skills/skills/reverb2/tests/fixtures/**         text eol=lf
+plugins/webworks-agent-skills/skills/automap/tests/fixtures/**         text eol=lf
+plugins/webworks-agent-skills/skills/reverb2/tests/fixtures/**         text eol=lf

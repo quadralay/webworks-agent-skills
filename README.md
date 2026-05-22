@@ -1,9 +1,9 @@
-# WebWorks Claude Skills
+# WebWorks Agent Skills
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude-Code-purple)](https://claude.ai/code)
 
-AI-powered skills for WebWorks ePublisher and Markdown++ authoring.
+AI agent skills for WebWorks ePublisher and Markdown++ authoring.
 
 ![Claude Code publishing an ePublisher project](images/readme-main.png)
 
@@ -12,9 +12,11 @@ AI-powered skills for WebWorks ePublisher and Markdown++ authoring.
 In Claude Code:
 
 ```
-/plugin marketplace add quadralay/webworks-claude-skills
-/plugin install webworks-claude-skills@webworks-claude-skills
+/plugin marketplace add quadralay/webworks-agent-skills
+/plugin install webworks-agent-skills@webworks-agent-skills
 ```
+
+> **Migrating from `webworks-claude-skills`?** This repo was renamed in 3.0.0. Uninstall the old plugin (`/plugin uninstall webworks-claude-skills`) before installing the new one. Any skill invocations or permission entries in your `.claude/settings.local.json` referencing `webworks-claude-skills:*` must be updated to `webworks-agent-skills:*`.
 
 All skills activate automatically based on your project context.
 
