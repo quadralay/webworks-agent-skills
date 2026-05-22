@@ -720,13 +720,13 @@ Place assets in subdirectories alongside the overridden ASP template, mirroring 
 Formats/WebWorks Reverb 2.0/Pages/
 ├── Header.asp              # Template referencing the assets
 ├── images/
-│   ├── logo-left.png       # Custom asset
-│   └── logo-right.png      # Custom asset
+│   ├── logo-text.png       # Custom asset
+│   └── logo-art.png        # Custom asset
 └── sass/
     └── _custom-skin.scss
 ```
 
-The `src` value in the template is relative to the ASP file itself (`src="images/logo-left.png"`); ePublisher resolves it from the override location at publish time.
+The `src` value in the template is relative to the ASP file itself (`src="images/logo-text.png"`); ePublisher resolves it from the override location at publish time.
 
 **Comparison with the `Files/` directory:**
 
