@@ -17,6 +17,7 @@ Usage:
     python resolve-landmarks.py resolve <id> [--from <path> | --remote-base-url <url> | --lookup-table <file>] [--json]
     python resolve-landmarks.py rewrite <url> [--from <path> | --remote-base-url <url> | --lookup-table <file>] [--base-url <url>]
     python resolve-landmarks.py dump [--from <path> | --remote-base-url <url>] [--out <file>] [--table]
+    python resolve-landmarks.py reverse <path> [--from <path> | --remote-base-url <url> | --lookup-table <file>] [--first | --anchor <id>] [--json]
 
 Sources (mutually exclusive):
     --from <path>           Local *_lx.js chunk file or directory containing chunks.
@@ -266,10 +267,41 @@ def resolve_id_from_lookup(landmark_id: str, lookup: dict) -> Optional[str]:
     return _format_path(entry.get('file', ''), entry.get('anchor', ''))
 
 
+def _invert_lookup_for_reverse(lookup: dict) -> dict[str, list[tuple[str, str]]]:
+    """Build a path -> [(anchor, id), ...] map from a loaded dump artifact.
+
+    Sorts each value list by (anchor, id) so the empty-anchor (page-level)
+    binding sorts first and ties on anchor resolve deterministically. Mirrors
+    the (anchor_index, id) ordering `_merge_chunks` applies to its chunk-side
+    `path_to_bindings` map.
+    """
+    result: dict[str, list[tuple[str, str]]] = {}
+    for landmark_id, entry in lookup['landmarks'].items():
+        if not isinstance(entry, dict):
+            continue
+        file_path = entry.get('file', '')
+        anchor = entry.get('anchor', '')
+        result.setdefault(file_path, []).append((anchor, landmark_id))
+    for file_path in result:
+        result[file_path].sort()
+    return result
+
+
 def _merge_chunks(
     chunks: list[tuple[str, dict[str, list]]],
-) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
-    """Shared merge logic: take pre-parsed (label, data) chunks and return the index."""
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]], dict[int, list[tuple[int, str]]]]:
+    """Shared merge logic: take pre-parsed (label, data) chunks and return the index.
+
+    Returns (global_files, global_anchors, id_to_pair, path_to_bindings). The
+    reverse map `path_to_bindings` is derived from `id_to_pair` so chunk-source
+    reverse lookups match lookup-table reverse lookups exactly — the dump
+    artifact persists `id_to_pair`, and `_invert_lookup_for_reverse` inverts
+    that same forward map. Every ID that forward-resolves to `path` appears in
+    `path_to_bindings[path]`, including IDs whose `(file, anchor)` pair was
+    later overwritten by a different ID in a subsequent chunk (an "orphaned"
+    forward-map entry that satisfies the issue #78 forward-then-reverse
+    round-trip acceptance criterion).
+    """
     global_files: list[str] = []
     global_anchors: list[str] = []
     file_index: dict[str, int] = {}
@@ -306,24 +338,33 @@ def _merge_chunks(
                 continue
             id_to_pair[landmark_id] = (file_map[local_fi], anchor_map[local_ai])
 
-    return global_files, global_anchors, id_to_pair
+    path_to_bindings: dict[int, list[tuple[int, str]]] = {}
+    for landmark_id, (fi, ai) in id_to_pair.items():
+        path_to_bindings.setdefault(fi, []).append((ai, landmark_id))
+    for fi in path_to_bindings:
+        path_to_bindings[fi].sort(key=lambda pair: (global_anchors[pair[0]], pair[1]))
+
+    return global_files, global_anchors, id_to_pair, path_to_bindings
 
 
 def build_index(
     chunk_paths: list[Path],
-) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]], dict[int, list[tuple[int, str]]]]:
     """
     Merge every chunk into a global landmark index.
 
     Returns:
-        (global_files, global_anchors, id_to_pair)
-        where id_to_pair[id] = (global_file_index, global_anchor_index).
+        (global_files, global_anchors, id_to_pair, path_to_bindings)
+        where id_to_pair[id] = (global_file_index, global_anchor_index) and
+        path_to_bindings[file_index] = [(anchor_index, id), ...] sorted by
+        `(anchor_string, id)` so the empty-anchor binding sorts first.
 
-    Mirrors the runtime's "last write wins" semantics from Landmarks.Advance()
-    in scripts/landmarks.js: when an ID appears multiple times, the most
-    recent (file, anchor) pair wins. The paragraph-level row is written after
-    the page-level row in real _lx.js chunks, so this returns file#anchor
-    whenever a paragraph anchor exists.
+    `id_to_pair` mirrors the runtime's "last write wins" semantics from
+    Landmarks.Advance() in scripts/landmarks.js: when an ID appears multiple
+    times, the most recent (file, anchor) pair wins. `path_to_bindings` is
+    the inverse of `id_to_pair`, so chunk-source reverse lookups stay
+    byte-identical with `_invert_lookup_for_reverse` against a dumped
+    artifact.
     """
     parsed = [(str(p), parse_chunk(p)) for p in chunk_paths]
     return _merge_chunks(parsed)
@@ -331,7 +372,7 @@ def build_index(
 
 def build_index_from_texts(
     chunks: list[tuple[str, bytes]],
-) -> tuple[list[str], list[str], dict[str, tuple[int, int]]]:
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]], dict[int, list[tuple[int, str]]]]:
     """
     Same as build_index, but takes pre-loaded (label, bytes) pairs instead of
     file paths. Used by the remote-mode front end.
@@ -876,16 +917,16 @@ def _update_manifest_poll_ts(cache_dir: Path, manifest: dict) -> None:
 
 def _build_or_die(
     source: Path,
-) -> tuple[list[str], list[str], dict[str, tuple[int, int]], int]:
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]], dict[int, list[tuple[int, str]]], int]:
     """Run discover_chunks + build_index, mapping exceptions to exit-code 2.
 
-    Returns (files, anchors, id_to_pair, chunks_found).
+    Returns (files, anchors, id_to_pair, path_to_bindings, chunks_found).
     """
     try:
         chunk_paths = discover_chunks(source)
         debug_log(f"Discovered {len(chunk_paths)} chunk(s)")
-        files, anchors, id_to_pair = build_index(chunk_paths)
-        return files, anchors, id_to_pair, len(chunk_paths)
+        files, anchors, id_to_pair, path_to_bindings = build_index(chunk_paths)
+        return files, anchors, id_to_pair, path_to_bindings, len(chunk_paths)
     except (FileNotFoundError, ValueError, OSError) as e:
         error_log(str(e))
         sys.exit(2)
@@ -893,12 +934,12 @@ def _build_or_die(
 
 def _load_index(
     args: argparse.Namespace,
-) -> tuple[list[str], list[str], dict[str, tuple[int, int]], int]:
+) -> tuple[list[str], list[str], dict[str, tuple[int, int]], dict[int, list[tuple[int, str]]], int]:
     """
     Dispatch index loading based on which source was specified.
 
-    Returns (files, anchors, id_to_pair, chunks_found). Calls sys.exit(2) on any
-    local or remote fetch failure.
+    Returns (files, anchors, id_to_pair, path_to_bindings, chunks_found). Calls
+    sys.exit(2) on any local or remote fetch failure.
     """
     if getattr(args, 'remote_base_url', None):
         try:
@@ -912,8 +953,8 @@ def _load_index(
                 fetcher=default_fetcher,
                 timeout=args.http_timeout,
             )
-            files, anchors, id_to_pair = build_index_from_texts(chunks)
-            return files, anchors, id_to_pair, len(chunks)
+            files, anchors, id_to_pair, path_to_bindings = build_index_from_texts(chunks)
+            return files, anchors, id_to_pair, path_to_bindings, len(chunks)
         except (RemoteFetchError, ValueError, OSError) as e:
             error_log(str(e))
             sys.exit(2)
@@ -954,7 +995,7 @@ def _resolve_one(args: argparse.Namespace, landmark_id: str) -> Optional[str]:
     """Resolve a single ID via --lookup-table when set, else via the chunk index."""
     if getattr(args, 'lookup_table', None):
         return resolve_id_from_lookup(landmark_id, _load_lookup_or_die(args))
-    files, anchors, id_to_pair, _ = _load_index(args)
+    files, anchors, id_to_pair, _, _ = _load_index(args)
     return resolve_id(landmark_id, files, anchors, id_to_pair)
 
 
@@ -1019,6 +1060,84 @@ def cmd_rewrite(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reverse(args: argparse.Namespace) -> int:
+    _require_source(args, allow_autoinfer=False)
+
+    if args.anchor is not None and args.anchor == '':
+        error_log("--anchor cannot be empty; use --first to retrieve the page-level binding")
+        return 1
+
+    try:
+        decoded_path = urllib.parse.unquote(args.path, errors='strict')
+    except (UnicodeDecodeError, ValueError) as e:
+        error_log(f"Malformed percent-encoded path: {args.path} ({e})")
+        return 1
+
+    # Build the unfiltered list of bindings for this path. `all_matches` reflects
+    # every current (anchor, id) binding for `decoded_path`; `path_in_index` is
+    # True iff the path has at least one binding after the last-write-wins merge.
+    all_matches: list[dict] = []
+
+    if getattr(args, 'lookup_table', None):
+        lookup = _load_lookup_or_die(args)
+        inverted = _invert_lookup_for_reverse(lookup)
+        bindings = inverted.get(decoded_path, [])
+        for anchor, landmark_id in bindings:
+            all_matches.append({"id": landmark_id, "anchor": anchor})
+    else:
+        files, anchors, _, path_to_bindings, _ = _load_index(args)
+        try:
+            file_idx = files.index(decoded_path)
+        except ValueError:
+            file_idx = -1
+        if file_idx >= 0:
+            for anchor_idx, landmark_id in path_to_bindings.get(file_idx, []):
+                all_matches.append({"id": landmark_id, "anchor": anchors[anchor_idx]})
+
+    path_in_index = bool(all_matches)
+
+    # Apply filters in order: --anchor exact match, then --first (page-level).
+    if args.anchor is not None:
+        matches = [m for m in all_matches if m["anchor"] == args.anchor]
+    elif args.first:
+        matches = [m for m in all_matches if m["anchor"] == ""]
+    else:
+        matches = all_matches
+
+    if matches:
+        if args.json:
+            print(json.dumps({"path": decoded_path, "matches": matches}, ensure_ascii=False))
+        else:
+            for entry in matches:
+                print(entry["id"])
+        return 0
+
+    # No matches. Build a flag-specific error message.
+    if not path_in_index:
+        message = f"path not in index: {decoded_path}"
+    elif args.anchor is not None:
+        message = (
+            f"path found but no anchor binding matches: {decoded_path} "
+            f"(--anchor {args.anchor})"
+        )
+    else:
+        # path_in_index implies all_matches is non-empty, so the only way to
+        # reach this branch is --first with no empty-anchor row.
+        message = (
+            f"path found but no page-level binding; "
+            f"re-run without --first to see anchor-level bindings: {decoded_path}"
+        )
+
+    if args.json:
+        print(json.dumps(
+            {"path": decoded_path, "matches": [], "error": message},
+            ensure_ascii=False,
+        ))
+    else:
+        error_log(message)
+    return 1
+
+
 def _build_dump_artifact(
     files: list[str],
     anchors: list[str],
@@ -1060,7 +1179,7 @@ def cmd_dump(args: argparse.Namespace) -> int:
         error_log("--lookup-table is not a valid source for dump; use --from or --remote-base-url")
         return 1
     _require_source(args, allow_autoinfer=False)
-    files, anchors, id_to_pair, chunks_found = _load_index(args)
+    files, anchors, id_to_pair, _, chunks_found = _load_index(args)
 
     if args.table:
         if not id_to_pair:
@@ -1187,6 +1306,9 @@ Examples:
 
     # Resolve from a pre-built dump artifact
     %(prog)s resolve abc12345 --lookup-table landmarks.json
+
+    # Reverse-lookup: every landmark ID bound to a file path
+    %(prog)s reverse "Group/page.html" --from output/
 """
     )
 
@@ -1228,6 +1350,33 @@ Examples:
         help='Write JSON output to <file>. Use "-" or omit for stdout.',
     )
 
+    reverse_parser = subparsers.add_parser(
+        'reverse',
+        help='Reverse-lookup landmark IDs bound to a file path',
+    )
+    reverse_parser.add_argument(
+        'path',
+        help=(
+            'File path (raw or percent-encoded). Exact-match after percent-decoding; '
+            'no separator normalization. Do not include "#anchor" in the path — '
+            'use --anchor to filter on a specific anchor binding.'
+        ),
+    )
+    _add_source_flags(reverse_parser, required=True)
+    reverse_filter = reverse_parser.add_mutually_exclusive_group()
+    reverse_filter.add_argument(
+        '--first', action='store_true',
+        help='Return only the page-level (empty-anchor) binding (runtime GetIdByPath shape)',
+    )
+    reverse_filter.add_argument(
+        '--anchor', dest='anchor', default=None,
+        help='Return only the binding for this specific anchor',
+    )
+    reverse_parser.add_argument(
+        '--json', action='store_true',
+        help='Emit a JSON object instead of one ID per line',
+    )
+
     args = parser.parse_args()
 
     if args.command == 'resolve':
@@ -1236,6 +1385,8 @@ Examples:
         return cmd_rewrite(args)
     if args.command == 'dump':
         return cmd_dump(args)
+    if args.command == 'reverse':
+        return cmd_reverse(args)
 
     parser.print_help()
     return 2
