@@ -15,14 +15,15 @@ Reverb 2.0 publishes stable links of the form `<prefix>#/<id>`, for example:
 https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4
 ```
 
-Resolving them to a real HTML file requires reading the `_lx.js` chunks emitted alongside the help output. There is one `*_lx.js` chunk per document group. The resolver accepts two source modes:
+Resolving them to a real HTML file requires reading the `_lx.js` chunks emitted alongside the help output. There is one `*_lx.js` chunk per document group. The resolver accepts three source modes:
 
 | Source | When |
 |--------|------|
 | **Local** (`--from <path>`) | You have a downloaded mirror or are scripting against specific chunks. Fully offline. |
 | **Remote** (`--remote-base-url <url>`) | You only have a published help URL; the resolver fetches and caches `_lx.js` chunks over HTTP. No download step. |
+| **Lookup table** (`--lookup-table <file>`) | You have a pre-built dump artifact for a known mirror (e.g., the ePublisher Designer 2026.1 help fixture this skill ships). Fully offline, O(1) per query, no chunk parsing. |
 
-`--from` and `--remote-base-url` are mutually exclusive on every subcommand. For `rewrite`, a stable URL with an `http://` or `https://` scheme auto-infers the remote base when neither flag is set.
+`--from`, `--remote-base-url`, and `--lookup-table` are mutually exclusive on every subcommand. For `rewrite`, a stable URL with an `http://` or `https://` scheme auto-infers the remote base when no source flag is set.
 
 ### Step 1a: Local mirror
 
@@ -54,6 +55,17 @@ python scripts/resolve-landmarks.py rewrite \
     "https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4"
 ```
 
+### Step 1c: Lookup table (pre-built artifact)
+
+Point `--lookup-table` at a JSON file produced by `dump`:
+
+```bash
+python scripts/resolve-landmarks.py resolve <id>  --lookup-table <path/to/dump.json>
+python scripts/resolve-landmarks.py rewrite <url> --lookup-table <path/to/dump.json>
+```
+
+Use this when you know in advance which mirror you are resolving against and want to ship the lookup data alongside the skill or tool — no chunk parsing at runtime, no network access, no dependency on the chunks being reachable. The resolver loads the JSON once and serves every query from an in-memory dict. The artifact is `format_version: 1` and the resolver refuses any other version with exit code 2.
+
 ### Landmark ID formats
 
 The resolver treats the ID as an opaque string. As of Reverb 2026.1, projects may emit any of:
@@ -74,21 +86,23 @@ Subcommands:
 |------|-------|--------|
 | `resolve <id>` | A landmark ID | Resolved relative path (`file.html` or `file.html#anchor`). Add `--json` for `{"id": ..., "path": ...}`. |
 | `rewrite <url>` | A stable URL (`<prefix>#/<id>`) | A direct URL: `<prefix><resolved-path>`. Add `--base-url <url>` to swap the prefix. |
-| `dump` | Source path or URL | JSON object `{id: relative_path}` (or a table with `--table`). |
+| `dump` | Source path or URL | Structured JSON `{format_version, source, landmarks}` on stdout (or a table with `--table`, or a file with `--out <file>`). See [Dump Artifact Schema](#dump-artifact-schema). |
 
 Flags by category:
 
 | Flag | Subcommands | Default | Description |
 |------|-------------|---------|-------------|
-| `--from <path>` | all | — | Local mirror source (mutually exclusive with `--remote-base-url`). |
-| `--remote-base-url <url>` | all | — | Published help mirror source (mutually exclusive with `--from`). |
+| `--from <path>` | all | — | Local mirror source (mutually exclusive with `--remote-base-url` and `--lookup-table`). |
+| `--remote-base-url <url>` | all | — | Published help mirror source (mutually exclusive with `--from` and `--lookup-table`). |
+| `--lookup-table <file>` | `resolve`, `rewrite` | — | Pre-built dump artifact (mutually exclusive with `--from` and `--remote-base-url`). |
 | `--no-cache` | all (remote only) | off | Skip cache; re-fetch landing page and every chunk. |
 | `--cache-ttl <secs>` | all (remote only) | `86400` | Landing-page re-poll cadence. |
 | `--cache-dir <path>` | all (remote only) | platform user-cache | Cache root override. |
 | `--http-timeout <secs>` | all (remote only) | `10` | Per-request read timeout. |
 | `--json` | `resolve` | off | Emit JSON output. |
 | `--base-url <url>` | `rewrite` | — | Replace the inferred URL prefix on output. |
-| `--table` | `dump` | off | Emit a human-readable table. |
+| `--out <file>` | `dump` | stdout | Write structured JSON to `<file>`. `-` is an explicit stdout alias. |
+| `--table` | `dump` | off | Emit a human-readable table instead of structured JSON. |
 
 ## Step 3: Interpret the Output
 
@@ -127,7 +141,7 @@ If a mirror ships without `GLOBAL_GENERATION_HASH`, the resolver falls back to T
 |-----------|---------|---------------|
 | `0` | Success | Resolved successfully. |
 | `1` | Resolution failure | ID not in index, URL has no ID after `#/`, malformed percent-encoding in the input URL, or no source specified. |
-| `2` | Parse/IO/HTTP failure | Source path missing, chunk malformed, no `*_lx.js` files in directory, 4xx/5xx on the remote, network timeout, or DNS/TLS error. The stderr message names the failing URL. |
+| `2` | Parse/IO/HTTP failure | Source path missing, chunk malformed, no `*_lx.js` files in directory, 4xx/5xx on the remote, network timeout, or DNS/TLS error. The stderr message names the failing URL. Also: malformed `--lookup-table` JSON or an unsupported `format_version` in the artifact. |
 
 Most "ID not found" errors mean the chunk for that document group was not included in `--from`. Point the resolver at the full output directory (or use `--remote-base-url` for the whole mirror).
 
@@ -137,16 +151,57 @@ If `--from` references a single chunk and the ID belongs to a different group, t
 
 ## Step 6: Rewrite Stable URLs in Bulk (Optional)
 
-To rewrite a list of stable URLs found in skill documentation or other sources:
+To rewrite a list of stable URLs found in skill documentation or other sources, dump the index once and consume the artifact in a script or via `--lookup-table`:
 
 ```bash
-# Dump the index once for the help output (local or remote)
-python scripts/resolve-landmarks.py dump --remote-base-url <help-mirror-url> > landmarks.json
+# Dump the index once (local or remote source) into a structured JSON artifact
+python scripts/resolve-landmarks.py dump --remote-base-url <help-mirror-url> --out landmarks.json
 
-# Then look up IDs from landmarks.json in your own script or editor
+# Option A: feed the artifact back into the resolver — O(1) per query, no chunk parsing
+python scripts/resolve-landmarks.py rewrite "<stable-url>" --lookup-table landmarks.json
+
+# Option B: parse the JSON in your own tooling — see "Dump Artifact Schema" below
 ```
 
-The `dump` JSON is small enough to commit alongside skill docs if needed; refresh it whenever the published help is regenerated (or rely on the cache's automatic invalidation).
+The artifact is structured, versioned (`format_version: 1`), and deterministic — running `dump` twice against the same source produces byte-identical output excluding `source.captured_at`. Commit the artifact alongside skill docs if it is small enough to be diff-friendly; refresh it whenever the published help is regenerated.
+
+## Dump Artifact Schema
+
+`dump` emits a structured JSON document. Consumers (including `--lookup-table`) read this shape:
+
+```json
+{
+  "format_version": 1,
+  "source": {
+    "type": "local-directory",
+    "path": "C:/Program Files/WebWorks/ePublisher/2026.1/ePublisher Designer/Help/en",
+    "chunks_found": 7,
+    "captured_at": "2026-05-21T00:00:00Z"
+  },
+  "landmarks": {
+    "e5d3d31c42d8d1d4": {
+      "file": "Advanced Customizations_ Overrides_ and Extensions/_xslt-extensions.04.1.html",
+      "anchor": ""
+    }
+  }
+}
+```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `format_version` | integer | Currently `1`. The resolver refuses unknown versions with exit code 2 — hard gate, no auto-coerce. |
+| `source.type` | string | Closed set: `"local-directory"` (from `--from`) or `"remote-base-url"` (from `--remote-base-url`). |
+| `source.path` | string | Verbatim `--from` value. Present only when `source.type == "local-directory"`. |
+| `source.base_url` | string | Verbatim `--remote-base-url` value. Present only when `source.type == "remote-base-url"`. |
+| `source.chunks_found` | integer | Number of `_lx.js` chunks merged into the artifact. |
+| `source.captured_at` | string | UTC, ISO 8601, second precision, trailing `Z` (e.g., `2026-05-21T00:00:00Z`). The only field that differs across deterministic re-runs. |
+| `landmarks` | object | Sorted map of `id → {file, anchor}`. `anchor` may be empty. |
+
+Resolution: `file#anchor` when `anchor` is non-empty, bare `file` otherwise — matches the runtime's `GetPathById` formatting.
+
+Unicode: landmark IDs are emitted as raw UTF-8 (`ensure_ascii=False`). A `概要` source ID appears literally in the file, not as `\uXXXX`.
+
+Schema evolution: `format_version` is a hard gate. Future schema changes ride a version bump; the resolver refuses unknown versions with exit code 2.
 
 ## Worked Example: Remote Mirror
 
@@ -196,7 +251,7 @@ The `rewrite` form returns the direct URL with the resolved file path appended a
 
 <success_criteria>
 This workflow is complete when:
-- [ ] Input source identified (local `--from` directory, remote `--remote-base-url`, or `rewrite` with an HTTP URL for auto-infer)
+- [ ] Input source identified (local `--from` directory, remote `--remote-base-url`, pre-built `--lookup-table` artifact, or `rewrite` with an HTTP URL for auto-infer)
 - [ ] Resolver run with the correct mode (`resolve`, `rewrite`, or `dump`)
 - [ ] Output interpreted against the runtime's anchor-formatting rules
 - [ ] Any "ID not found" responses traced to the missing chunk or mistyped ID

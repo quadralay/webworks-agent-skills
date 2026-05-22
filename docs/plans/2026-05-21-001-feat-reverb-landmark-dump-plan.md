@@ -1,7 +1,7 @@
 ---
 title: "feat: Structured Reverb landmark dump artifact and --lookup-table consumer path"
 type: feat
-status: active
+status: completed
 created: 2026-05-21
 issue: 77
 origin: docs/brainstorms/2026-05-21-issue-77-reverb-landmark-dump-requirements.md
