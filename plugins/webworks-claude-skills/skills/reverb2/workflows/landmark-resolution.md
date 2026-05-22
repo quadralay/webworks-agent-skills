@@ -143,8 +143,8 @@ If a mirror ships without `GLOBAL_GENERATION_HASH`, the resolver falls back to T
 | Exit code | Meaning | Common causes |
 |-----------|---------|---------------|
 | `0` | Success | Resolved successfully. |
-| `1` | Resolution failure | ID not in index, URL has no ID after `#/`, malformed percent-encoding in the input URL or path, or no source specified. Also: `reverse` path not in index, `--anchor <id>` not bound on the path, or `--first` with no page-level binding. |
-| `2` | Parse/IO/HTTP failure | Source path missing, chunk malformed, no `*_lx.js` files in directory, 4xx/5xx on the remote, network timeout, or DNS/TLS error. The stderr message names the failing URL. Also: malformed `--lookup-table` JSON, an unsupported `format_version` in the artifact, or `reverse --anchor ""` (use `--first` instead). |
+| `1` | Resolution failure | ID not in index, URL has no ID after `#/`, malformed percent-encoding in the input URL or path, or no source specified. Also: `reverse` path not in index, `--anchor <id>` not bound on the path, `--first` with no page-level binding, or `reverse --anchor ""` (use `--first` instead). |
+| `2` | Parse/IO/HTTP failure | Source path missing, chunk malformed, no `*_lx.js` files in directory, 4xx/5xx on the remote, network timeout, or DNS/TLS error. The stderr message names the failing URL. Also: malformed `--lookup-table` JSON or an unsupported `format_version` in the artifact. |
 
 Most "ID not found" errors mean the chunk for that document group was not included in `--from`. Point the resolver at the full output directory (or use `--remote-base-url` for the whole mirror).
 

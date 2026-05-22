@@ -1755,6 +1755,19 @@ def test_internal_reverse_map_last_write_wins() -> None:
         f"under groupA={ids_under_group_a}, under groupB={ids_under_group_b}",
     )
 
+    # Distinct IDs binding to the same (file, anchor) pair across chunks both
+    # remain in the forward map (chunk_a_only never rebinds; chunk_b_only adds
+    # a second forward-map entry at the same pair). The reverse map mirrors
+    # the forward map, so both IDs surface under shared/index.html — and the
+    # forward-then-reverse round-trip holds for each one.
+    shared_fi = files.index("shared/index.html")
+    ids_under_shared = [lid for _, lid in path_to_bindings.get(shared_fi, [])]
+    check(
+        "reverse map: orphaned forward-map IDs are preserved (round-trip parity)",
+        "chunk_a_only" in ids_under_shared and "chunk_b_only" in ids_under_shared,
+        f"under shared/index.html={ids_under_shared}",
+    )
+
 
 def test_internal_invert_lookup_for_reverse(tmp_path: Path) -> None:
     """`_invert_lookup_for_reverse` walks a dump artifact and returns
@@ -1899,11 +1912,15 @@ def test_cli_reverse_first_and_anchor_mutex() -> None:
 
 
 def test_cli_reverse_anchor_empty_rejected() -> None:
-    """`--anchor ""` is rejected with a "use --first" message and exit 2."""
+    """`--anchor ""` is rejected with a "use --first" message and exit 1.
+
+    Exit 1 (CLI usage error) — not exit 2 (parse/IO/HTTP) — per the
+    module-level exit-code contract: argparse-style usage rejection lives
+    alongside `_require_source` and `cmd_resolve`'s 'ID not found' branch."""
     r = run_cli('reverse', 'Group/page.html', '--anchor', '', '--from', str(SINGLE_CHUNK))
     check(
-        "CLI reverse: --anchor '' rejected with use-first guidance (exit 2)",
-        r.returncode == 2 and 'use --first' in r.stderr,
+        "CLI reverse: --anchor '' rejected with use-first guidance (exit 1)",
+        r.returncode == 1 and 'use --first' in r.stderr,
         f"rc={r.returncode}, stderr={r.stderr!r}",
     )
 
@@ -1931,13 +1948,22 @@ def test_cli_reverse_path_not_in_index() -> None:
 
 def test_cli_reverse_forward_round_trip() -> None:
     """Resolve each ID forward to a path, then reverse-look up that path —
-    the result must include the original ID."""
-    for fixture in (SINGLE_CHUNK, FIXTURE_DIR / 'multi-chunk-a_lx.js', UNICODE_CHUNK):
-        files, anchors, id_to_pair, _ = resolver.build_index([fixture])
+    the result must include the original ID. Covers single-chunk fixtures
+    plus the multi-chunk directory, which is the only configuration that
+    surfaces orphaned forward-map IDs (two distinct IDs binding to the same
+    pair across chunks)."""
+    sources: list[tuple[Path, list[Path]]] = [
+        (SINGLE_CHUNK, [SINGLE_CHUNK]),
+        (FIXTURE_DIR / 'multi-chunk-a_lx.js', [FIXTURE_DIR / 'multi-chunk-a_lx.js']),
+        (UNICODE_CHUNK, [UNICODE_CHUNK]),
+        (MULTI_DIR, sorted(MULTI_DIR.glob('*_lx.js'))),
+    ]
+    for source, chunk_paths in sources:
+        files, anchors, id_to_pair, _ = resolver.build_index(chunk_paths)
         broken: list[str] = []
         for landmark_id, (fi, _) in id_to_pair.items():
             file_path = files[fi]
-            r = run_cli('reverse', file_path, '--from', str(fixture))
+            r = run_cli('reverse', file_path, '--from', str(source))
             if r.returncode != 0:
                 broken.append(f"{landmark_id!r}@{file_path!r}: reverse rc={r.returncode}")
                 continue
@@ -1945,8 +1971,9 @@ def test_cli_reverse_forward_round_trip() -> None:
                 broken.append(
                     f"{landmark_id!r}@{file_path!r}: not in {r.stdout.splitlines()!r}"
                 )
+        label = source.name
         check(
-            f"CLI reverse: forward-then-reverse round-trip includes original ID ({fixture.name})",
+            f"CLI reverse: forward-then-reverse round-trip includes original ID ({label})",
             not broken,
             '; '.join(broken[:5])
             + (f" ...({len(broken)} mismatches)" if len(broken) > 5 else ''),
@@ -1974,6 +2001,15 @@ def test_cli_reverse_lookup_parity(tmp_path: Path) -> None:
         (multi_dump, ['reverse', 'Group/page.html', '--json'], 'multi:--json'),
         (multi_dump, ['reverse', 'groupB/page.html'], 'multi:groupB/page.html'),
         (multi_dump, ['reverse', 'doesnotexist.html'], 'multi:miss'),
+        # Divergence-sensitive cases: `shared/index.html` has two distinct IDs
+        # (chunk_a_only and chunk_b_only) forward-resolving to the same pair.
+        # Before the fix, chunk-source returned only the latest writer while
+        # lookup-source returned both — this case guards against that drift.
+        (multi_dump, ['reverse', 'shared/index.html'], 'multi:shared/index.html (orphan)'),
+        (multi_dump, ['reverse', 'shared/index.html', '--first'],
+            'multi:shared/index.html --first (orphan)'),
+        (multi_dump, ['reverse', 'shared/index.html', '--json'],
+            'multi:shared/index.html --json (orphan)'),
         (unicode_dump, ['reverse', 'Advanced Customizations/_xslt-extensions.04.1.html'],
             'unicode:raw'),
         (unicode_dump, ['reverse', 'Advanced%20Customizations/_xslt-extensions.04.1.html'],

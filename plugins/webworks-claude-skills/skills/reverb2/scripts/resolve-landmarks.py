@@ -293,18 +293,20 @@ def _merge_chunks(
     """Shared merge logic: take pre-parsed (label, data) chunks and return the index.
 
     Returns (global_files, global_anchors, id_to_pair, path_to_bindings). The
-    reverse map `path_to_bindings` keys global file indices to a list of
-    `(anchor_index, landmark_id)` pairs, sorted by `(anchor_index, landmark_id)`.
-    It is derived from `pair_to_id` (the current authoritative
-    `(file_index, anchor_index) -> id` map) so last-write-wins rebinds do not
-    leak stale rows into the reverse map. Mirrors the runtime's `pairToId`.
+    reverse map `path_to_bindings` is derived from `id_to_pair` so chunk-source
+    reverse lookups match lookup-table reverse lookups exactly — the dump
+    artifact persists `id_to_pair`, and `_invert_lookup_for_reverse` inverts
+    that same forward map. Every ID that forward-resolves to `path` appears in
+    `path_to_bindings[path]`, including IDs whose `(file, anchor)` pair was
+    later overwritten by a different ID in a subsequent chunk (an "orphaned"
+    forward-map entry that satisfies the issue #78 forward-then-reverse
+    round-trip acceptance criterion).
     """
     global_files: list[str] = []
     global_anchors: list[str] = []
     file_index: dict[str, int] = {}
     anchor_index: dict[str, int] = {}
     id_to_pair: dict[str, tuple[int, int]] = {}
-    pair_to_id: dict[tuple[int, int], str] = {}
 
     def intern(value: str, global_list: list[str], index: dict[str, int]) -> int:
         if value not in index:
@@ -334,19 +336,10 @@ def _merge_chunks(
                 continue
             if local_ai < 0 or local_ai >= len(anchor_map):
                 continue
-            pair = (file_map[local_fi], anchor_map[local_ai])
-            previous_pair = id_to_pair.get(landmark_id)
-            if (
-                previous_pair is not None
-                and previous_pair != pair
-                and pair_to_id.get(previous_pair) == landmark_id
-            ):
-                del pair_to_id[previous_pair]
-            id_to_pair[landmark_id] = pair
-            pair_to_id[pair] = landmark_id
+            id_to_pair[landmark_id] = (file_map[local_fi], anchor_map[local_ai])
 
     path_to_bindings: dict[int, list[tuple[int, str]]] = {}
-    for (fi, ai), landmark_id in pair_to_id.items():
+    for landmark_id, (fi, ai) in id_to_pair.items():
         path_to_bindings.setdefault(fi, []).append((ai, landmark_id))
     for fi in path_to_bindings:
         path_to_bindings[fi].sort(key=lambda pair: (global_anchors[pair[0]], pair[1]))
@@ -366,11 +359,12 @@ def build_index(
         path_to_bindings[file_index] = [(anchor_index, id), ...] sorted by
         `(anchor_string, id)` so the empty-anchor binding sorts first.
 
-    Mirrors the runtime's "last write wins" semantics from Landmarks.Advance()
-    in scripts/landmarks.js: when an ID appears multiple times, the most
-    recent (file, anchor) pair wins. The paragraph-level row is written after
-    the page-level row in real _lx.js chunks, so this returns file#anchor
-    whenever a paragraph anchor exists.
+    `id_to_pair` mirrors the runtime's "last write wins" semantics from
+    Landmarks.Advance() in scripts/landmarks.js: when an ID appears multiple
+    times, the most recent (file, anchor) pair wins. `path_to_bindings` is
+    the inverse of `id_to_pair`, so chunk-source reverse lookups stay
+    byte-identical with `_invert_lookup_for_reverse` against a dumped
+    artifact.
     """
     parsed = [(str(p), parse_chunk(p)) for p in chunk_paths]
     return _merge_chunks(parsed)
@@ -1071,7 +1065,7 @@ def cmd_reverse(args: argparse.Namespace) -> int:
 
     if args.anchor is not None and args.anchor == '':
         error_log("--anchor cannot be empty; use --first to retrieve the page-level binding")
-        return 2
+        return 1
 
     try:
         decoded_path = urllib.parse.unquote(args.path, errors='strict')
@@ -1312,6 +1306,9 @@ Examples:
 
     # Resolve from a pre-built dump artifact
     %(prog)s resolve abc12345 --lookup-table landmarks.json
+
+    # Reverse-lookup: every landmark ID bound to a file path
+    %(prog)s reverse "Group/page.html" --from output/
 """
     )
 
