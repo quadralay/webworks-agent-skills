@@ -87,6 +87,7 @@ Subcommands:
 | `resolve <id>` | A landmark ID | Resolved relative path (`file.html` or `file.html#anchor`). Add `--json` for `{"id": ..., "path": ...}`. |
 | `rewrite <url>` | A stable URL (`<prefix>#/<id>`) | A direct URL: `<prefix><resolved-path>`. Add `--base-url <url>` to swap the prefix. |
 | `dump` | Source path or URL | Structured JSON `{format_version, source, landmarks}` on stdout (or a table with `--table`, or a file with `--out <file>`). See [Dump Artifact Schema](#dump-artifact-schema). |
+| `reverse <path>` | A file path (raw or percent-encoded) | Landmark IDs bound to the path, one per line. Add `--first` for the page-level binding only (runtime `GetIdByPath` shape), `--anchor <id>` to target a specific anchor, or `--json` for `{path, matches:[{id, anchor},...]}`. See [Step 7](#step-7-reverse-lookup--find-ids-that-target-a-path). |
 
 Flags by category:
 
@@ -94,15 +95,17 @@ Flags by category:
 |------|-------------|---------|-------------|
 | `--from <path>` | all | — | Local mirror source (mutually exclusive with `--remote-base-url` and `--lookup-table`). |
 | `--remote-base-url <url>` | all | — | Published help mirror source (mutually exclusive with `--from` and `--lookup-table`). |
-| `--lookup-table <file>` | `resolve`, `rewrite` | — | Pre-built dump artifact (mutually exclusive with `--from` and `--remote-base-url`). |
+| `--lookup-table <file>` | `resolve`, `rewrite`, `reverse` | — | Pre-built dump artifact (mutually exclusive with `--from` and `--remote-base-url`). |
 | `--no-cache` | all (remote only) | off | Skip cache; re-fetch landing page and every chunk. |
 | `--cache-ttl <secs>` | all (remote only) | `86400` | Landing-page re-poll cadence. |
 | `--cache-dir <path>` | all (remote only) | platform user-cache | Cache root override. |
 | `--http-timeout <secs>` | all (remote only) | `10` | Per-request read timeout. |
-| `--json` | `resolve` | off | Emit JSON output. |
+| `--json` | `resolve`, `reverse` | off | Emit JSON output. |
 | `--base-url <url>` | `rewrite` | — | Replace the inferred URL prefix on output. |
 | `--out <file>` | `dump` | stdout | Write structured JSON to `<file>`. `-` is an explicit stdout alias. |
 | `--table` | `dump` | off | Emit a human-readable table instead of structured JSON. |
+| `--first` | `reverse` | off | Return only the page-level (empty-anchor) binding — runtime `GetIdByPath` shape. |
+| `--anchor <id>` | `reverse` | — | Return only the binding for this specific anchor (mutually exclusive with `--first`). |
 
 ## Step 3: Interpret the Output
 
@@ -140,8 +143,8 @@ If a mirror ships without `GLOBAL_GENERATION_HASH`, the resolver falls back to T
 | Exit code | Meaning | Common causes |
 |-----------|---------|---------------|
 | `0` | Success | Resolved successfully. |
-| `1` | Resolution failure | ID not in index, URL has no ID after `#/`, malformed percent-encoding in the input URL, or no source specified. |
-| `2` | Parse/IO/HTTP failure | Source path missing, chunk malformed, no `*_lx.js` files in directory, 4xx/5xx on the remote, network timeout, or DNS/TLS error. The stderr message names the failing URL. Also: malformed `--lookup-table` JSON or an unsupported `format_version` in the artifact. |
+| `1` | Resolution failure | ID not in index, URL has no ID after `#/`, malformed percent-encoding in the input URL or path, or no source specified. Also: `reverse` path not in index, `--anchor <id>` not bound on the path, or `--first` with no page-level binding. |
+| `2` | Parse/IO/HTTP failure | Source path missing, chunk malformed, no `*_lx.js` files in directory, 4xx/5xx on the remote, network timeout, or DNS/TLS error. The stderr message names the failing URL. Also: malformed `--lookup-table` JSON, an unsupported `format_version` in the artifact, or `reverse --anchor ""` (use `--first` instead). |
 
 Most "ID not found" errors mean the chunk for that document group was not included in `--from`. Point the resolver at the full output directory (or use `--remote-base-url` for the whole mirror).
 
@@ -164,6 +167,86 @@ python scripts/resolve-landmarks.py rewrite "<stable-url>" --lookup-table landma
 ```
 
 The artifact is structured, versioned (`format_version: 1`), and deterministic — running `dump` twice against the same source produces byte-identical output excluding `source.captured_at`. Commit the artifact alongside skill docs if it is small enough to be diff-friendly; refresh it whenever the published help is regenerated.
+
+## Step 7: Reverse Lookup — Find IDs That Target a Path
+
+The `reverse` subcommand answers the inverse of `resolve`: given a file path, return the landmark IDs that resolve to it. Two workflows drive this:
+
+- **Stable-URL minting** — you have a file path (from a search hit, a sitemap, or a direct browse) and need the stable ID to build a `<prefix>#/<id>` URL that survives future help reorganizations.
+- **Link audits** — you want every stable ID that points at a given page, so you can find references in skill docs or customer-facing material that would break if the page is restructured or removed.
+
+```bash
+# Bare output: every binding for the path, one ID per line, with the page-level
+# (empty-anchor) binding emitted first.
+python scripts/resolve-landmarks.py reverse "Group/page.html" --from ./help-mirror/
+# page-only-id
+# abc1234567890def
+# 12345678
+```
+
+Filter to a single binding with `--first` (matches the runtime's `GetIdByPath` shape) or `--anchor <id>` (a specific anchor):
+
+```bash
+# Only the page-level binding (no anchor) — paste-ready for "this whole page"
+# stable URLs.
+python scripts/resolve-landmarks.py reverse "Group/page.html" --first --from ./help-mirror/
+# page-only-id
+
+# Only the binding bound to anchor "wwp100" — paste-ready for "this paragraph"
+# stable URLs.
+python scripts/resolve-landmarks.py reverse "Group/page.html" --anchor wwp100 --from ./help-mirror/
+# abc1234567890def
+```
+
+For programmatic consumers, `--json` emits a structured payload:
+
+```bash
+python scripts/resolve-landmarks.py reverse "Group/page.html" --json --from ./help-mirror/
+# {"path": "Group/page.html",
+#  "matches": [{"id": "page-only-id", "anchor": ""},
+#              {"id": "abc1234567890def", "anchor": "wwp100"},
+#              {"id": "12345678", "anchor": "wwp200"}]}
+```
+
+On a miss (path not in index, `--anchor` not bound, `--first` with no empty-anchor row) `reverse` exits `1` and writes a flag-specific message to stderr. With `--json`, the same payload shape is preserved: `{"path": ..., "matches": [], "error": "<reason>"}` on stdout.
+
+**Multi-binding ordering.** Output is sorted by `(anchor, landmark_id)`. The empty-anchor (page-level) binding sorts first.
+
+**Unicode and percent-encoding.** The input path is `urllib.parse.unquote`'d once before lookup; raw and percent-encoded forms of the same path return the same IDs. Landmark IDs in the output may be raw Unicode strings (e.g., `概要`) when the source emits source-ID format. Pass paths exactly as they appear in the `_lx.js` `f` array — `reverse` does not normalize separators, strip `./`, or resolve `..`.
+
+**Don't include `#anchor` in the path.** The lookup keys files only, so `Group/page.html#wwp100` will miss. Use `--anchor wwp100` and the bare path instead.
+
+**Anchor strings are not globally unique.** `reverse <path> --anchor <id>` and `reverse <other-path> --anchor <id>` can resolve to different landmark IDs — anchors are scoped to their file.
+
+### Worked Example: Mint a Stable URL from a Known Path
+
+You browsed the published help and found that the topic you want to link to is rendered at `Advanced Customizations/_xslt-extensions.04.1.html`. Mint the page-level stable URL:
+
+```bash
+ID=$(python scripts/resolve-landmarks.py reverse \
+    "Advanced Customizations/_xslt-extensions.04.1.html" \
+    --first \
+    --remote-base-url https://static.webworks.com/docs/epublisher/latest/help/)
+echo "https://static.webworks.com/docs/epublisher/latest/help/#/$ID"
+```
+
+The minted URL is what to drop into skill docs or customer-facing material — it survives future help reorganizations because the runtime resolves it back through `landmarks.js`.
+
+### Worked Example: Link Audit Against a Lookup Table
+
+You have a list of paths (perhaps from a sitemap dump) and want to find every stable ID that targets any of them. Use the pre-built lookup-table artifact so the query is O(1) per path with no chunk parsing:
+
+```bash
+# tests/fixtures/epublisher-designer-2026.1-help-lookup.json is committed in
+# this skill. Substitute your own dump.json for a different mirror.
+while read -r path; do
+    python scripts/resolve-landmarks.py reverse "$path" \
+        --lookup-table tests/fixtures/epublisher-designer-2026.1-help-lookup.json \
+        --json
+done < paths-to-audit.txt
+```
+
+Each line is a self-contained JSON object — pipe through `jq` to filter, count, or join against your own data.
 
 ## Dump Artifact Schema
 
@@ -252,9 +335,10 @@ The `rewrite` form returns the direct URL with the resolved file path appended a
 <success_criteria>
 This workflow is complete when:
 - [ ] Input source identified (local `--from` directory, remote `--remote-base-url`, pre-built `--lookup-table` artifact, or `rewrite` with an HTTP URL for auto-infer)
-- [ ] Resolver run with the correct mode (`resolve`, `rewrite`, or `dump`)
+- [ ] Resolver run with the correct mode (`resolve`, `rewrite`, `dump`, or `reverse`)
 - [ ] Output interpreted against the runtime's anchor-formatting rules
 - [ ] Any "ID not found" responses traced to the missing chunk or mistyped ID
 - [ ] Any HTTP failure surfaced as exit code `2` with the failing URL in stderr — never a silent fallback
 - [ ] Stable URLs (where applicable) rewritten to direct URLs ready for JS-less consumption
+- [ ] If reverse-looking up a path, the chosen output mode (default, `--first`, `--anchor`) matches the workflow (audit vs. URL-mint)
 </success_criteria>

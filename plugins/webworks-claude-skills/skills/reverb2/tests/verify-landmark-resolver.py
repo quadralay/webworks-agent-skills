@@ -122,7 +122,7 @@ def test_internal_parse_chunk() -> None:
 
 
 def test_internal_build_index_single() -> None:
-    files, anchors, id_to_pair = resolver.build_index([SINGLE_CHUNK])
+    files, anchors, id_to_pair, _ = resolver.build_index([SINGLE_CHUNK])
 
     fi, ai = id_to_pair['abc1234567890def']
     check(
@@ -154,7 +154,7 @@ def test_internal_build_index_single() -> None:
 
 
 def test_internal_id_format_opacity() -> None:
-    files, anchors, id_to_pair = resolver.build_index([SINGLE_CHUNK])
+    files, anchors, id_to_pair, _ = resolver.build_index([SINGLE_CHUNK])
 
     check(
         "ID format opacity: 16-char hex resolves",
@@ -178,7 +178,7 @@ def test_internal_multi_chunk_merge() -> None:
         FIXTURE_DIR / 'multi-chunk-a_lx.js',
         FIXTURE_DIR / 'multi-chunk-b_lx.js',
     ])
-    files, anchors, id_to_pair = resolver.build_index(chunks)
+    files, anchors, id_to_pair, _ = resolver.build_index(chunks)
 
     fi_a, _ = id_to_pair['chunk_a_only']
     fi_b, _ = id_to_pair['chunk_b_only']
@@ -197,7 +197,7 @@ def test_internal_multi_chunk_merge() -> None:
 
 
 def test_internal_resolve_id_not_found() -> None:
-    files, anchors, id_to_pair = resolver.build_index([SINGLE_CHUNK])
+    files, anchors, id_to_pair, _ = resolver.build_index([SINGLE_CHUNK])
     check(
         "resolve_id returns None for unknown ID",
         resolver.resolve_id("nonexistent", files, anchors, id_to_pair) is None,
@@ -210,7 +210,7 @@ def test_internal_empty_e_array(tmp_path: Path) -> None:
         'var landmarks = {"f": [], "a": [], "e": []};Landmarks.Advance(landmarks);',
         encoding='utf-8',
     )
-    files, anchors, id_to_pair = resolver.build_index([fixture])
+    files, anchors, id_to_pair, _ = resolver.build_index([fixture])
     check(
         "empty e array parses with no IDs",
         files == [] and anchors == [] and id_to_pair == {},
@@ -254,7 +254,7 @@ def test_internal_discover_chunks_directory() -> None:
 
 def test_internal_build_index_from_texts() -> None:
     text = SINGLE_CHUNK.read_bytes()
-    files, anchors, id_to_pair = resolver.build_index_from_texts(
+    files, anchors, id_to_pair, _ = resolver.build_index_from_texts(
         [(str(SINGLE_CHUNK), text)]
     )
     check(
@@ -270,7 +270,7 @@ def test_internal_build_index_from_texts() -> None:
 
 def test_unicode_id_resolves_with_unquote_in_index() -> None:
     # Sanity: the fixture contains the raw Unicode key.
-    files, anchors, id_to_pair = resolver.build_index([UNICODE_CHUNK])
+    files, anchors, id_to_pair, _ = resolver.build_index([UNICODE_CHUNK])
     check(
         "unicode-ids fixture contains raw '概要' ID",
         '概要' in id_to_pair,
@@ -1482,7 +1482,7 @@ def test_cli_round_trip_equivalence_chunks(tmp_path: Path) -> None:
         check("round-trip equivalence (chunks)", False, f"dump rc={rd.returncode}")
         return
     artifact = json.loads(out.read_text(encoding='utf-8'))
-    files, anchors, id_to_pair = resolver.build_index(
+    files, anchors, id_to_pair, _ = resolver.build_index(
         sorted(MULTI_DIR.glob('*_lx.js'))
     )
     mismatches: list[str] = []
@@ -1704,6 +1704,298 @@ def test_cli_dump_remote_source_block(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Reverse-lookup tests (internal + CLI)
+# ---------------------------------------------------------------------------
+
+
+def test_internal_build_index_reverse_map() -> None:
+    files, anchors, _, path_to_bindings = resolver.build_index([SINGLE_CHUNK])
+
+    page_fi = files.index("Group/page.html")
+    bindings = path_to_bindings.get(page_fi, [])
+    anchor_pairs = [(anchors[ai], lid) for ai, lid in bindings]
+    expected = [
+        ("", "page-only-id"),
+        ("wwp100", "abc1234567890def"),
+        ("wwp200", "12345678"),
+    ]
+    check(
+        "build_index: path_to_bindings entry for Group/page.html sorted with empty anchor first",
+        anchor_pairs == expected,
+        f"got {anchor_pairs}",
+    )
+
+    # Out-of-range rows should not appear in the reverse map either.
+    all_ids = {lid for entries in path_to_bindings.values() for _, lid in entries}
+    check(
+        "build_index: reverse map drops out-of-range and empty-id rows",
+        "out-of-range-file" not in all_ids
+        and "out-of-range-anchor" not in all_ids
+        and "" not in all_ids,
+        f"all_ids={sorted(all_ids)}",
+    )
+
+
+def test_internal_reverse_map_last_write_wins() -> None:
+    chunks = sorted([
+        FIXTURE_DIR / 'multi-chunk-a_lx.js',
+        FIXTURE_DIR / 'multi-chunk-b_lx.js',
+    ])
+    files, _, _, path_to_bindings = resolver.build_index(chunks)
+    group_b_fi = files.index("groupB/page.html")
+    ids_under_group_b = [lid for _, lid in path_to_bindings.get(group_b_fi, [])]
+    group_a_idx = files.index("groupA/page.html") if "groupA/page.html" in files else -1
+    ids_under_group_a = (
+        [lid for _, lid in path_to_bindings.get(group_a_idx, [])]
+        if group_a_idx >= 0 else []
+    )
+    check(
+        "reverse map: last-write-wins — common_id lives only under groupB/page.html",
+        "common_id" in ids_under_group_b and "common_id" not in ids_under_group_a,
+        f"under groupA={ids_under_group_a}, under groupB={ids_under_group_b}",
+    )
+
+
+def test_internal_invert_lookup_for_reverse(tmp_path: Path) -> None:
+    """`_invert_lookup_for_reverse` walks a dump artifact and returns
+    `path -> [(anchor, id), ...]` lists sorted by (anchor, id)."""
+    out = tmp_path / 'dump.json'
+    rd = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(out))
+    if rd.returncode != 0:
+        check("_invert_lookup_for_reverse internal shape", False,
+              f"dump rc={rd.returncode}, stderr={rd.stderr!r}")
+        return
+    lookup = json.loads(out.read_text(encoding='utf-8'))
+    inverted = resolver._invert_lookup_for_reverse(lookup)
+    forward_files = {entry['file'] for entry in lookup['landmarks'].values()}
+    check(
+        "inverted lookup: every forward file appears as a key",
+        set(inverted.keys()) == forward_files,
+        f"missing={forward_files - set(inverted.keys())}, "
+        f"extra={set(inverted.keys()) - forward_files}",
+    )
+    sorted_ok = all(v == sorted(v) for v in inverted.values())
+    check(
+        "inverted lookup: each value list is sorted by (anchor, id)",
+        sorted_ok,
+        f"unsorted: {[k for k, v in inverted.items() if v != sorted(v)]}",
+    )
+
+
+def test_cli_reverse_multi_binding_default_order() -> None:
+    """Bare reverse output lists every ID on its own line in (anchor, id) order,
+    with the empty-anchor binding first."""
+    r = run_cli('reverse', 'Group/page.html', '--from', str(SINGLE_CHUNK))
+    expected_lines = ['page-only-id', 'abc1234567890def', '12345678']
+    check(
+        "CLI reverse: bare output lists every binding in (anchor, id) order",
+        r.returncode == 0 and r.stdout.splitlines() == expected_lines,
+        f"rc={r.returncode}, stdout={r.stdout!r}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_anchor_filter() -> None:
+    """`--anchor <id>` returns only the binding for that anchor."""
+    r = run_cli('reverse', 'Group/page.html', '--anchor', 'wwp100', '--from', str(SINGLE_CHUNK))
+    check(
+        "CLI reverse --anchor wwp100: returns abc1234567890def",
+        r.returncode == 0 and r.stdout.strip() == 'abc1234567890def',
+        f"rc={r.returncode}, stdout={r.stdout!r}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_first_flag() -> None:
+    """`--first` returns only the page-level (empty-anchor) binding."""
+    r = run_cli('reverse', 'Group/page.html', '--first', '--from', str(SINGLE_CHUNK))
+    check(
+        "CLI reverse --first: returns page-level ID only",
+        r.returncode == 0 and r.stdout.strip() == 'page-only-id',
+        f"rc={r.returncode}, stdout={r.stdout!r}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_first_flag_no_page_level() -> None:
+    """`--first` against a path with no empty-anchor row exits 1 with a clear message."""
+    # In single-chunk, "Group/other.html" has only one binding: anchor "wwp_anchor".
+    r = run_cli('reverse', 'Group/other.html', '--first', '--from', str(SINGLE_CHUNK))
+    check(
+        "CLI reverse --first: exit 1 when no page-level binding exists",
+        r.returncode == 1
+        and 'no page-level binding' in r.stderr
+        and 'Group/other.html' in r.stderr,
+        f"rc={r.returncode}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_json_default() -> None:
+    """`--json` emits `{path, matches: [{id, anchor}, ...]}` with all bindings."""
+    r = run_cli('reverse', 'Group/page.html', '--json', '--from', str(SINGLE_CHUNK))
+    if r.returncode != 0:
+        check("CLI reverse --json (happy)", False, f"rc={r.returncode}, stderr={r.stderr!r}")
+        return
+    payload = json.loads(r.stdout)
+    expected = {
+        "path": "Group/page.html",
+        "matches": [
+            {"id": "page-only-id", "anchor": ""},
+            {"id": "abc1234567890def", "anchor": "wwp100"},
+            {"id": "12345678", "anchor": "wwp200"},
+        ],
+    }
+    check(
+        "CLI reverse --json: emits {path, matches:[{id,anchor},...]}",
+        payload == expected,
+        f"payload={payload!r}",
+    )
+
+
+def test_cli_reverse_json_no_match() -> None:
+    """`--json` on a missing path emits `{path, matches: [], error}` and exits 1."""
+    r = run_cli('reverse', 'doesnotexist.html', '--json', '--from', str(SINGLE_CHUNK))
+    payload = json.loads(r.stdout) if r.stdout.strip() else None
+    check(
+        "CLI reverse --json (no match): {path, matches:[], error} on stdout, exit 1",
+        r.returncode == 1
+        and isinstance(payload, dict)
+        and payload.get('path') == 'doesnotexist.html'
+        and payload.get('matches') == []
+        and 'not in index' in payload.get('error', ''),
+        f"rc={r.returncode}, stdout={r.stdout!r}",
+    )
+
+
+def test_cli_reverse_unicode_path_raw_and_encoded() -> None:
+    """Reverse-lookup against a Unicode path returns identical IDs whether the
+    input is raw or percent-encoded, and includes Unicode IDs in its output."""
+    raw_path = 'Advanced Customizations/_xslt-extensions.04.1.html'
+    encoded_path = 'Advanced%20Customizations/_xslt-extensions.04.1.html'
+    raw_r = run_cli('reverse', raw_path, '--from', str(UNICODE_CHUNK))
+    enc_r = run_cli('reverse', encoded_path, '--from', str(UNICODE_CHUNK))
+    raw_ids = set(raw_r.stdout.splitlines())
+    enc_ids = set(enc_r.stdout.splitlines())
+    check(
+        "CLI reverse: percent-encoded and raw Unicode paths return identical ID sets including '概要'",
+        raw_r.returncode == 0
+        and enc_r.returncode == 0
+        and raw_ids == enc_ids
+        and '概要' in raw_ids,
+        f"raw rc={raw_r.returncode}, raw_ids={raw_ids}; "
+        f"enc rc={enc_r.returncode}, enc_ids={enc_ids}",
+    )
+
+
+def test_cli_reverse_first_and_anchor_mutex() -> None:
+    """`--first` and `--anchor` are mutually exclusive at argparse."""
+    r = run_cli(
+        'reverse', 'Group/page.html',
+        '--first', '--anchor', 'wwp100',
+        '--from', str(SINGLE_CHUNK),
+    )
+    check(
+        "CLI reverse: --first and --anchor are mutually exclusive (exit 2)",
+        r.returncode == 2 and 'not allowed' in r.stderr.lower(),
+        f"rc={r.returncode}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_anchor_empty_rejected() -> None:
+    """`--anchor ""` is rejected with a "use --first" message and exit 2."""
+    r = run_cli('reverse', 'Group/page.html', '--anchor', '', '--from', str(SINGLE_CHUNK))
+    check(
+        "CLI reverse: --anchor '' rejected with use-first guidance (exit 2)",
+        r.returncode == 2 and 'use --first' in r.stderr,
+        f"rc={r.returncode}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_malformed_percent_exits_1() -> None:
+    """A malformed percent-encoded path exits 1 with a clear stderr message."""
+    bad = 'Group/%E6%A6page.html'  # truncated percent sequence
+    r = run_cli('reverse', bad, '--from', str(SINGLE_CHUNK))
+    check(
+        "CLI reverse: malformed percent sequence exits 1 and stderr names the path",
+        r.returncode == 1 and bad in r.stderr and 'Malformed' in r.stderr,
+        f"rc={r.returncode}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_path_not_in_index() -> None:
+    """A path not in the chunk index exits 1 with a clear stderr message."""
+    r = run_cli('reverse', 'doesnotexist.html', '--from', str(SINGLE_CHUNK))
+    check(
+        "CLI reverse: path not in index exits 1 with stderr naming the path",
+        r.returncode == 1 and 'not in index' in r.stderr and 'doesnotexist.html' in r.stderr,
+        f"rc={r.returncode}, stderr={r.stderr!r}",
+    )
+
+
+def test_cli_reverse_forward_round_trip() -> None:
+    """Resolve each ID forward to a path, then reverse-look up that path —
+    the result must include the original ID."""
+    for fixture in (SINGLE_CHUNK, FIXTURE_DIR / 'multi-chunk-a_lx.js', UNICODE_CHUNK):
+        files, anchors, id_to_pair, _ = resolver.build_index([fixture])
+        broken: list[str] = []
+        for landmark_id, (fi, _) in id_to_pair.items():
+            file_path = files[fi]
+            r = run_cli('reverse', file_path, '--from', str(fixture))
+            if r.returncode != 0:
+                broken.append(f"{landmark_id!r}@{file_path!r}: reverse rc={r.returncode}")
+                continue
+            if landmark_id not in r.stdout.splitlines():
+                broken.append(
+                    f"{landmark_id!r}@{file_path!r}: not in {r.stdout.splitlines()!r}"
+                )
+        check(
+            f"CLI reverse: forward-then-reverse round-trip includes original ID ({fixture.name})",
+            not broken,
+            '; '.join(broken[:5])
+            + (f" ...({len(broken)} mismatches)" if len(broken) > 5 else ''),
+        )
+
+
+def test_cli_reverse_lookup_parity(tmp_path: Path) -> None:
+    """`reverse` against a dumped `--lookup-table` produces the same stdout as
+    against the original `--from` source for the same query."""
+    # Dump the multi-chunk fixtures and the unicode fixture into separate artifacts.
+    multi_dump = tmp_path / 'multi.json'
+    unicode_dump = tmp_path / 'unicode.json'
+    rd_multi = run_cli('dump', '--from', str(MULTI_DIR), '--out', str(multi_dump))
+    rd_uni = run_cli('dump', '--from', str(UNICODE_CHUNK), '--out', str(unicode_dump))
+    if rd_multi.returncode != 0 or rd_uni.returncode != 0:
+        check("CLI reverse lookup-table parity", False,
+              f"multi dump rc={rd_multi.returncode}, unicode dump rc={rd_uni.returncode}")
+        return
+
+    cases = [
+        # (lookup_path, query_args, label)
+        (multi_dump, ['reverse', 'Group/page.html'], 'multi:Group/page.html'),
+        (multi_dump, ['reverse', 'Group/page.html', '--first'], 'multi:Group/page.html --first'),
+        (multi_dump, ['reverse', 'Group/page.html', '--anchor', 'wwp100'], 'multi:--anchor wwp100'),
+        (multi_dump, ['reverse', 'Group/page.html', '--json'], 'multi:--json'),
+        (multi_dump, ['reverse', 'groupB/page.html'], 'multi:groupB/page.html'),
+        (multi_dump, ['reverse', 'doesnotexist.html'], 'multi:miss'),
+        (unicode_dump, ['reverse', 'Advanced Customizations/_xslt-extensions.04.1.html'],
+            'unicode:raw'),
+        (unicode_dump, ['reverse', 'Advanced%20Customizations/_xslt-extensions.04.1.html'],
+            'unicode:encoded'),
+    ]
+    mismatches: list[str] = []
+    for lookup, query, label in cases:
+        a = run_cli(*query, '--from', str(MULTI_DIR) if lookup is multi_dump else str(UNICODE_CHUNK))
+        b = run_cli(*query, '--lookup-table', str(lookup))
+        if a.stdout != b.stdout or a.returncode != b.returncode:
+            mismatches.append(
+                f"{label}: chunks(rc={a.returncode}, stdout={a.stdout!r}) "
+                f"vs lookup(rc={b.returncode}, stdout={b.stdout!r})"
+            )
+    check(
+        f"CLI reverse: chunk-source and --lookup-table produce identical output ({len(cases)} cases)",
+        not mismatches,
+        '; '.join(mismatches[:3]),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Test harness: stderr capture helper for the no-hash warning test
 # ---------------------------------------------------------------------------
 
@@ -1884,6 +2176,28 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         test_cli_dump_remote_source_block(tmp_path)
+
+    # Reverse subcommand
+    test_internal_build_index_reverse_map()
+    test_internal_reverse_map_last_write_wins()
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_internal_invert_lookup_for_reverse(tmp_path)
+    test_cli_reverse_multi_binding_default_order()
+    test_cli_reverse_anchor_filter()
+    test_cli_reverse_first_flag()
+    test_cli_reverse_first_flag_no_page_level()
+    test_cli_reverse_json_default()
+    test_cli_reverse_json_no_match()
+    test_cli_reverse_unicode_path_raw_and_encoded()
+    test_cli_reverse_first_and_anchor_mutex()
+    test_cli_reverse_anchor_empty_rejected()
+    test_cli_reverse_malformed_percent_exits_1()
+    test_cli_reverse_path_not_in_index()
+    test_cli_reverse_forward_round_trip()
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_reverse_lookup_parity(tmp_path)
 
     passed = sum(1 for _, ok, _ in _results if ok)
     failed = sum(1 for _, ok, _ in _results if not ok)
