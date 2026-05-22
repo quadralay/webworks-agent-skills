@@ -1,4 +1,4 @@
-# Contributing to WebWorks Claude Skills
+# Contributing to WebWorks Agent Skills
 
 ## How to Contribute
 
@@ -11,7 +11,7 @@
 
 ```
 plugins/
-├── webworks-claude-skills/        # Native plugin (owned by this repo)
+├── webworks-agent-skills/         # Native plugin (owned by this repo)
 │   ├── .claude-plugin/plugin.json
 │   └── skills/
 │       └── skill-name/
@@ -65,7 +65,7 @@ scripts/bump-version.sh major  # 2.1.0 → 3.0.0 (breaking changes)
 ```
 
 The script updates both version locations automatically:
-- `plugins/webworks-claude-skills/.claude-plugin/plugin.json`
+- `plugins/webworks-agent-skills/.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
 
 **Note:** The `humanizer` plugin version in `plugins/humanizer/.claude-plugin/plugin.json` tracks the upstream [blader/humanizer](https://github.com/blader/humanizer) release and is **not** managed by this script.

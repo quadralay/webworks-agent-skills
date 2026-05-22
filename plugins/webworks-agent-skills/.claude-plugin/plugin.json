@@ -1,0 +1,25 @@
+{
+  "name": "webworks-agent-skills",
+  "version": "3.0.0",
+  "description": "AI agent skills for WebWorks ePublisher platform: project management, Markdown++ integration, AutoMap automation, and Reverb output testing",
+  "author": {
+    "name": "Quadralay Corporation",
+    "email": "support@webworks.com",
+    "url": "https://github.com/quadralay"
+  },
+  "homepage": "https://github.com/quadralay/webworks-agent-skills",
+  "repository": "https://github.com/quadralay/webworks-agent-skills",
+  "license": "MIT",
+  "keywords": [
+    "webworks",
+    "epublisher",
+    "markdown",
+    "markdown++",
+    "mdpp",
+    "documentation",
+    "reverb",
+    "automap",
+    "single-sourcing",
+    "publishing"
+  ]
+}

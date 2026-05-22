@@ -5,7 +5,7 @@
 set -e
 
 BUMP_TYPE="${1:-patch}"
-PLUGIN_JSON="plugins/webworks-claude-skills/.claude-plugin/plugin.json"
+PLUGIN_JSON="plugins/webworks-agent-skills/.claude-plugin/plugin.json"
 MARKETPLACE_JSON=".claude-plugin/marketplace.json"
 
 # Validate bump type
