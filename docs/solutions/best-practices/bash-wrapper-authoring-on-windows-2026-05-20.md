@@ -10,7 +10,7 @@ related_components:
   - development_workflow
   - testing_framework
 applies_when:
-  - "Authoring or modifying bash wrapper scripts in plugins/webworks-claude-skills/skills/automap/scripts/"
+  - "Authoring or modifying bash wrapper scripts in plugins/webworks-agent-skills/skills/automap/scripts/"
   - "Adding fixture-based CLI tests for bash helpers that diff against committed .expected files"
   - "Wrapper scripts run under set -euo pipefail and shell out to grep, wc, or other tools that exit non-zero on legitimate empty results"
   - "Log or pass-through content may contain Windows paths or other backslash sequences"
@@ -130,11 +130,11 @@ This repo's top-level `.gitignore` includes `*.log` and `logs/`. Fixtures like `
 logs/
 
 # Don't ignore intentional test fixtures
-!plugins/webworks-claude-skills/skills/automap/tests/fixtures/**
+!plugins/webworks-agent-skills/skills/automap/tests/fixtures/**
 ```
 
 ```bash
-git check-ignore -v plugins/webworks-claude-skills/skills/automap/tests/fixtures/single-warning-target/Logs/Reverb2/generate.log
+git check-ignore -v plugins/webworks-agent-skills/skills/automap/tests/fixtures/single-warning-target/Logs/Reverb2/generate.log
 # exit 1 = not ignored (good); exit 0 = still ignored (still broken)
 ```
 
@@ -145,7 +145,7 @@ Windows developers commonly have `core.autocrlf=true` set globally, which insert
 ```text
 # .gitattributes
 *.sh                                                            eol=lf
-plugins/webworks-claude-skills/skills/automap/tests/fixtures/** eol=lf
+plugins/webworks-agent-skills/skills/automap/tests/fixtures/** eol=lf
 ```
 
 ## Why This Matters
@@ -163,9 +163,9 @@ Bash wrappers are a recurring shape in this plugin — `automap-wrapper.sh`, `de
 
 ## Examples
 
-- Canonical scan helper with subshell strict-mode demotion and `printf`-based line router: `plugins/webworks-claude-skills/skills/automap/scripts/automap-wrapper.sh` lines 454-520.
-- `BASH_SOURCE`-vs-`$0` main-flow guard that keeps the wrapper sourceable from tests: `plugins/webworks-claude-skills/skills/automap/scripts/automap-wrapper.sh` lines 559-707.
-- Characterization test driver using committed `.expected` files and `diff`: `plugins/webworks-claude-skills/skills/automap/tests/test-generate-log-scan.sh`.
+- Canonical scan helper with subshell strict-mode demotion and `printf`-based line router: `plugins/webworks-agent-skills/skills/automap/scripts/automap-wrapper.sh` lines 454-520.
+- `BASH_SOURCE`-vs-`$0` main-flow guard that keeps the wrapper sourceable from tests: `plugins/webworks-agent-skills/skills/automap/scripts/automap-wrapper.sh` lines 559-707.
+- Characterization test driver using committed `.expected` files and `diff`: `plugins/webworks-agent-skills/skills/automap/tests/test-generate-log-scan.sh`.
 - Scoped `.gitignore` unignore patterns for the fixtures path: top-level `.gitignore`.
 - `.gitattributes` `eol=lf` pins for `*.sh` and the fixtures path: top-level `.gitattributes`.
 

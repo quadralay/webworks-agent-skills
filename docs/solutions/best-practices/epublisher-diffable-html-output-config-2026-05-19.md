@@ -34,7 +34,7 @@ Reverb HTML output from ePublisher is unreviewable by default in any diff-based 
 1. **Minified output.** Without `file-processing-pretty-print=true`, generated HTML is emitted as long single-line blocks. Any byte-level change touches the whole line, so `git diff` shows the entire file as changed even when only one phrase moved.
 2. **Heading-driven file splitting.** ePublisher's default `split-priority` causes paragraph styles (most often Heading 1, Heading 2) to start a new output file. A single chapter renders as a tree of small HTML files whose names and contents shift when headings move — diffs end up showing file renames and large block moves rather than the content edits the reviewer cares about.
 
-The two settings that fix this are the same two used in golden-test fixtures. Issue #68 (merged 2026-05-19) consolidated the canonical XML snippet in `plugins/webworks-claude-skills/skills/epublisher/references/format-traits-guide.md` under the **Golden Test Project** heading. Issue #40 then framed the same configuration for the broader diff-workflow audience and surfaced two technical questions worth capturing for future agents: what value to use for `split-priority` (`"0"` or `"none"`), and how to handle projects that already override individual heading rules and may intercept the prototype cascade.
+The two settings that fix this are the same two used in golden-test fixtures. Issue #68 (merged 2026-05-19) consolidated the canonical XML snippet in `plugins/webworks-agent-skills/skills/epublisher/references/format-traits-guide.md` under the **Golden Test Project** heading. Issue #40 then framed the same configuration for the broader diff-workflow audience and surfaced two technical questions worth capturing for future agents: what value to use for `split-priority` (`"0"` or `"none"`), and how to handle projects that already override individual heading rules and may intercept the prototype cascade.
 
 ## Guidance
 
@@ -151,7 +151,7 @@ The predicate is `splitpriority != 'none' AND splitpriority > 0`. If a future eP
 
 ## Related
 
-- `plugins/webworks-claude-skills/skills/epublisher/references/format-traits-guide.md` — `## Golden Test Project` and `## Diffable HTML Output` sections; the canonical XML snippet lives in Golden Test, Diffable HTML Output cross-references it.
+- `plugins/webworks-agent-skills/skills/epublisher/references/format-traits-guide.md` — `## Golden Test Project` and `## Diffable HTML Output` sections; the canonical XML snippet lives in Golden Test, Diffable HTML Output cross-references it.
 - `docs/solutions/documentation-gaps/epublisher-format-traits-xml-schema-2026-05-09.md` — schema-correctness learning (which attribute names ePublisher actually parses). Same file, different topic; useful read before authoring any new `<Rules>`/`<Rule>`/`<Option>` content.
 - `docs/solutions/architecture-patterns/format-spec-vs-integration-skill-separation-2026-05-09.md` — boundary pattern between format and product skills; relevant when deciding whether new content belongs in the `epublisher` skill or elsewhere.
 - Issue #40 — origin of the diff-workflow framing.

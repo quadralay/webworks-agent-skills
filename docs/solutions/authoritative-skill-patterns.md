@@ -11,10 +11,10 @@ symptoms:
 root_cause: Skill descriptions lacking explicit authority claims, file patterns, and trigger phrases are not selected by Claude's skill matching
 date_solved: 2025-12-27
 related_files:
-  - plugins/webworks-claude-skills/skills/markdown-integration/SKILL.md
-  - plugins/webworks-claude-skills/skills/epublisher/SKILL.md
-  - plugins/webworks-claude-skills/skills/automap/SKILL.md
-  - plugins/webworks-claude-skills/skills/reverb2/SKILL.md
+  - plugins/webworks-agent-skills/skills/markdown-integration/SKILL.md
+  - plugins/webworks-agent-skills/skills/epublisher/SKILL.md
+  - plugins/webworks-agent-skills/skills/automap/SKILL.md
+  - plugins/webworks-agent-skills/skills/reverb2/SKILL.md
 ---
 
 # Authoritative Skill Patterns
@@ -102,9 +102,9 @@ This provides redundant triggering - if the skill description doesn't trigger, t
 Skills are invoked as `plugin-name:skill-name`. To avoid redundant names like `markdown-plus-plus:markdown-plus-plus`, consider:
 
 1. **Option A (CHOSEN)**: Consolidate product-integration skills into one plugin
-   - Plugin: `webworks-claude-skills`
+   - Plugin: `webworks-agent-skills`
    - Skills: `markdown-integration`, `epublisher`, `automap`, `reverb2`
-   - Invocation: `webworks-claude-skills:markdown-integration`
+   - Invocation: `webworks-agent-skills:markdown-integration`
    - Format-level Markdown++ guidance lives in a separate plugin (`quadralay/markdown-plus-plus`) — see `docs/solutions/architecture-patterns/format-spec-vs-integration-skill-separation-2026-05-09.md` for the rationale.
 
 2. **Option B**: Name the plugin broadly, skills specifically

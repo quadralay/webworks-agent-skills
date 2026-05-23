@@ -31,7 +31,7 @@ The `reverb2` skill described what Reverb 2.0 is (responsive HTML5 help system, 
 
 A reader investigating a theme override that didn't apply, a broken search, a navigation glitch, or any other runtime symptom had no single "start here" section to anchor diagnosis. They would either guess from the published output (which is transformed and not the source of truth) or fall back to training data (which is wrong for Reverb 2.0 specifically because it is not a standard website).
 
-This gap was item #16 in `plans/knowledge-gaps-from-audit.md`, discovered during a Q&A session testing Claude's ability to work effectively as an ePublisher developer. PR #82 closed it by adding a focused `<runtime_architecture>` section to `plugins/webworks-claude-skills/skills/reverb2/SKILL.md` between `<overview>` and `<related_skills>`.
+This gap was item #16 in `plans/knowledge-gaps-from-audit.md`, discovered during a Q&A session testing Claude's ability to work effectively as an ePublisher developer. PR #82 closed it by adding a focused `<runtime_architecture>` section to `plugins/webworks-agent-skills/skills/reverb2/SKILL.md` between `<overview>` and `<related_skills>`.
 
 ## Guidance
 
@@ -174,8 +174,8 @@ The audit identified the same gap for `epublisher` (format entry point) and `rev
 - Implementation commit: `4dce438` — `docs(reverb2): add Runtime Architecture section to SKILL.md`
 - Plan: `docs/plans/2026-05-20-001-feat-reverb2-runtime-architecture-plan.md`
 - Audit source: `plans/knowledge-gaps-from-audit.md` (item #16, lines 121-129)
-- Sibling skill file: `plugins/webworks-claude-skills/skills/reverb2/SKILL.md`
-- Related deep reference (cross-linked from the new section): `plugins/webworks-claude-skills/skills/reverb2/references/scss-architecture.md`
+- Sibling skill file: `plugins/webworks-agent-skills/skills/reverb2/SKILL.md`
+- Related deep reference (cross-linked from the new section): `plugins/webworks-agent-skills/skills/reverb2/references/scss-architecture.md`
 - Sibling Reverb learning (different angle — runtime ID resolution): `docs/solutions/design-patterns/reverb-landmark-resolver-static-mirror-2026-05-20.md`
 - Parallel documentation-gap pattern (epublisher schema): `docs/solutions/documentation-gaps/epublisher-format-traits-xml-schema-2026-05-09.md`
 - Related architectural learning (skill placement): `docs/solutions/architecture-patterns/format-spec-vs-integration-skill-separation-2026-05-09.md`
