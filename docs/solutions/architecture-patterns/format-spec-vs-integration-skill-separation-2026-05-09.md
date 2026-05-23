@@ -32,7 +32,7 @@ The `markdown-plus-plus` skill in `webworks-claude-skills` originally bundled tw
 
 Markdown++ as a format is potentially useful outside ePublisher: any tool that wants to author conditional, variable-driven, multi-target Markdown could adopt it. Bundling the format spec inside a product-specific plugin made the format harder to consume independently and made the product-integration skill carry redundant format-level material that drifted from the spec.
 
-Issue #67 split the bundled skill into two: a thin product-integration skill (`markdown-integration`) staying in `webworks-claude-skills`, and an authoritative format skill (`markdown-plus-plus`) migrated to its own repository at `quadralay/markdown-plus-plus`.
+Issue #67 split the bundled skill into two: a thin product-integration skill (`markdown-integration`) staying in `webworks-agent-skills` (then named `webworks-claude-skills`, since renamed), and an authoritative format skill (`markdown-plus-plus`) migrated to its own repository at `quadralay/markdown-plus-plus`.
 
 ## Guidance
 
@@ -117,7 +117,7 @@ quadralay/markdown-plus-plus/      # external repo, format spec only
         ├── validate-mdpp.py
         └── add-aliases.py
 
-plugins/webworks-claude-skills/    # this repo, integration only
+plugins/webworks-agent-skills/     # this repo, integration only
 └── skills/markdown-integration/
     ├── SKILL.md                   # ePublisher integration of Markdown++
     └── references/
