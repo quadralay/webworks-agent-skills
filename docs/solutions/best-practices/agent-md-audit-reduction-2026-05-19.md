@@ -32,7 +32,7 @@ Coding agents read a project's `CLAUDE.md` (or `AGENTS.md`, `GEMINI.md`, etc.) o
 - Both **increased cost by 20%+** as the model expanded its exploration and reasoning.
 - Freshly generated files performed **worse than no file at all**.
 
-Applied by hand to one real `CLAUDE.md`, this methodology reduced the file from 180 lines to 49 lines (~73% reduction) with no loss of useful steering. The skill `claude-md-audit` (added under `plugins/webworks-claude-skills/skills/claude-md-audit/`) codifies the approach.
+Applied by hand to one real `CLAUDE.md`, this methodology reduced the file from 180 lines to 49 lines (~73% reduction) with no loss of useful steering. The skill `claude-md-audit` (added under `plugins/webworks-agent-skills/skills/claude-md-audit/`) codifies the approach.
 
 ## Guidance
 
@@ -159,6 +159,6 @@ Keep the command and the link. Remove the explanation — the model reads the pr
 
 ## Related
 
-- Skill: `plugins/webworks-claude-skills/skills/claude-md-audit/SKILL.md` — the codified audit methodology.
+- Skill: `plugins/webworks-agent-skills/skills/claude-md-audit/SKILL.md` — the codified audit methodology.
 - `docs/solutions/authoritative-skill-patterns.md` — adjacent concern: writing skill descriptions that actually trigger invocation. Both learnings target effective prompts the agent reads, but at different scopes (skill frontmatter vs. repo-level context file).
 - GitHub issue #52 — original proposal and the 180→49 line motivating reduction.

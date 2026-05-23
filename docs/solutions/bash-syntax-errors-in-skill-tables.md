@@ -99,5 +99,5 @@ Before publishing a SKILL.md file:
 
 ## Related
 
-- PR #11: [Fix skill bash syntax error in operators table](https://github.com/quadralay/webworks-claude-skills/pull/11) — original fix landed in the bundled `markdown-plus-plus` SKILL.md (since migrated to `quadralay/markdown-plus-plus` in issue #67)
+- PR #11: [Fix skill bash syntax error in operators table](https://github.com/quadralay/webworks-agent-skills/pull/11) — original fix landed in the bundled `markdown-plus-plus` SKILL.md (since migrated to `quadralay/markdown-plus-plus` in issue #67)
 - `CONTRIBUTING.md` — repo-wide guidance citing this learning

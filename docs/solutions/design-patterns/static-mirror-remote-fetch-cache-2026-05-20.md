@@ -272,9 +272,9 @@ This makes the cache state machine and the discovery logic fully unit-testable. 
 
 - `docs/solutions/design-patterns/reverb-landmark-resolver-static-mirror-2026-05-20.md` — the v1 design pattern this learning extends (the parser/index half of the static-mirror story; v2 here adds the HTTP-fetch/cache/runtime-fidelity half)
 - `docs/solutions/documentation-gaps/epublisher-format-traits-xml-schema-2026-05-09.md` — documents the `landmark-id-format: source-id` opt-in that exposed the v1 percent-decode latent bug
-- `plugins/webworks-claude-skills/skills/reverb2/scripts/resolve-landmarks.py` — the v2 resolver (HTTP client, cache state machine, discovery, URL-decode fix)
-- `plugins/webworks-claude-skills/skills/reverb2/workflows/landmark-resolution.md` — workflow doc with the remote worked example
-- `plugins/webworks-claude-skills/skills/reverb2/tests/verify-landmark-resolver.py` — 80 verification scenarios covering remote fetch state machine, cache hit/miss/TTL, generation-hash branches, Unicode decode, mutual-exclusion
+- `plugins/webworks-agent-skills/skills/reverb2/scripts/resolve-landmarks.py` — the v2 resolver (HTTP client, cache state machine, discovery, URL-decode fix)
+- `plugins/webworks-agent-skills/skills/reverb2/workflows/landmark-resolution.md` — workflow doc with the remote worked example
+- `plugins/webworks-agent-skills/skills/reverb2/tests/verify-landmark-resolver.py` — 80 verification scenarios covering remote fetch state machine, cache hit/miss/TTL, generation-hash branches, Unicode decode, mutual-exclusion
 - `docs/plans/2026-05-20-002-feat-reverb-landmark-resolver-remote-fetch-plan.md` — implementation plan with R-numbered requirements traceability
 - `docs/brainstorms/2026-05-20-issue-76-reverb-landmark-resolver-remote-fetch-requirements.md` — brainstorm with key decision rationale
 - GitHub issue #76 — feature request, runtime-verification notes that surfaced the hash and the decode bug

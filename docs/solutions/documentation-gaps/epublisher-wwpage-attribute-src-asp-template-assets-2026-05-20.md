@@ -34,7 +34,7 @@ The `epublisher` skill's `references/file-resolver-guide.md` already explains th
 
 Both failure modes are quiet: the publish succeeds, the build artifact looks structurally correct, and the broken paths only surface in browser-rendered output after deployment. The agent has no signal during build that the chosen pattern is wrong.
 
-The gap was discovered during a real customization on a Radware ePublisher project (Case 00024362). PR #86 closed it (issue #48) by adding a `### Copying Custom Assets in ASP Templates` subsection under `## Advanced Topics` in `plugins/webworks-claude-skills/skills/epublisher/references/file-resolver-guide.md`.
+The gap was discovered during a real customization on a Radware ePublisher project (Case 00024362). PR #86 closed it (issue #48) by adding a `### Copying Custom Assets in ASP Templates` subsection under `## Advanced Topics` in `plugins/webworks-agent-skills/skills/epublisher/references/file-resolver-guide.md`.
 
 ## Guidance
 
@@ -174,8 +174,8 @@ Neither is load-bearing for the current learning; both improve agent decision sp
 - Implementation commit: `325a15b` — `docs(epublisher): document wwpage:attribute-src for ASP template assets`
 - Plan: `docs/plans/2026-05-20-001-feat-issue-48-wwpage-attribute-src-plan.md`
 - Originating context: Radware ePublisher project, Case 00024362
-- Implementation target: `plugins/webworks-claude-skills/skills/epublisher/references/file-resolver-guide.md` — new `### Copying Custom Assets in ASP Templates` subsection under `## Advanced Topics`
+- Implementation target: `plugins/webworks-agent-skills/skills/epublisher/references/file-resolver-guide.md` — new `### Copying Custom Assets in ASP Templates` subsection under `## Advanced Topics`
 - Sibling epublisher documentation-gap learning (different angle — XML schema mismatch): `docs/solutions/documentation-gaps/epublisher-format-traits-xml-schema-2026-05-09.md`
 - Related skill-structure learning (where to surface a diagnostic-starting-point breadcrumb): `docs/solutions/documentation-gaps/reverb2-runtime-architecture-pages-directory-2026-05-20.md`
 - Related architectural learning (format vs integration-skill boundary): `docs/solutions/architecture-patterns/format-spec-vs-integration-skill-separation-2026-05-09.md`
-- Deferred cross-reference: `plugins/webworks-claude-skills/skills/reverb2/SKILL.md` — when a Header/Footer ASP customization workflow is added there, link to this section in `file-resolver-guide.md`
+- Deferred cross-reference: `plugins/webworks-agent-skills/skills/reverb2/SKILL.md` — when a Header/Footer ASP customization workflow is added there, link to this section in `file-resolver-guide.md`

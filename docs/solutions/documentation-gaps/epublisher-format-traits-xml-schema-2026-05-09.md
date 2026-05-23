@@ -159,7 +159,7 @@ Trait names verified against `FormatTraitInfoStrings.resx`:
 ## Related
 
 - Issue #68 — schema corrections (consolidates #64)
-- `plugins/webworks-claude-skills/skills/epublisher/references/format-traits-guide.md` — the corrected guide
-- `plugins/webworks-claude-skills/skills/epublisher/references/project-parsing-guide.md` — now cross-references the format-traits guide
-- `plugins/webworks-claude-skills/skills/epublisher/templates/project.wep` — commented worked example near the `<Rules>` blocks
+- `plugins/webworks-agent-skills/skills/epublisher/references/format-traits-guide.md` — the corrected guide
+- `plugins/webworks-agent-skills/skills/epublisher/references/project-parsing-guide.md` — now cross-references the format-traits guide
+- `plugins/webworks-agent-skills/skills/epublisher/templates/project.wep` — commented worked example near the `<Rules>` blocks
 - `docs/solutions/architecture-patterns/format-spec-vs-integration-skill-separation-2026-05-09.md` — related boundary pattern between format and product skills
