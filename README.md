@@ -28,7 +28,7 @@ All skills activate automatically based on your project context.
 | **markdown-integration** | ePublisher integration patterns for Markdown++ sources (variable resolution, style mapping to Stationery, per-target conditions) |
 | **automap** | Automated publishing with AutoMap CLI |
 | **reverb** | Reverb 2.0 output testing, CSH analysis, SCSS theming |
-| **humanizer** | Remove signs of AI-generated writing from text ([submodule](https://github.com/blader/humanizer)) |
+| **humanizer** | Remove signs of AI-generated writing from text (vendored from [blader/humanizer](https://github.com/blader/humanizer); see [UPSTREAM.md](plugins/humanizer/skills/humanizer/UPSTREAM.md) for divergence notes) |
 
 For Markdown++ **format syntax**, validation, and authoring best practices, install the companion plugin [`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus). The `markdown-integration` skill in this plugin defers to it for format-level concerns and focuses on the ePublisher integration layer.
 
