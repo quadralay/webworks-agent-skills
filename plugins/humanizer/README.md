@@ -2,7 +2,7 @@
 
 This plugin packages the [`blader/humanizer`](https://github.com/blader/humanizer) skill as a first-party plugin in `webworks-agent-skills`.
 
-The skill itself lives at `skills/humanizer/`. Its `LICENSE`, `README.md`, and `SKILL.md` are vendored unchanged from upstream. Sync metadata, the rationale for vendoring, and the manual port process are recorded in [`skills/humanizer/UPSTREAM.md`](skills/humanizer/UPSTREAM.md).
+The skill itself lives at `skills/humanizer/`. Its `LICENSE` and `README.md` are vendored unchanged from upstream; `SKILL.md` was vendored as a starting point and is now diverging in this repo (the audience classifier added in issue #94 is the first divergence). Sync metadata, the rationale for vendoring, and the manual port process are recorded in [`skills/humanizer/UPSTREAM.md`](skills/humanizer/UPSTREAM.md).
 
 ## Why this is vendored, not a submodule
 

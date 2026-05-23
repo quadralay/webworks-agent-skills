@@ -41,7 +41,11 @@ Apply these heuristics in order. The first one that fires wins; later heuristics
    
    Component-aware matching is required: `myskills/foo/bar.md` must NOT classify as `skill-file` (no path component equals `skills`), while `lib/skills/foo/bar.md` WOULD (path component `skills` appears). Example: `.claude/skills/example/example.md` → `skill-file`. Example: `lib/agents/foo.md` → does NOT fire (path component `agents` without `.claude/` prefix is not in the list); falls through to heuristic 4.
 
-4. **Sibling SKILL.md** — Inspect the file's immediate parent directory (no upward walk). If that directory also contains a `SKILL.md`, classify as `skill-file`. This catches `references/`, `scripts/`, `tests/`, and `examples/` companion files under a skill root. Example: `plugins/foo/skills/foo/references/best-practices.md` is a sibling of `plugins/foo/skills/foo/SKILL.md` only when both sit in the same directory — but in real layouts the SKILL.md sits one level up, so this heuristic fires when the file is *in* the skill root directory itself, e.g., a co-located note `notes.md` next to `SKILL.md`. For nested references, heuristic 3's `skills/<name>/` component typically fires first.
+4. **Sibling SKILL.md** — Two checks against the filesystem, in order:
+   - **(a) Co-located.** If the file's immediate parent directory contains a `SKILL.md`, classify as `skill-file`. Example: `notes.md` next to `SKILL.md` in the same directory.
+   - **(b) One-level companion.** If the file's immediate parent directory is named `references`, `scripts`, `tests`, or `examples`, walk up exactly one level and look for `SKILL.md` there. If present, classify as `skill-file`. Example: `vendor/foo/references/api.md` finds `vendor/foo/SKILL.md` and classifies as `skill-file`. The walk is bounded to one level; deeper nesting falls through.
+   
+   The companion-directory name list is empirical; extend it if real layouts surface other conventions. Layouts that already match heuristic 3 (`skills/<name>/`) will typically resolve via that earlier heuristic, but heuristic 4 still catches non-standard layouts (e.g., vendored skills under `vendor/<name>/`).
 
 5. **Fallback** — No heuristic matched. Classify as `prose`.
 
@@ -102,12 +106,14 @@ Prefer repo-relative paths when the input is repo-relative; pass absolute paths 
 
 When given text to humanize:
 
-1. **Identify AI patterns** - Scan for the patterns listed below
-2. **Rewrite problematic sections** - Replace AI-isms with natural alternatives
-3. **Preserve meaning** - Keep the core message intact
-4. **Maintain voice** - Match the intended tone (formal, casual, technical, etc.)
-5. **Add soul** - Don't just remove bad patterns; inject actual personality
-6. **Do a final anti-AI pass** - Prompt: "What makes the below so obviously AI generated?" Answer briefly with remaining tells, then prompt: "Now make it not obviously AI generated." and revise
+1. **Classify the input** - Run the audience classifier (see "Audience classification" above) on each input file. Record the resolved label per file.
+2. **Identify AI patterns** - Scan for the patterns listed below
+3. **Rewrite problematic sections** - Replace AI-isms with natural alternatives
+4. **Preserve meaning** - Keep the core message intact
+5. **Maintain voice** - Match the intended tone (formal, casual, technical, etc.)
+6. **Add soul** - Don't just remove bad patterns; inject actual personality
+7. **Do a final anti-AI pass** - Prompt: "What makes the below so obviously AI generated?" Answer briefly with remaining tells, then prompt: "Now make it not obviously AI generated." and revise
+8. **Emit the classification summary** - Report each file's resolved label (see "Classification summary format" above) so the operator can verify auto-detection landed correctly.
 
 
 ## PERSONALITY AND SOUL
@@ -479,6 +485,7 @@ Provide:
 2. "What makes the below so obviously AI generated?" (brief bullets)
 3. Final rewrite
 4. A brief summary of changes made (optional, if helpful)
+5. Classification summary — the `Auto-detected audiences:` block (see "Classification summary format"). Always include when one or more file paths were processed; omit only when the invocation was raw text with no file paths.
 
 
 ## Full Example

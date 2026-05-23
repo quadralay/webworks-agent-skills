@@ -12,16 +12,25 @@ the `.expected` files without parsing YAML. This issue does not wire
 up a runner; verification is by reading the fixtures against the
 heuristic algorithm.
 
-## Path interpretation
+## Path interpretation (important caveat)
 
 The classifier evaluates a file's path against four heuristics
 (filename, frontmatter shape, path-segment match, sibling
 `SKILL.md`). When evaluating a fixture, treat the path *as it
 appears within the fixture's own subdirectory* — not the absolute
-path on disk. Otherwise every fixture under
-`plugins/humanizer/skills/humanizer/tests/auto-detection/` would
-trip heuristic 3's `plugins/<name>/skills/<name>/` pattern and
-misclassify every negative case as `skill-file`.
+path on disk.
+
+**This corpus is not directly runnable against the production
+classifier.** Every fixture's real on-disk path begins with
+`plugins/humanizer/skills/humanizer/tests/auto-detection/`, which
+trips heuristic 3's `plugins/<name>/skills/<name>/` pattern. If you
+pass a fixture's real path to `/humanizer`, every negative case will
+misclassify as `skill-file`.
+
+To exercise the fixtures against the classifier, copy them to a
+location outside any `skills/<name>/`, `.claude/`, or
+`plugins/<name>/skills/<name>/` ancestor — or use a runner that
+strips the corpus-root prefix before applying heuristic 3.
 
 Concretely:
 
@@ -42,8 +51,11 @@ Concretely:
   `allowed-tools`.
 - `positive-path-segment/.claude/skills/example/example.md` —
   heuristic 3. Path component sequence `.claude/skills/` fires.
-- `positive-sibling/notes.md` — heuristic 4. The file's immediate
-  parent directory also contains `SKILL.md`.
+- `positive-sibling/notes.md` — heuristic 4(a) (co-located). The
+  file's immediate parent directory also contains `SKILL.md`.
+- `positive-companion-references/references/api.md` — heuristic 4(b)
+  (one-level companion). The immediate parent directory is named
+  `references`, and the directory one level up contains `SKILL.md`.
 
 ### Negative (must classify as `prose`)
 
