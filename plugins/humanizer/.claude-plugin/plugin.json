@@ -1,6 +1,6 @@
 {
   "name": "humanizer",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Remove signs of AI-generated writing from text. Detects and fixes 25 common AI writing patterns based on Wikipedia's Signs of AI writing guide.",
   "author": {
     "name": "blader",

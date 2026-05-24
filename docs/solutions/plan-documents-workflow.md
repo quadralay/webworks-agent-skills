@@ -97,7 +97,12 @@ Plans in `plans/` are valid artifacts when:
 | Complex multi-step implementation | ✓ | |
 | References external research | ✓ | |
 
+## Current Convention (2026)
+
+The repository now uses `docs/plans/` for new plan files, with date-prefixed names like `YYYY-MM-DD-NNN-{type}-{description}-plan.md` (e.g., `2026-05-22-001-feat-humanizer-auto-detection-plan.md`). Plans are created via `/workflows:plan` and retained alongside the GitHub issues they spawn — the issue is the canonical problem statement, and the plan stays as historical context. The legacy `plans/` directory still holds pre-2026 plans (flat names, e.g., `add-skip-reports-option.md`); they remain as archive but new work goes under `docs/plans/`.
+
 ## Related
 
 - PR #17: Added `plans/README.md` establishing the workflow
-- `plans/add-skip-reports-option.md`: Example of a kept plan
+- `plans/add-skip-reports-option.md`: Example of a kept legacy plan
+- `docs/plans/`: current location for date-prefixed plans

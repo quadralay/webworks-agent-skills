@@ -173,7 +173,7 @@ grep 'dicad_' _colors.scss   # lists every DICAD customization in one pass
 
 ## Related
 
-- Skill reference: `plugins/webworks-claude-skills/skills/reverb2/references/customization-conventions.md` (grepable annotations + locales upgrade pattern)
-- Skill reference: `plugins/webworks-claude-skills/skills/reverb2/references/scss-architecture.md` (prefixed-variable rules, cascade-order rationale, redundant-override removal)
-- Skill workflow: `plugins/webworks-claude-skills/skills/reverb2/workflows/scss-theming.md` (Steps 4-5 cascade cross-links, Step 7 redundant-override removal)
+- Skill reference: `plugins/webworks-agent-skills/skills/reverb2/references/customization-conventions.md` (grepable annotations + locales upgrade pattern)
+- Skill reference: `plugins/webworks-agent-skills/skills/reverb2/references/scss-architecture.md` (prefixed-variable rules, cascade-order rationale, redundant-override removal)
+- Skill workflow: `plugins/webworks-agent-skills/skills/reverb2/workflows/scss-theming.md` (Steps 4-5 cascade cross-links, Step 7 redundant-override removal)
 - GitHub issue: #51 (Add SCSS customization best practices to Reverb 2.0 skill)
