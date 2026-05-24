@@ -19,11 +19,14 @@ plugins/
 │           ├── scripts/           # Helper scripts (optional)
 │           │   └── lib/           # Shared Python modules
 │           └── references/        # Reference documentation
-└── humanizer/                     # Submodule-backed plugin
+└── humanizer/                     # Vendored from blader/humanizer
     ├── .claude-plugin/plugin.json # Plugin wrapper (owned by this repo)
+    ├── README.md                  # Vendoring decision and divergence plan
     └── skills/
-        └── humanizer/             # Git submodule → blader/humanizer
-            └── SKILL.md
+        └── humanizer/             # Vendored copy (see UPSTREAM.md)
+            ├── SKILL.md
+            ├── LICENSE            # Upstream MIT license, preserved unchanged
+            └── UPSTREAM.md        # Source URL, last sync SHA, port process
 ```
 
 ## SKILL.md Authoring
@@ -68,7 +71,7 @@ The script updates both version locations automatically:
 - `plugins/webworks-agent-skills/.claude-plugin/plugin.json`
 - `.claude-plugin/marketplace.json`
 
-**Note:** The `humanizer` plugin version in `plugins/humanizer/.claude-plugin/plugin.json` tracks the upstream [blader/humanizer](https://github.com/blader/humanizer) release and is **not** managed by this script.
+**Note:** The `humanizer` plugin version in `plugins/humanizer/.claude-plugin/plugin.json` is owned by this repo (the skill is now vendored, not a submodule). It is **not** managed by `bump-version.sh` — bump it manually when humanizer behavior diverges from the vendored baseline. See [plugins/humanizer/skills/humanizer/UPSTREAM.md](plugins/humanizer/skills/humanizer/UPSTREAM.md).
 
 **When to bump:**
 
@@ -80,34 +83,13 @@ The script updates both version locations automatically:
 
 **Note:** Claude Code is aware of this workflow via CLAUDE.md and will run the bump script when preparing PRs.
 
-## Git Submodules
+## Vendored Plugins
 
-The `humanizer` plugin is backed by a git submodule pointing to [blader/humanizer](https://github.com/blader/humanizer). This repo does not have push access to the upstream — it only tracks a specific commit.
+The `humanizer` plugin is a vendored copy of [blader/humanizer](https://github.com/blader/humanizer). It used to be a git submodule but is now maintained as plain files in this repo. No `git submodule init` step is required — a plain `git clone` is sufficient.
 
-**Cloning with submodules:**
+**Modifying the vendored skill:** Edit the files under `plugins/humanizer/skills/humanizer/` directly. Behavior changes diverge from upstream by design (skill-file auto-detection, dual-audience profiles). Bump `plugins/humanizer/.claude-plugin/plugin.json` manually when behavior diverges.
 
-```bash
-git clone --recurse-submodules <repo-url>
-
-# Or if already cloned:
-git submodule update --init --recursive
-```
-
-**Updating to the latest upstream version:**
-
-```bash
-cd plugins/humanizer/skills/humanizer
-git pull origin main
-cd ../../../..
-git add plugins/humanizer/skills/humanizer
-git commit -m "Update humanizer submodule to latest"
-```
-
-**If you need to make changes to the skill:** Fork [blader/humanizer](https://github.com/blader/humanizer), then update the submodule URL:
-
-```bash
-git submodule set-url plugins/humanizer/skills/humanizer https://github.com/<your-fork>/humanizer.git
-```
+**Porting upstream changes:** Review the process in [plugins/humanizer/skills/humanizer/UPSTREAM.md](plugins/humanizer/skills/humanizer/UPSTREAM.md). Manual port only — no automated sync.
 
 ## Pull Requests
 
