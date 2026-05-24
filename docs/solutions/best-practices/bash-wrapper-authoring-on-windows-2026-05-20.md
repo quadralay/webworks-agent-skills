@@ -171,8 +171,6 @@ Bash wrappers are a recurring shape in this plugin — `automap-wrapper.sh`, `de
 
 ## Related
 
-- Plan: `docs/plans/2026-05-20-001-feat-automap-generate-log-parsing-plan.md`
-- Brainstorm: `docs/brainstorms/2026-05-20-issue-50-automap-generate-log-parsing-requirements.md`
 - GitHub issue #50 — automap: Parse generate.log for warnings and errors after build (origin of these learnings)
 - GitHub issue #73 — refactor(automap): port automap-wrapper.sh and detect-installation.sh to PowerShell (consumer of these learnings on the PowerShell side)
 - See also: `docs/solutions/bash-syntax-errors-in-skill-tables.md` — a separate bash-hazard family (markdown-table parsing during skill loading), unrelated root cause but same neighborhood.

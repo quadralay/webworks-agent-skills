@@ -1,6 +1,6 @@
 ---
 name: humanizer
-version: 2.4.0
+version: 2.5.0
 description: |
   Remove signs of AI-generated writing from text. Use when editing or reviewing
   text to make it sound more natural and human-written. Based on Wikipedia's
@@ -23,7 +23,7 @@ You are a writing editor that identifies and removes signs of AI-generated text 
 
 ## Audience classification
 
-Before applying any humanizing rules, classify each input file as either `skill-file` or `prose`. The label selects which rule profile gets applied. This section adds **classification plumbing only** — until the companion dual-audience profile feature lands, every file ends up under the prose profile defined below. The classifier still runs, records its decision, and reports it in the output so misclassifications are visible.
+Before applying any humanizing rules, classify each input file as either `skill-file` or `prose`. The label selects which rule profile gets applied. Each rule heading below carries a `[profile: <value>]` tag (`both`, `prose`, or `skill-file`) that gates whether the rule fires for a given file. See `## Example-region exception` for the within-file carve-out that routes embedded examples back to the prose profile even inside a `skill-file`-classified input, and `### Applied-profile summary format` for how the per-file rule-application result is reported.
 
 ### Heuristics (first-match-wins, priority order)
 
@@ -73,7 +73,7 @@ When the invocation passes one or more file paths:
 2. **For each file**, determine the audience:
    - If `audience=skill-file` or `audience=prose` is set, use that label (record as forced).
    - Otherwise, run the heuristics in order and record the resolved label.
-3. **Process each file under its own profile.** Apply the rule set that corresponds to the file's label. Until the companion profile lands, every label is handled by the prose rules below, but the per-file label is still recorded.
+3. **Process each file under the rule set selected by its label.** Files labeled `skill-file` apply rules tagged `[profile: skill-file]` or `[profile: both]`; files labeled `prose` apply rules tagged `[profile: prose]` or `[profile: both]`. Within a `skill-file`-classified file, apply the example-region exception (see `## Example-region exception`) so embedded examples are rewritten under the `prose` rule set.
 4. **Accumulate the decisions** as you go — one row per file, recording path and label (and `(forced)` if forced).
 5. **Emit the classification summary** at the end of the run (see format below).
 
@@ -102,6 +102,54 @@ Auto-detected audiences:
 
 Prefer repo-relative paths when the input is repo-relative; pass absolute paths through unchanged if that is what the invocation supplied.
 
+### Applied-profile summary format
+
+After the `Auto-detected audiences:` block, emit an `Applied profiles:` block immediately following it (no blank line between is fine; the operator reads the two blocks as classification → consequence). The new block reports the resolved profile per file and a `(N rules applied, M skipped)` count so the operator can sanity-check the gating fired as expected.
+
+Pinned shape:
+
+```
+Applied profiles:
+  plugins/humanizer/skills/humanizer/SKILL.md  -> skill-file (18 rules applied, 7 skipped)
+  CHANGELOG.md  -> prose (25 rules applied, 0 skipped)
+```
+
+Two-space indent. Separator: two spaces, the arrow `->`, one space, the resolved profile name. Parenthesized count. No column alignment — paths vary too much in length and alignment would require a second pass.
+
+**Count semantics.** `applied` = numbered rules whose tag matches the active profile or is `both`; `skipped` = numbered rules whose tag is the other-audience-only value. The `## PERSONALITY AND SOUL` section is a section, not a numbered rule, and is not included in either count. Example-region rule applications within a file are not separately counted (within-file behavior, not separate file).
+
+**Expected literal counts** for the current rule mapping (rules 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 17, 18, 19, 20, 21, 22, 23, 24 tagged `both`; rules 9, 10, 13, 14, 15, 16, 25 tagged `prose`; no rule tagged `skill-file`-only):
+
+- A `prose`-classified file: `25 rules applied, 0 skipped`.
+- A `skill-file`-classified file: `18 rules applied, 7 skipped`.
+
+If the emitted counts differ from these expected values, a tag has drifted from the documented mapping and should be re-checked before relying on the run's output.
+
+When the `audience=` argument forces a profile globally, append `(forced)` to each row after the count — matching the convention the `Auto-detected audiences:` block uses:
+
+```
+Applied profiles:
+  plugins/humanizer/skills/humanizer/SKILL.md  -> prose (25 rules applied, 0 skipped) (forced)
+```
+
+## Example-region exception
+
+When a file is classified `skill-file`, the skill-file profile applies to *instruction prose* but not to *embedded example output*. Sample commit messages, sample PR descriptions, fenced `Before:` / `After:` blocks demonstrating desired output, and labeled example sections receive the full `prose` profile — the agent will mimic the register of examples it sees. If a skill teaches "good output looks like this" and the example is AI-slop, the agent's output will be AI-slop.
+
+This is a within-file rule-set switch, not a reclassification: the file keeps its `skill-file` label in the `Auto-detected audiences:` block; only the rule set selected inside an example region changes.
+
+### Region detector
+
+Detect example regions inside a `skill-file`-classified input by matching any of these shapes:
+
+- **Fenced code blocks** delimited by ` ``` ` (any language tag or none). The fenced contents — not the fence markers — are the example region.
+- **Block-quoted contrast pairs** introduced by a bold label of the form `**Before:**`, `**After:**`, `**Draft:**`, `**Final:**`, `**Before (AI-sounding):**`, `**Draft rewrite:**`, or `**Now make it not obviously AI generated.**`. The blockquote (or paragraph) immediately following the label is the example region.
+- **Labeled example sections** introduced by `**Example:**` or by a heading whose title begins with `Example` or `Worked example`. The section contents until the next heading of equal or higher level form the example region.
+
+When in doubt, treat a region as instruction prose under the file's primary profile. The failure mode of *not* switching to prose inside an example region is the documented worked-example regression; the failure mode of switching unnecessarily is at worst a no-op when the surrounding skill prose is already in the `both`-tagged rule space. Conservative detection is the safer bias.
+
+When example regions nest (e.g., a fenced code block inside a `Before:` blockquote), first-match-wins by outer region — the outer region's profile selection governs the inner content.
+
 ## Your Task
 
 When given text to humanize:
@@ -114,9 +162,10 @@ When given text to humanize:
 6. **Add soul** - Don't just remove bad patterns; inject actual personality
 7. **Do a final anti-AI pass** - Prompt: "What makes the below so obviously AI generated?" Answer briefly with remaining tells, then prompt: "Now make it not obviously AI generated." and revise
 8. **Emit the classification summary** - Report each file's resolved label (see "Classification summary format" above) so the operator can verify auto-detection landed correctly.
+9. **Emit the applied-profile summary** - Immediately after the classification summary, emit the `Applied profiles:` block (see "Applied-profile summary format" above) so the operator can verify the profile gating fired as expected.
 
 
-## PERSONALITY AND SOUL
+## PERSONALITY AND SOUL  [profile: prose]
 
 Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as obvious as slop. Good writing has a human behind it.
 
@@ -151,7 +200,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 
 ## CONTENT PATTERNS
 
-### 1. Undue Emphasis on Significance, Legacy, and Broader Trends
+### 1. Undue Emphasis on Significance, Legacy, and Broader Trends  [profile: both]
 
 **Words to watch:** stands/serves as, is a testament/reminder, a vital/significant/crucial/pivotal/key role/moment, underscores/highlights its importance/significance, reflects broader, symbolizing its ongoing/enduring/lasting, contributing to the, setting the stage for, marking/shaping the, represents/marks a shift, key turning point, evolving landscape, focal point, indelible mark, deeply rooted
 
@@ -164,7 +213,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The Statistical Institute of Catalonia was established in 1989 to collect and publish regional statistics independently from Spain's national statistics office.
 
 
-### 2. Undue Emphasis on Notability and Media Coverage
+### 2. Undue Emphasis on Notability and Media Coverage  [profile: both]
 
 **Words to watch:** independent coverage, local/regional/national media outlets, written by a leading expert, active social media presence
 
@@ -177,7 +226,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > In a 2024 New York Times interview, she argued that AI regulation should focus on outcomes rather than methods.
 
 
-### 3. Superficial Analyses with -ing Endings
+### 3. Superficial Analyses with -ing Endings  [profile: both]
 
 **Words to watch:** highlighting/underscoring/emphasizing..., ensuring..., reflecting/symbolizing..., contributing to..., cultivating/fostering..., encompassing..., showcasing...
 
@@ -190,7 +239,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The temple uses blue, green, and gold colors. The architect said these were chosen to reference local bluebonnets and the Gulf coast.
 
 
-### 4. Promotional and Advertisement-like Language
+### 4. Promotional and Advertisement-like Language  [profile: both]
 
 **Words to watch:** boasts a, vibrant, rich (figurative), profound, enhancing its, showcasing, exemplifies, commitment to, natural beauty, nestled, in the heart of, groundbreaking (figurative), renowned, breathtaking, must-visit, stunning
 
@@ -203,7 +252,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > Alamata Raya Kobo is a town in the Gonder region of Ethiopia, known for its weekly market and 18th-century church.
 
 
-### 5. Vague Attributions and Weasel Words
+### 5. Vague Attributions and Weasel Words  [profile: both]
 
 **Words to watch:** Industry reports, Observers have cited, Experts argue, Some critics argue, several sources/publications (when few cited)
 
@@ -216,7 +265,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The Haolai River supports several endemic fish species, according to a 2019 survey by the Chinese Academy of Sciences.
 
 
-### 6. Outline-like "Challenges and Future Prospects" Sections
+### 6. Outline-like "Challenges and Future Prospects" Sections  [profile: both]
 
 **Words to watch:** Despite its... faces several challenges..., Despite these challenges, Challenges and Legacy, Future Outlook
 
@@ -231,7 +280,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 
 ## LANGUAGE AND GRAMMAR PATTERNS
 
-### 7. Overused "AI Vocabulary" Words
+### 7. Overused "AI Vocabulary" Words  [profile: both]
 
 **High-frequency AI words:** Additionally, align with, crucial, delve, emphasizing, enduring, enhance, fostering, garner, highlight (verb), interplay, intricate/intricacies, key (adjective), landscape (abstract noun), pivotal, showcase, tapestry (abstract noun), testament, underscore (verb), valuable, vibrant
 
@@ -244,7 +293,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > Somali cuisine also includes camel meat, which is considered a delicacy. Pasta dishes, introduced during Italian colonization, remain common, especially in the south.
 
 
-### 8. Avoidance of "is"/"are" (Copula Avoidance)
+### 8. Avoidance of "is"/"are" (Copula Avoidance)  [profile: both]
 
 **Words to watch:** serves as/stands as/marks/represents [a], boasts/features/offers [a]
 
@@ -257,7 +306,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > Gallery 825 is LAAA's exhibition space for contemporary art. The gallery has four rooms totaling 3,000 square feet.
 
 
-### 9. Negative Parallelisms
+### 9. Negative Parallelisms  [profile: prose]
 
 **Problem:** Constructions like "Not only...but..." or "It's not just about..., it's..." are overused.
 
@@ -268,7 +317,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The heavy beat adds to the aggressive tone.
 
 
-### 10. Rule of Three Overuse
+### 10. Rule of Three Overuse  [profile: prose]
 
 **Problem:** LLMs force ideas into groups of three to appear comprehensive.
 
@@ -279,7 +328,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The event includes talks and panels. There's also time for informal networking between sessions.
 
 
-### 11. Elegant Variation (Synonym Cycling)
+### 11. Elegant Variation (Synonym Cycling)  [profile: both]
 
 **Problem:** AI has repetition-penalty code causing excessive synonym substitution.
 
@@ -290,7 +339,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The protagonist faces many challenges but eventually triumphs and returns home.
 
 
-### 12. False Ranges
+### 12. False Ranges  [profile: both]
 
 **Problem:** LLMs use "from X to Y" constructions where X and Y aren't on a meaningful scale.
 
@@ -303,7 +352,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 
 ## STYLE PATTERNS
 
-### 13. Em Dash Overuse
+### 13. Em Dash Overuse  [profile: prose]
 
 **Problem:** LLMs use em dashes (—) more than humans, mimicking "punchy" sales writing.
 
@@ -314,7 +363,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The term is primarily promoted by Dutch institutions, not by the people themselves. You don't say "Netherlands, Europe" as an address, yet this mislabeling continues in official documents.
 
 
-### 14. Overuse of Boldface
+### 14. Overuse of Boldface  [profile: prose]
 
 **Problem:** AI chatbots emphasize phrases in boldface mechanically.
 
@@ -325,7 +374,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > It blends OKRs, KPIs, and visual strategy tools like the Business Model Canvas and Balanced Scorecard.
 
 
-### 15. Inline-Header Vertical Lists
+### 15. Inline-Header Vertical Lists  [profile: prose]
 
 **Problem:** AI outputs lists where items start with bolded headers followed by colons.
 
@@ -338,7 +387,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The update improves the interface, speeds up load times through optimized algorithms, and adds end-to-end encryption.
 
 
-### 16. Title Case in Headings
+### 16. Title Case in Headings  [profile: prose]
 
 **Problem:** AI chatbots capitalize all main words in headings.
 
@@ -349,7 +398,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > ## Strategic negotiations and global partnerships
 
 
-### 17. Emojis
+### 17. Emojis  [profile: both]
 
 **Problem:** AI chatbots often decorate headings or bullet points with emojis.
 
@@ -362,7 +411,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The product launches in Q3. User research showed a preference for simplicity. Next step: schedule a follow-up meeting.
 
 
-### 18. Curly Quotation Marks
+### 18. Curly Quotation Marks  [profile: both]
 
 **Problem:** ChatGPT uses curly quotes (“...”) instead of straight quotes ("...").
 
@@ -375,7 +424,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 
 ## COMMUNICATION PATTERNS
 
-### 19. Collaborative Communication Artifacts
+### 19. Collaborative Communication Artifacts  [profile: both]
 
 **Words to watch:** I hope this helps, Of course!, Certainly!, You're absolutely right!, Would you like..., let me know, here is a...
 
@@ -388,7 +437,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The French Revolution began in 1789 when financial crisis and food shortages led to widespread unrest.
 
 
-### 20. Knowledge-Cutoff Disclaimers
+### 20. Knowledge-Cutoff Disclaimers  [profile: both]
 
 **Words to watch:** as of [date], Up to my last training update, While specific details are limited/scarce..., based on available information...
 
@@ -401,7 +450,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The company was founded in 1994, according to its registration documents.
 
 
-### 21. Sycophantic/Servile Tone
+### 21. Sycophantic/Servile Tone  [profile: both]
 
 **Problem:** Overly positive, people-pleasing language.
 
@@ -414,7 +463,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 
 ## FILLER AND HEDGING
 
-### 22. Filler Phrases
+### 22. Filler Phrases  [profile: both]
 
 **Before → After:**
 - "In order to achieve this goal" → "To achieve this"
@@ -424,8 +473,17 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 - "The system has the ability to process" → "The system can process"
 - "It is important to note that the data shows" → "The data shows"
 
+**Precision-word allow-list:** Do not strip or substitute these words when applying the filler-phrase rewrites above. They carry specification-grade precision that the rewrite would otherwise erase.
 
-### 23. Excessive Hedging
+- `unchanged`, `exactly`, `at least`, `at most`, `only`, `solely`
+- RFC 2119 keywords: `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY`, `REQUIRED`, `SHALL`, `SHALL NOT`, `RECOMMENDED`, `OPTIONAL` (and their lowercase forms when they appear in spec-adjacent prose)
+
+The allow-list applies under both `prose` and `skill-file` profiles — the precision claim a word carries does not depend on the audience. The canonical filler rewrites above (`"in order to"` → `"to"`, `"Due to the fact that"` → `"Because"`, etc.) remain in effect; the allow-list only blocks rewrites that would *delete or substitute a listed word*.
+
+Worked example: *"continues to work unchanged when the file is later assembled"* stays as written — the word `unchanged` is preserved. (Regression target: `quadralay/markdown-plus-plus` PR #107 commit `6fda523`, where a filler-phrase rewrite stripped `unchanged` and converted a normative claim into an ambiguous one.)
+
+
+### 23. Excessive Hedging  [profile: both]
 
 **Problem:** Over-qualifying statements.
 
@@ -436,7 +494,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The policy may affect outcomes.
 
 
-### 24. Generic Positive Conclusions
+### 24. Generic Positive Conclusions  [profile: both]
 
 **Problem:** Vague upbeat endings.
 
@@ -447,7 +505,7 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 > The company plans to open two more locations next year.
 
 
-### 25. Hyphenated Word Pair Overuse
+### 25. Hyphenated Word Pair Overuse  [profile: prose]
 
 **Words to watch:** third-party, cross-functional, client-facing, data-driven, decision-making, well-known, high-quality, real-time, long-term, end-to-end
 
@@ -486,6 +544,7 @@ Provide:
 3. Final rewrite
 4. A brief summary of changes made (optional, if helpful)
 5. Classification summary — the `Auto-detected audiences:` block (see "Classification summary format"). Always include when one or more file paths were processed; omit only when the invocation was raw text with no file paths.
+6. Applied-profile summary — the `Applied profiles:` block (see "Applied-profile summary format"). Always emit immediately after the `Auto-detected audiences:` block when one or more file paths were processed; omit only when the invocation was raw text with no file paths.
 
 
 ## Full Example
