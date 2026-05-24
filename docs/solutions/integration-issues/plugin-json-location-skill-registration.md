@@ -24,6 +24,8 @@ related_prs:
 
 # Claude Code Plugin Skills Not Registering
 
+> **Note (rename):** The plugin and repository were later renamed from `webworks-claude-skills` to `webworks-agent-skills`. Paths and PR URLs below reflect the original name at the time of the fix; the structural lesson (`.claude-plugin/plugin.json` is required) still holds verbatim under the new name.
+
 ## Problem
 
 Skills in the webworks-claude-skills plugin were not being registered with Claude Code's Skill tool. Attempting to invoke any skill resulted in:
