@@ -111,10 +111,10 @@ Pinned shape:
 ```
 Applied profiles:
   plugins/humanizer/skills/humanizer/SKILL.md  -> skill-file (18 rules applied, 7 skipped)
-  CHANGELOG.md                                 -> prose (25 rules applied, 0 skipped)
+  CHANGELOG.md  -> prose (25 rules applied, 0 skipped)
 ```
 
-Two-space indent. Two spaces around `->`. Resolved profile name. Space. Parenthesized count. No column alignment — paths vary too much, and alignment would require a second pass.
+Two-space indent. Separator: two spaces, the arrow `->`, one space, the resolved profile name. Parenthesized count. No column alignment — paths vary too much in length and alignment would require a second pass.
 
 **Count semantics.** `applied` = numbered rules whose tag matches the active profile or is `both`; `skipped` = numbered rules whose tag is the other-audience-only value. The `## PERSONALITY AND SOUL` section is a section, not a numbered rule, and is not included in either count. Example-region rule applications within a file are not separately counted (within-file behavior, not separate file).
 
@@ -162,6 +162,7 @@ When given text to humanize:
 6. **Add soul** - Don't just remove bad patterns; inject actual personality
 7. **Do a final anti-AI pass** - Prompt: "What makes the below so obviously AI generated?" Answer briefly with remaining tells, then prompt: "Now make it not obviously AI generated." and revise
 8. **Emit the classification summary** - Report each file's resolved label (see "Classification summary format" above) so the operator can verify auto-detection landed correctly.
+9. **Emit the applied-profile summary** - Immediately after the classification summary, emit the `Applied profiles:` block (see "Applied-profile summary format" above) so the operator can verify the profile gating fired as expected.
 
 
 ## PERSONALITY AND SOUL  [profile: prose]
