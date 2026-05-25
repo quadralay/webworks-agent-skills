@@ -27,7 +27,8 @@ All skills activate automatically based on your project context.
 | **epublisher** | ePublisher project knowledge, file resolver hierarchy, customization patterns |
 | **markdown-integration** | ePublisher integration patterns for Markdown++ sources (variable resolution, style mapping to Stationery, per-target conditions) |
 | **automap** | Automated publishing with AutoMap CLI |
-| **reverb** | Reverb 2.0 output testing, CSH analysis, SCSS theming |
+| **reverb2** | Reverb 2.0 output testing, CSH analysis, SCSS theming |
+| **claude-md-audit** | Audit and shrink `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` to behaviorally-focused entries the agent can't self-discover |
 | **humanizer** | Remove signs of AI-generated writing from text ([submodule](https://github.com/blader/humanizer)) |
 
 For Markdown++ **format syntax**, validation, and authoring best practices, install the companion plugin [`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus). The `markdown-integration` skill in this plugin defers to it for format-level concerns and focuses on the ePublisher integration layer.
@@ -59,6 +60,14 @@ You: "Change the primary color to #2563eb"
 Claude: Guides you through SCSS variable overrides with proper cascade mappings
 ```
 
+**Agent context file audit:**
+```
+You: "Audit our CLAUDE.md — it's gotten bloated"
+Claude: Backs up to CLAUDE.md.bak, then reduces to entries that prevent
+        real agent mistakes (removes discoverable architecture, tech lists,
+        directory layouts)
+```
+
 ## Requirements
 
 | Skill | Platform | Requirements |
@@ -66,7 +75,8 @@ Claude: Guides you through SCSS variable overrides with proper cascade mappings
 | epublisher | Windows | ePublisher 2024.1+ |
 | markdown-integration | Windows | ePublisher 2024.1+ (paired with `quadralay/markdown-plus-plus` for format syntax) |
 | automap | Windows | ePublisher + AutoMap |
-| reverb | Windows | ePublisher + browser |
+| reverb2 | Windows | ePublisher + browser |
+| claude-md-audit | Any | Claude Code |
 | humanizer | Any | Claude Code or Claude Desktop |
 
 ## Contributing
