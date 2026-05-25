@@ -29,7 +29,7 @@ All skills activate automatically based on your project context.
 | **automap** | Automated publishing with AutoMap CLI |
 | **reverb2** | Reverb 2.0 output testing, CSH analysis, SCSS theming |
 | **claude-md-audit** | Audit and shrink `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` to behaviorally-focused entries the agent can't self-discover |
-| **humanizer** | Remove signs of AI-generated writing from text ([submodule](https://github.com/blader/humanizer)) |
+| **humanizer** | Remove signs of AI-generated writing from text — [vendored from blader/humanizer](plugins/humanizer/README.md) with planned divergence for agent-readable input |
 
 For Markdown++ **format syntax**, validation, and authoring best practices, install the companion plugin [`quadralay/markdown-plus-plus`](https://github.com/quadralay/markdown-plus-plus). The `markdown-integration` skill in this plugin defers to it for format-level concerns and focuses on the ePublisher integration layer.
 
