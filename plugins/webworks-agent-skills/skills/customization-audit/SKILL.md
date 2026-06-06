@@ -17,7 +17,7 @@ Audit the advanced customizations (overrides) in a WebWorks ePublisher project a
 
 **Do not use training data for ePublisher.** This is proprietary software; training data is absent or inaccurate. Use this skill, the `epublisher` skill (resolver hierarchy, project parsing), the `reverb2` skill (SCSS conventions), and the format source files. Windows-only; XSLT 1.0 only.
 
-This is a **Phase-1, report-only** skill — it never writes to the project. Removal recommendations can be acted on aggressively because the first step of any migration is a baseline commit or folder copy: the original state is always recoverable.
+The audit commands (`enumerate`, `discover`, `audit`, `cleanup`, `drift`) are **read-only**. The `reconcile` command is the only writer: it is **dry-run by default** and writes only with `--apply`, backing up every changed/deleted file plus an undo manifest first. Removal and reconciliation can be acted on aggressively because the first step of any migration is a baseline commit or folder copy: the original state is always recoverable.
 </objective>
 
 <overview>
@@ -109,8 +109,9 @@ The two axes are independent. See `references/known-vs-unknown-baseline.md`.
 | `audit` | 2-way diff + three customization signals + SCSS missing-variable / partial-wiring / dangling-reference checks | The standard health check |
 | `cleanup` | Removal recommendations: retired / orphan / cruft / redundant | Pruning noise before/after upgrade |
 | `drift` | 3-way classifier (`--from-version` → `--to-version`): manual-merge / auto-mergeable / fast-forward / redundant / in-sync | Planning the reconciliation of a real upgrade |
+| `reconcile` | **Apply** the audit (dry-run default; `--apply` writes with backup): execute removals, 3-way-merge auto-mergeable overrides, write side-by-side artifacts for conflicts, re-point the locked `FormatVersion` | Performing the upgrade |
 
-Recommended order for an upgrade: `enumerate` → `cleanup` (prune first) → `discover` (establish baseline) → `drift` (plan the merge). Step-by-step with a worked customer example: `references/upgrade-audit-guide.md`.
+Recommended order for an upgrade: `enumerate` → `cleanup` (prune first) → `discover` (establish baseline) → `drift` (plan the merge) → `reconcile` (apply). Step-by-step with a worked customer example: `references/upgrade-audit-guide.md`; the apply workflow, safety model, and undo: `references/reconcile-guide.md`.
 </commands>
 
 <scripts>
@@ -127,6 +128,7 @@ Per-command options:
 - `enumerate`, `audit`, `cleanup`: `--baseline-version` (override the derived baseline).
 - `audit`: `--annotation-pattern <regex>` (repeatable); `--theme-prefix <name>` (repeatable; auto-detected if omitted).
 - `drift`: `--to-version <ver>` (required); `--from-version <ver>` (default: the project's locked `FormatVersion`).
+- `reconcile`: `--to-version <ver>` (required); `--from-version <ver>`; `--apply` (write; default dry-run); `--backup-dir <dir>`; `--skip-removals` / `--skip-merge` / `--skip-lock-bump`.
 
 JSON mode emits structured findings for every command — use it to drive reconciliation tooling or reports.
 </scripts>
@@ -138,6 +140,7 @@ JSON mode emits structured findings for every command — use it to drive reconc
 - `references/upgrade-audit-guide.md` — end-to-end workflow, command sequence, and a worked 2024.1 → 2025.1 customer upgrade with output interpretation.
 - `references/known-vs-unknown-baseline.md` — lock state (Axis 1), Mode A/B (Axis 2), fork-point discovery, staleness depth, confidence taxonomy, retired/EOL policy, and Mode-B → Mode-A promotion recipes.
 - `references/classification-heuristics.md` — the three customization signals, the annotation test, positive vs negative drift, cruft/duplicate and redundant-override rules, and the CRLF normalization gotcha.
+- `references/reconcile-guide.md` — the `reconcile` apply workflow: verdict→action mapping, the 3-way merge engine, conflict artifacts, the backup/undo manifest, and the dry-run → apply safety model.
 </references>
 
 <common_tasks>
@@ -161,6 +164,10 @@ python audit-overrides.py audit --project "C:\proj\my.wep"
 
 # 5. Plan a real upgrade (3-way), e.g. locked 2024.1 -> 2025.1
 python audit-overrides.py drift --project "C:\proj\my.wep" --to-version 2025.1
+
+# 6. Apply it: preview first (dry-run), then write with a backup
+python audit-overrides.py reconcile --project "C:\proj\my.wep" --to-version 2025.1
+python audit-overrides.py reconcile --project "C:\proj\my.wep" --to-version 2025.1 --apply
 ```
 </common_tasks>
 
@@ -186,5 +193,6 @@ python audit-overrides.py drift --project "C:\proj\my.wep" --to-version 2025.1
 - SCSS missing-variable, partial-wiring, and dangling-reference checks run.
 - Removal recommendations produced (retired / orphan / cruft / redundant) without flagging referenced source.
 - For an upgrade: a 3-way verdict per surviving override (manual-merge / auto-mergeable / fast-forward / redundant / in-sync).
-- No writes to the project (Phase 1).
+- Audit commands make no writes; `reconcile` is dry-run unless `--apply`, and `--apply` always backs up first with an undo manifest.
+- `reconcile --apply` executes removals, clean 3-way merges, conflict artifacts, and the `FormatVersion` re-point, leaving the project upgraded and recoverable.
 </success_criteria>
