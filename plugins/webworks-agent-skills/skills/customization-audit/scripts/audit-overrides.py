@@ -44,7 +44,10 @@ import argparse
 import difflib
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
@@ -1328,6 +1331,243 @@ def cmd_drift(args) -> int:
     return EXIT_SUCCESS
 
 
+# --------------------------------------------------------------------------- #
+# Phase 2: reconcile (apply the audit). Dry-run by default; --apply writes in
+# place after backing up every changed/deleted file + an undo manifest.
+# --------------------------------------------------------------------------- #
+def git_merge_file(mine: Path, base: Path, new: Path) -> tuple[str, int]:
+    """3-way merge via `git merge-file`. Returns (merged_text, conflict_count).
+    Inputs are normalized to LF first so a CRLF/LF mismatch does not turn every
+    line into a conflict."""
+    with tempfile.TemporaryDirectory() as td:
+        tdp = Path(td)
+        m, b, n = tdp / "mine", tdp / "base", tdp / "new"
+        m.write_bytes(("\n".join(read_lines(mine))).encode("utf-8"))
+        b.write_bytes(("\n".join(read_lines(base))).encode("utf-8"))
+        n.write_bytes(("\n".join(read_lines(new))).encode("utf-8"))
+        r = subprocess.run(["git", "merge-file", "-p", "--diff3", str(m), str(b), str(n)],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if r.returncode < 0 or r.returncode > 127:
+            raise RuntimeError(f"git merge-file failed ({r.returncode}): {r.stderr.strip()}")
+        return r.stdout, r.returncode
+
+
+def repoint_format_version(project_path: Path, to_ver: str) -> bool:
+    """Set the locked FormatVersion on the <Project> root, preserving file
+    bytes/EOL otherwise. Returns True if changed."""
+    data = project_path.read_bytes()
+    text = data.decode("utf-8")
+    new = re.sub(r'(<Project\b[^>]*?\bFormatVersion=")[^"]*(")',
+                 lambda mt: mt.group(1) + to_ver + mt.group(2), text, count=1)
+    if new == text:
+        return False
+    project_path.write_bytes(new.encode("utf-8"))
+    return True
+
+
+@dataclass
+class ReconcileAction:
+    op: str           # delete-file | delete-dir | merge | conflict | repoint-lock
+    target: str       # path relative to project dir (or project filename)
+    reason: str
+    abs_path: str = ""
+
+
+def _under_any(location: str, dirs: set[str]) -> bool:
+    return any(location == d or location.startswith(d + "/") for d in dirs)
+
+
+def plan_reconcile(project: ProjectInfo, overrides: list[Override], from_root: Path,
+                   to_root: Path, args) -> list[ReconcileAction]:
+    project_dir = project.path.parent
+    actions: list[ReconcileAction] = []
+    deleted_dirs: set[str] = set()
+    deleted_files: set[str] = set()
+
+    # 1) Removals (retired / orphan / cruft / redundant) from the cleanup engine.
+    if not args.skip_removals:
+        for f in detect_removals(overrides, project):
+            if f.kind == "scope":
+                actions.append(ReconcileAction("delete-dir", f.target, f.reason, str(project_dir / f.target)))
+                deleted_dirs.add(f.target)
+            else:
+                actions.append(ReconcileAction("delete-file", f.target, f.reason, str(project_dir / f.target)))
+                deleted_files.add(f.target)
+
+    # 2) Drift verdicts on surviving forked overrides.
+    for ov in overrides:
+        if not ov.is_text or ov.classification != "forked-copy" or is_retired_format(ov.format_name):
+            continue
+        location = f"{ov.level.capitalize()}s/{ov.scope_name}/{ov.rel_path}"
+        if location in deleted_files or _under_any(location, deleted_dirs):
+            continue
+        base_old = baseline_file_for(ov, from_root)
+        base_new = baseline_file_for(ov, to_root)
+        if not base_old or not base_old.is_file() or not base_new or not base_new.is_file():
+            continue
+        r = analyze_3way(location, ov.rel_path, ov.format_name,
+                         read_lines(base_old), read_lines(base_new), read_lines(ov.abs_path))
+        if r.verdict in ("redundant", "fast-forward"):
+            if r.verdict == "redundant" and args.skip_removals:
+                continue
+            why = ("identical to baseline -> drop" if r.verdict == "redundant"
+                   else "unmodified copy; baseline changed -> drop so it resolves to the new base")
+            actions.append(ReconcileAction("delete-file", location, why, str(ov.abs_path)))
+            deleted_files.add(location)
+        elif r.verdict == "auto-mergeable" and not args.skip_merge:
+            actions.append(ReconcileAction("merge", location, "3-way merge (disjoint regions)", str(ov.abs_path)))
+        elif r.verdict == "manual-merge" and not args.skip_merge:
+            actions.append(ReconcileAction("conflict", location, "customization overlaps upstream change -> side-by-side artifacts", str(ov.abs_path)))
+        # in-sync -> no action (carried forward)
+
+    # 3) Re-point the locked FormatVersion to the target.
+    if not args.skip_lock_bump and project.lock_state == "locked":
+        actions.append(ReconcileAction("repoint-lock", project.path.name,
+                                       f"bump locked FormatVersion -> {args.to_version}", str(project.path)))
+    return actions
+
+
+def _backup(abs_path: Path, project_dir: Path, backup_dir: Path) -> Optional[str]:
+    try:
+        rel = abs_path.relative_to(project_dir)
+    except ValueError:
+        rel = Path(abs_path.name)
+    dest = backup_dir / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if abs_path.is_dir():
+        shutil.copytree(abs_path, dest, dirs_exist_ok=True)
+    else:
+        shutil.copy2(abs_path, dest)
+    return str(dest)
+
+
+def execute_reconcile(actions: list[ReconcileAction], project: ProjectInfo,
+                      to_ver: str, backup_dir: Path) -> list[dict]:
+    project_dir = project.path.parent
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    manifest: list[dict] = []
+    for a in actions:
+        p = Path(a.abs_path)
+        entry = {"op": a.op, "target": a.target}
+        if a.op in ("delete-file", "delete-dir"):
+            if p.exists():
+                entry["backup"] = _backup(p, project_dir, backup_dir)
+                if p.is_dir():
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
+        elif a.op == "merge":
+            merged, conflicts = a_merge_payload[a.target]
+            entry["backup"] = _backup(p, project_dir, backup_dir)
+            if conflicts == 0:
+                p.write_bytes(merged.encode("utf-8"))
+                entry["result"] = "merged-clean"
+            else:
+                _write_conflict_artifacts(p, a.target, merged)
+                entry["result"] = f"unexpected-conflict({conflicts})->artifacts"
+        elif a.op == "conflict":
+            merged, _ = a_merge_payload[a.target]
+            _write_conflict_artifacts(p, a.target, merged)
+            entry["result"] = "artifacts-written"
+        elif a.op == "repoint-lock":
+            entry["backup"] = _backup(p, project_dir, backup_dir)
+            repoint_format_version(p, to_ver)
+            entry["result"] = f"FormatVersion={to_ver}"
+        manifest.append(entry)
+    (backup_dir / "reconcile-manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest
+
+
+def _write_conflict_artifacts(override: Path, location: str, merged_with_markers: str) -> None:
+    """Leave the override untouched; write .reconcile-{base,mine,new,merged}."""
+    payload = _conflict_sources[location]
+    override.with_name(override.name + ".reconcile-base").write_bytes(payload["base"].encode("utf-8"))
+    override.with_name(override.name + ".reconcile-mine").write_bytes(payload["mine"].encode("utf-8"))
+    override.with_name(override.name + ".reconcile-new").write_bytes(payload["new"].encode("utf-8"))
+    override.with_name(override.name + ".reconcile-merged").write_bytes(merged_with_markers.encode("utf-8"))
+
+
+# Populated by cmd_reconcile before execute (keeps merge content out of the
+# lightweight action records and avoids re-running git for dry-run).
+a_merge_payload: dict[str, tuple[str, int]] = {}
+_conflict_sources: dict[str, dict[str, str]] = {}
+
+
+def cmd_reconcile(args) -> int:
+    project = parse_project(Path(args.project))
+    install_root = Path(args.install_root)
+    from_ver = args.from_version or project.base_format_version
+    to_ver = args.to_version
+    from_root, to_root = install_root / from_ver, install_root / to_ver
+    if not from_root.is_dir():
+        print(f"[ERROR] from-version baseline not installed: {from_root} (try `discover`)", file=sys.stderr)
+        return EXIT_NOT_FOUND
+    if not to_root.is_dir():
+        print(f"[ERROR] to-version baseline not installed: {to_root}", file=sys.stderr)
+        return EXIT_NOT_FOUND
+
+    overrides = enumerate_overrides(project)
+    classify_overrides(overrides, from_root)
+    actions = plan_reconcile(project, overrides, from_root, to_root, args)
+
+    # Pre-compute merge content for merge/conflict actions (authoritative via git).
+    a_merge_payload.clear()
+    _conflict_sources.clear()
+    for a in actions:
+        if a.op not in ("merge", "conflict"):
+            continue
+        ov = next(o for o in overrides
+                  if f"{o.level.capitalize()}s/{o.scope_name}/{o.rel_path}" == a.target)
+        base_old, base_new = baseline_file_for(ov, from_root), baseline_file_for(ov, to_root)
+        merged, conflicts = git_merge_file(ov.abs_path, base_old, base_new)
+        a_merge_payload[a.target] = (merged, conflicts)
+        _conflict_sources[a.target] = {
+            "base": "\n".join(read_lines(base_old)),
+            "mine": "\n".join(read_lines(ov.abs_path)),
+            "new": "\n".join(read_lines(base_new)),
+        }
+        # Authoritative reclassification: an "auto-merge" that actually conflicts
+        # becomes a conflict (never silently overwrite a customization).
+        if a.op == "merge" and conflicts > 0:
+            a.op, a.reason = "conflict", f"git reports {conflicts} conflict(s) -> side-by-side artifacts"
+
+    counts: dict[str, int] = {}
+    for a in actions:
+        counts[a.op] = counts.get(a.op, 0) + 1
+
+    if args.format == "json":
+        emit_json({"project": project, "fromVersion": from_ver, "toVersion": to_ver,
+                   "apply": bool(args.apply), "counts": counts, "actions": actions})
+        if args.apply:
+            backup_dir = Path(args.backup_dir) if args.backup_dir else project.path.parent / f".reconcile-backup-{to_ver}"
+            execute_reconcile(actions, project, to_ver, backup_dir)
+        return EXIT_SUCCESS
+
+    mode = "APPLY" if args.apply else "DRY-RUN (no changes written)"
+    print(f"reconcile [{mode}]: {project.path.name}   {from_ver} -> {to_ver}")
+    print("  " + " | ".join(f"{op}: {n}" for op, n in sorted(counts.items())))
+    print()
+    labels = {"delete-dir": "DELETE DIR", "delete-file": "DELETE", "merge": "MERGE",
+              "conflict": "CONFLICT", "repoint-lock": "REPOINT"}
+    for a in sorted(actions, key=lambda x: x.op):
+        print(f"  {labels.get(a.op, a.op):<11} {a.target}")
+        print(f"        {a.reason}")
+    print()
+    if not args.apply:
+        print("  Dry-run only. Re-run with --apply to execute.")
+        print("  Safety: --apply backs up every changed/deleted file + an undo manifest first.")
+        return EXIT_SUCCESS
+
+    backup_dir = Path(args.backup_dir) if args.backup_dir else project.path.parent / f".reconcile-backup-{to_ver}"
+    manifest = execute_reconcile(actions, project, to_ver, backup_dir)
+    print(f"  Applied {len(manifest)} action(s).")
+    print(f"  Backup + undo manifest: {backup_dir}")
+    conflicts = [m for m in manifest if str(m.get('result', '')).startswith(('artifacts', 'unexpected'))]
+    if conflicts:
+        print(f"  {len(conflicts)} file(s) need manual resolution -> see .reconcile-merged artifacts.")
+    return EXIT_SUCCESS
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Audit ePublisher advanced customizations (overrides) for upstream drift.",
@@ -1360,6 +1600,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_drift.add_argument("--to-version", required=True, help="Upgrade-target format version (e.g. 2025.1).")
     p_drift.add_argument("--from-version", help="Fork-point/base version (default: project's locked FormatVersion).")
     p_drift.set_defaults(func=cmd_drift)
+
+    p_rec = sub.add_parser("reconcile", help="Phase 2: apply the audit (dry-run default; --apply writes).")
+    add_common(p_rec)
+    p_rec.add_argument("--to-version", required=True, help="Upgrade-target format version (e.g. 2025.1).")
+    p_rec.add_argument("--from-version", help="Fork-point/base version (default: project's locked FormatVersion).")
+    p_rec.add_argument("--apply", action="store_true", help="Write changes (default: dry-run). Backs up first.")
+    p_rec.add_argument("--backup-dir", help="Backup destination (default: <project>/.reconcile-backup-<to>).")
+    p_rec.add_argument("--skip-removals", action="store_true", help="Do not delete retired/orphan/cruft/redundant.")
+    p_rec.add_argument("--skip-merge", action="store_true", help="Do not 3-way merge or write conflict artifacts.")
+    p_rec.add_argument("--skip-lock-bump", action="store_true", help="Do not re-point the locked FormatVersion.")
+    p_rec.set_defaults(func=cmd_reconcile)
 
     p_aud = sub.add_parser("audit", help="Full audit pass (classification + drift summary).")
     add_common(p_aud)
