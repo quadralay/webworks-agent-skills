@@ -44,6 +44,8 @@ TARGET=""
 TARGET_MULTI=""
 ALL_TARGETS=false
 DEPLOY_FOLDER=""
+STAGING_DIR=""
+PASSTHROUGH_ARGS=()
 VERBOSE=false
 
 # Color codes for output
@@ -262,8 +264,14 @@ BUILD OPTIONS (safe defaults - opt out as needed):
 
 OTHER OPTIONS:
     -d, --deployfolder=PATH  Override deployment destination (implies --deploy)
+    -s, --stagingdir=DIR     Override staging directory for job-file (.waj) builds
+                             [default: AutoMap "Staging" preference folder].
+                             Output lands at DIR/<JobName>/Output/<target>/
     --verbose                Show all build output (default: minimal)
     --help                   Show this help message
+
+    Any other option is passed through to the AutoMap executable. A
+    pass-through option that takes a value must use the --flag=value form.
 
 ENVIRONMENT:
     AUTOMAP_EXE_PATH       Path to AutoMap executable (bypasses auto-detection)
@@ -401,6 +409,19 @@ build_automap_command() {
     # Add skip reports flag (2025.1+)
     if [ "$SKIP_REPORTS" = true ]; then
         cmd="$cmd --skip-reports"
+    fi
+
+    # Add staging directory if specified (job files stage under <dir>/<JobName>/)
+    if [ -n "$STAGING_DIR" ]; then
+        cmd="$cmd --stagingdir=\"$STAGING_DIR\""
+    fi
+
+    # Add any pass-through AutoMap options (forwarded verbatim)
+    if [ "${#PASSTHROUGH_ARGS[@]}" -gt 0 ]; then
+        local passthrough_arg
+        for passthrough_arg in "${PASSTHROUGH_ARGS[@]}"; do
+            cmd="$cmd \"$passthrough_arg\""
+        done
     fi
 
     # Add project file (always last)
@@ -604,6 +625,28 @@ while [[ $# -gt 0 ]]; do
             NO_DEPLOY=false  # Deployfolder implies deployment enabled
             shift
             ;;
+        -s)
+            if [ -z "${2:-}" ]; then
+                log_error "Missing DIR argument for -s"
+                usage
+                exit 2
+            fi
+            STAGING_DIR="$2"
+            shift 2
+            ;;
+        --stagingdir)
+            if [ -z "${2:-}" ]; then
+                log_error "Missing DIR argument for --stagingdir"
+                usage
+                exit 2
+            fi
+            STAGING_DIR="$2"
+            shift 2
+            ;;
+        --stagingdir=*)
+            STAGING_DIR="${1#--stagingdir=}"
+            shift
+            ;;
         --skip-reports)
             SKIP_REPORTS=true
             shift
@@ -633,9 +676,14 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         -*)
-            log_error "Unknown option: $1"
-            usage
-            exit 2
+            # Pass through any other AutoMap option. The wrapper only intercepts
+            # the flags it transforms or applies safe defaults to (clean, deploy,
+            # reports, target selection, staging); everything else is forwarded to
+            # the executable verbatim. A value-bearing option that the wrapper does
+            # not parse explicitly must use the --flag=value form, otherwise its
+            # value would be mistaken for the project file.
+            PASSTHROUGH_ARGS+=("$1")
+            shift
             ;;
         *)
             if [ -n "$PROJECT_FILE" ]; then

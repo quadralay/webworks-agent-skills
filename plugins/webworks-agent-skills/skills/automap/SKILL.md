@@ -261,7 +261,10 @@ These options apply primarily to project files (.wep, .wrp). When used with job 
 | Option | Description |
 |--------|-------------|
 | `--verbose` | Show all build output (default: minimal) |
-| `--deployfolder PATH` | Override deployment destination |
+| `-d, --deployfolder PATH` | Override deployment destination (implies `--deploy`) |
+| `-s, --stagingdir DIR` | Override staging directory for job-file (`.waj`) builds; output lands at `DIR/<JobName>/Output/<target>/` |
+
+Any other option is passed through to the AutoMap executable (value-bearing pass-through options must use the `--flag=value` form).
 
 **For complete CLI reference with examples, see:** references/cli-reference.md
 </cli_reference>
