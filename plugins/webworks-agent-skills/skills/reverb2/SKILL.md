@@ -2,8 +2,10 @@
 name: reverb2
 description: >
   AUTHORITATIVE REFERENCE for WebWorks Reverb 2.0 output. Use when testing
-  Reverb output in browser, analyzing CSH links, customizing SCSS themes,
-  inspecting url_maps.xml, or generating test reports.
+  Reverb output in browser, statically linting output for structural breakage
+  (self-closed elements, manifest/parcel GroupID consistency), analyzing CSH
+  links, customizing SCSS themes, inspecting url_maps.xml, or generating test
+  reports.
 ---
 
 <objective>
@@ -71,6 +73,7 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 3. Customize SCSS theme
 4. Generate test report
 5. Resolve a stable Reverb landmark URL (or hash) to a direct file path
+6. Lint output for structural breakage (static, no browser)
 
 **Wait for response before proceeding.**
 </intake>
@@ -86,6 +89,7 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 | 3, "scss", "theme", "colors" | workflows/scss-theming.md |
 | 4, "report" | workflows/generate-report.md |
 | 5, "resolve", "landmark", "hash" | workflows/landmark-resolution.md |
+| 6, "lint", "validate", "static", "pre-flight" | workflows/output-linting.md |
 </routing>
 
 <capabilities>
@@ -94,6 +98,7 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 
 | Feature | Script | Description |
 |---------|--------|-------------|
+| Output Linting | `lint-output.py` | Static pre-flight (no browser): self-closed non-void elements, manifest↔parcel GroupID consistency, parcel deploy-unit completeness, asset reference integrity. CI-friendly exit codes |
 | Browser Testing | `browser-test.js` | Load output in headless Chrome; pass/fail on the `preload` load signal (`--vanilla` for no-bypass file:// mode) |
 | CSH Analysis | `parse-url-maps.py` | Extract topic mappings from url_maps.xml |
 | SCSS Theming | `extract-scss-variables.py` | Read current theme values |
@@ -101,6 +106,57 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 | Report Generation | `generate-report.py` | Create formatted test reports |
 | Landmark Resolution | `resolve-landmarks.py` | Resolve Reverb stable URLs (#/<id>) to direct file paths using _lx.js chunks |
 </capabilities>
+
+<output_linting>
+
+## Output Linting (static pre-flight)
+
+`lint-output.py` statically scans a built or assembled Reverb 2.0 output
+directory for structural breakages that kill the runtime **silently** — the page
+hangs on the spinner with no console error — and that are detectable without a
+browser. Run it in CI or before a deploy.
+
+### Run
+
+```bash
+python scripts/lint-output.py <output-dir> [--json] [--strict] [--no-color]
+```
+
+`<output-dir>` is the folder containing `index.html` (e.g.
+`"Output/WebWorks Reverb 2.0"`).
+
+### Checks
+
+| Check | Severity | What it catches |
+|-------|----------|-----------------|
+| `self-closed-element` | error | A non-void element in XML self-closing form (`<script/>`, `<iframe/>`, `<div/>`, …). In `text/html` the `/` is ignored, so the element swallows the rest of the document — the first page never renders, with **zero** console errors. (Trac #2792.) Void elements (`<meta/>`, `<link/>`, …) and `<svg>`/`<math>` foreign content are exempt. |
+| `manifest-parcel-groupid` | error | The parcel's own GroupID disagrees with what the `#parcels` manifest binds. `connect.js` reads `id.split(':')[1]` from each anchor `<a id="<ctx>:<GID>" href="<Name>.html">` and looks up `toc:<GID>`/`data:<GID>`/`page:<GID>` inside the fetched parcel; a mismatch means every lookup returns null, the parcel never attaches, and the spinner hangs. Arises when output is assembled from multiple builds (the Reverb-on-S3 deploy-set model). Also flags a `<li id="group:<GID>">`-vs-anchor desync. |
+| `parcel-deploy-unit` | error | A manifest parcel `<Name>` is missing a deploy-unit member: `<Name>.html` and `<Name>/` (always), plus the runtime chunks `<Name>_ix.html`/`<Name>_lx.js`/`<Name>_sx.js`. The required chunk set is version/feature dependent (older builds omit `_lx.js`, search-off builds omit `_sx.js`), so it is read from the build's own `scripts/connect.js`. |
+| `reference-integrity` | warn | A local `scripts/`/`css/` asset referenced by `index.html` (`<script src>`, `<link href>`) is missing on disk. Remote (`http(s)://`, `//`) and `data:` refs are skipped. |
+
+The check set is extensible — add new known-breakage checks to `lint-output.py`
+as they are discovered.
+
+### Exit codes (CI-friendly)
+
+| Code | Meaning |
+|------|---------|
+| `0` | Clean — no errors (and no warnings under `--strict`). |
+| `1` | At least one error-severity finding (or any warning under `--strict`). |
+| `2` | The linter could not run — `<output-dir>` missing or not a directory. |
+
+Files scanned for self-closed elements: `index.html`, the root shell pages
+(`search.html`, `splash.html`, `not-found.html`), and each parcel's `<Name>.html`
+and `<Name>_ix.html`.
+
+### Relationship to browser testing
+
+The linter is the **static** pre-flight (cheap, no browser). `browser-test.js` is
+the **runtime** confirmation (the `preload` load signal; needs Chrome). A good
+flow runs the linter first to catch structural breakage, then the browser test to
+confirm the build actually loads. See `workflows/output-linting.md`.
+
+</output_linting>
 
 <browser_testing>
 
@@ -328,13 +384,16 @@ bash scripts/detect-chrome.sh
 # 1. Detect entry point
 PROJECT_INFO=$(bash scripts/detect-entry-point.sh project.wep)
 
-# 2. Run browser test
+# 2. Static pre-flight — fail fast on structural breakage before launching Chrome
+python scripts/lint-output.py "output/WebWorks Reverb 2.0" || exit 1
+
+# 3. Run browser test (runtime confirmation)
 TEST_RESULTS=$(node scripts/browser-test.js "$CHROME" "$ENTRY_URL")
 
-# 3. Parse CSH
+# 4. Parse CSH
 CSH_DATA=$(python scripts/parse-url-maps.py output/url_maps.xml)
 
-# 4. Generate report
+# 5. Generate report
 python scripts/generate-report.py project.wep "$PROJECT_INFO" "$CSH_DATA" "$TEST_RESULTS"
 ```
 

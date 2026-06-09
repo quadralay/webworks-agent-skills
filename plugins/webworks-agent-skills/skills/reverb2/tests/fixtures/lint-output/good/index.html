@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!--
+  Fixture: a STRUCTURALLY VALID minimal Reverb 2.0 shell. lint-output.py must
+  report it clean (exit 0). The verifier copies this tree to a tempdir and
+  mutates one file per scenario to exercise each check.
+
+  Models the real shell: the #parcels manifest carries one <li id="group:<GID>">
+  per parcel, each wrapping an <a id="<ctx>:<GID>" href="<Name>.html">. Void
+  elements are written self-closed (<meta/>, <link/>) exactly as Reverb emits
+  them — these must NOT be flagged.
+-->
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="css/base.css?v=abc123"/>
+<title>Reverb lint fixture</title>
+</head>
+<body id="connect_body" class="preload">
+  <div id="toolbar_div"></div>
+  <div id="page_div"><iframe id="page_iframe"></iframe></div>
+  <!-- Parcels -->
+  <div id="parcels"><ul role="tree">
+    <li id="group:gid-alpha" data-group-title="Alpha" role="treeitem" aria-expanded="false">
+      <div class="ww_skin_toc_entry ww_skin_toc_folder">
+        <a class="ww_skin_toc_entry_title" id="Alpha:gid-alpha" href="Alpha.html" target="_self" title="Alpha">Alpha</a>
+      </div>
+    </li>
+    <li id="group:gid-bravo" data-group-title="Bravo" role="treeitem" aria-expanded="false">
+      <div class="ww_skin_toc_entry ww_skin_toc_folder">
+        <a class="ww_skin_toc_entry_title" id="Bravo:gid-bravo" href="Bravo.html" target="_self" title="Bravo">Bravo</a>
+      </div>
+    </li>
+  </ul></div>
+  <!-- A remote asset reference must be skipped by reference-integrity. -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script type="text/javascript" src="scripts/common.js?v=abc123"></script>
+  <script type="text/javascript" src="scripts/connect.js?v=abc123"></script>
+</body>
+</html>
