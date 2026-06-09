@@ -94,7 +94,7 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 
 | Feature | Script | Description |
 |---------|--------|-------------|
-| Browser Testing | `browser-test.js` | Load output in headless Chrome, check for errors |
+| Browser Testing | `browser-test.js` | Load output in headless Chrome; pass/fail on the `preload` load signal (`--vanilla` for no-bypass file:// mode) |
 | CSH Analysis | `parse-url-maps.py` | Extract topic mappings from url_maps.xml |
 | SCSS Theming | `extract-scss-variables.py` | Read current theme values |
 | Entry Detection | `detect-entry-point.sh` | Find output location from project |
@@ -109,20 +109,34 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 ### Run Test
 
 ```bash
-node scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
+node scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json] [--vanilla]
 ```
+
+### Pass/Fail Signal (read this first)
+
+**Primary signal — the only reliable one:** a load succeeded when the **`preload` class is removed from `<body id="connect_body">`**. `connect.js` removes it only in its `page_load_complete` handler, which fires when the **first content page** actually renders inside `page_iframe`.
+
+- **Loaded OK** → `preloadCleared: true` (spinner cleared, first page rendered) → `success: true`, exit 0.
+- **Broken / stuck** → `preload` still present after the load settles → `preloadCleared: false` → `success: false`, exit 1.
+
+**Do not gate on `Parcels.loaded_all` or "no console errors."** `connect.js` catches exceptions internally, so a broken build can report `Parcels.loaded_all === true` (or fail silently) while the page is stuck on the spinner with no content. These are recorded only as **secondary diagnostics** (`parcelsLoadedAll`, `errors`, `warnings`, `components`).
+
+### Vanilla (no-bypass) mode
+
+By default `browser-test.js` launches Chrome with `--disable-web-security --allow-file-access-from-files`. Those flags let the parent read cross-origin iframe DOM that a real double-click cannot, so they **mask `file://`-only breakage** — the test can pass on output that is broken for users opening it from disk.
+
+Pass `--vanilla` (or set `VANILLA=1`) to launch **without** the bypass flags and reproduce exactly what a user gets double-clicking `index.html`. Use it to catch `file://`-only regressions. The preload signal works in both modes because it reads the top-level `body#connect_body`, which is always same-origin.
 
 ### What It Checks
 
-- Reverb runtime loads (`Parcels.loaded_all === true`)
-- Console errors and warnings
-- Component presence (toolbar, header, footer, TOC, content)
-- FormatSettings validation
+- **Primary:** `preload` removed from `body#connect_body` (`preloadCleared`)
+- Secondary diagnostics: `Parcels.loaded_all`, console errors/warnings, component presence (toolbar, header, footer, TOC, content), FormatSettings validation
 
 ### DOM Component IDs
 
 | Component | DOM ID | Presence Check |
 |-----------|--------|----------------|
+| **Load signal** | `body#connect_body` | **`preload` class absent** (primary pass/fail) |
 | Toolbar | `#toolbar_div` | `childNodes.length > 0` |
 | Header | `#header_div` | `childNodes.length > 0` |
 | Footer | `#footer_div` | `childNodes.length > 0` OR `#ww_skin_footer` exists |
@@ -134,8 +148,18 @@ node scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
 ```json
 {
   "success": true,
+  "preloadCleared": true,
   "reverbLoaded": true,
+  "vanillaMode": false,
   "loadTime": 1039,
+  "parcelsLoadedAll": true,
+  "diagnostics": {
+    "bodyId": "connect_body",
+    "hasPreloadClass": false,
+    "parcelsLoadedAll": true,
+    "firstPageLoaded": true,
+    "readyState": "complete"
+  },
   "errors": [],
   "warnings": [],
   "components": {
@@ -147,6 +171,8 @@ node scripts/browser-test.js <chrome-path> <entry-url> [format-settings-json]
   }
 }
 ```
+
+`success`, `preloadCleared`, and `reverbLoaded` all reflect the same primary signal. `parcelsLoadedAll` is the secondary, **unreliable** diagnostic — never treat it as the pass condition.
 </browser_testing>
 
 <csh_analysis>
@@ -350,15 +376,15 @@ python scripts/extract-scss-variables.py /path/to/project neo
 2. Set `CHROME_PATH` environment variable
 3. Edge Chromium can be used as fallback
 
-### "Timeout waiting for Reverb to load"
+### "Reverb never finished loading: 'preload' class still present"
 
-**Cause:** Reverb output failed to initialize within timeout.
+**Cause:** The `preload` class was never removed from `body#connect_body` within the timeout — the first content page never rendered, so the spinner is stuck. This is a genuine broken-load signal, **not** a flaky timeout. Note that `parcelsLoadedAll: true` and an empty `errors` array can both still appear here — that is exactly the false-"passed" case this signal exists to catch.
 
 **Solutions:**
-1. Increase timeout: `TIMEOUT=60000 node browser-test.js ...`
-2. Check for JavaScript errors in output
-3. Verify output was built successfully
-4. Try loading output manually in browser
+1. Inspect `diagnostics` (`firstPageLoaded`, `parcelsLoadedAll`, `readyState`) and the saved screenshot (`SCREENSHOT_PATH`) — a stuck spinner confirms the broken load.
+2. Re-run with `--vanilla` to check whether the breakage is `file://`-only (the default bypass flags can hide it).
+3. If the build is large/slow, increase the timeout: `TIMEOUT=60000 node browser-test.js ...` — but a truly stuck build will still fail at any timeout.
+4. Check the format source (`Pages/scripts/connect.js`, parcel manifest) and rebuild.
 
 ### "url_maps.xml not found"
 
@@ -385,8 +411,8 @@ python scripts/extract-scss-variables.py /path/to/project neo
 
 ## Success Criteria
 
-- Reverb output loads without JavaScript errors
-- All expected components present in DOM
+- Reverb output fully loads — `preload` removed from `body#connect_body` (`preloadCleared: true`)
+- All expected components present in DOM (secondary diagnostic)
 - CSH links validate against url_maps.xml
 - Theme changes compile without SCSS errors
 </success_criteria>

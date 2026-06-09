@@ -1,7 +1,17 @@
 {
   "success": true,
+  "preloadCleared": true,
   "reverbLoaded": true,
+  "vanillaMode": false,
   "loadTime": 0,
+  "parcelsLoadedAll": true,
+  "diagnostics": {
+    "bodyId": "connect_body",
+    "hasPreloadClass": false,
+    "parcelsLoadedAll": true,
+    "firstPageLoaded": true,
+    "readyState": "complete"
+  },
   "errors": [],
   "warnings": [],
   "components": {
