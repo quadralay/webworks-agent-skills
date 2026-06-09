@@ -7,8 +7,10 @@
 - [Stationery Inheritance](#stationery-inheritance)
 - [XML Structure](#xml-structure)
 - [Element Reference](#element-reference)
+- [Output Location (Staging Folder)](#output-location-staging-folder)
 - [Creating Job Files](#creating-job-files)
 - [Target Configuration](#target-configuration)
+- [Merge Settings (Multivolume / Merged TOC)](#merge-settings-multivolume--merged-toc)
 - [Common Patterns](#common-patterns)
 - [Troubleshooting](#troubleshooting)
 
@@ -252,6 +254,78 @@ Container for format setting overrides.
 | `name` | Setting name (must exist in Stationery) |
 | `value` | Setting value |
 
+### `<MergeSettings>` Element
+
+Optional child of `<Target>`. Defines a multivolume / merged TOC for Reverb-family formats. Maps to the project's `<FormatConfiguration><MergeSettings>`. See [Merge Settings (Multivolume / Merged TOC)](#merge-settings-multivolume--merged-toc).
+
+| Attribute | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| `title` | No | Title of the merged master TOC | `"MasterTOC"` |
+
+Contains `<TOC>` and/or `<Group>` child nodes, in document order, describing the TOC layout.
+
+### `<TOC>` Element (within `<MergeSettings>`)
+
+A custom container (a TOC folder) that groups parcels under a labeled node. Nestable.
+
+| Attribute | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| `name` | Yes | Container display name | `"Layer1"` |
+
+Contains nested `<TOC>` and/or `<Group>` nodes.
+
+### `<Group>` Element (within `<MergeSettings>`)
+
+Places a document group as a parcel (a volume) in the merged TOC. **Distinct from the `<Group>` under `<Files>`**: here it is a reference *by name* to a `<Files>` group, not a container of `<Document>` elements.
+
+| Attribute | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| `name` | Yes | Name of a **top-level** `<Files>` group to place | `"Group1"` |
+| `title` | No | Display-title override for this parcel | `"Group One"` |
+| `context` | No | Context (CSH) value for this parcel | `"admin"` |
+
+**Resolution**: Groups are referenced by name. AutoMap resolves each name to the staged project's GroupID — you never write GroupIDs by hand — so only top-level `<Files>` groups can be placed. This maps to the project's `<MergeGroup GroupID Title>`.
+
+---
+
+## Output Location (Staging Folder)
+
+When AutoMap builds a Stationery-based job file (`.waj`), it does **not** build in place next to the `.waj`. It stages a temporary Express project (`.wrp`) under the **Staging Folder** and builds there:
+
+```
+<stagingDir>/<JobName>/<JobName>.wrp        ← staged project
+<stagingDir>/<JobName>/Output/<TargetName>/ ← built output
+```
+
+`<JobName>` is the `name` attribute of the `<Job>` root element; `<TargetName>` is the target's `name`.
+
+**Default Staging Folder** (an AutoMap preference, set in the AutoMap Administrator):
+
+```
+%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging
+```
+
+**Override per run** with `-s` / `--stagingdir` (accepted by the AutoMap executable and exposed by the wrapper):
+
+| Option | Description |
+|--------|-------------|
+| `-s <dir>`, `--stagingdir <dir>` | Use `<dir>` as the staging directory for this build |
+
+```bash
+# Via the wrapper
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" --stagingdir "C:\automap\staging" merged-help.waj
+
+# Directly
+"path/to/WebWorks.Automap.exe" --stagingdir "C:\automap\staging" merged-help.waj
+
+# Output -> C:\automap\staging\merged-help\Output\WebWorks Reverb 2.0\
+```
+
+**Notes**:
+
+- The staged project (and its `Output/`) persists after the build by default (the AutoMap "Remove temporary files" preference is off), which is why output can be retrieved from the Staging Folder. Deployment (`-d`/`--deployfolder`, or a `deployTarget`) copies output elsewhere; without it, the Staging Folder is the only place output lands.
+- This staging behavior applies to Stationery-based jobs. A `.waj` that references a `.wep`/`.wrp` master project instead builds into that project's own `Output/` folder.
+
 ---
 
 ## Creating Job Files
@@ -361,6 +435,82 @@ Settings override format-level configuration from Stationery:
 ```bash
 python scripts/parse-stationery.py stationery.wxsp
 ```
+
+---
+
+## Merge Settings (Multivolume / Merged TOC)
+
+Reverb-family formats can combine several document groups into one output with a single, multivolume table of contents. Each top-level `<Files>` group becomes a **parcel** (a volume); `<MergeSettings>` defines how those parcels are titled and arranged in the master TOC.
+
+`<MergeSettings>` is an optional child of `<Target>`. The AutoMap Administrator's Merge Settings dialog generates it, and it can be authored by hand.
+
+### Structure
+
+- `<MergeSettings title="...">` — the merged master TOC (optional title).
+  - `<TOC name="...">` — a custom container (TOC folder); nestable.
+  - `<Group name="..." title="..." />` — places a `<Files>` group as a parcel, with an optional display-title override.
+
+Groups are referenced **by name** (matching a top-level `<Files>` group). AutoMap resolves each name to that group's GroupID in the staged project, so you never write GroupIDs by hand.
+
+### Worked Example
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Job name="merged-help" version="1.0">
+  <Project path="stationery\main.wxsp" />
+
+  <!-- Each top-level group is a parcel (a volume in the merged TOC) -->
+  <Files>
+    <Group name="Group1">
+      <Document path="Source\admin\admin-guide.md" />
+    </Group>
+    <Group name="Group2">
+      <Document path="Source\user\user-guide.md" />
+    </Group>
+  </Files>
+
+  <Targets>
+    <Target name="WebWorks Reverb 2.0"
+            format="WebWorks Reverb 2.0"
+            formatType="Application"
+            build="True"
+            deployTarget=""
+            cleanOutput="False">
+
+      <!-- Define the merged TOC: title, containers, and parcel placement -->
+      <MergeSettings title="MasterTOC">
+        <TOC name="Layer1">
+          <Group name="Group1" title="Group One" />
+        </TOC>
+        <Group name="Group2" title="Group Two" />
+      </MergeSettings>
+    </Target>
+  </Targets>
+</Job>
+```
+
+This yields a master TOC titled "MasterTOC" containing:
+
+- **Layer1** (container)
+  - **Group One** (parcel, from `Group1`)
+- **Group Two** (parcel, from `Group2`)
+
+### How It Maps to the Project
+
+The inline job `<MergeSettings>` is applied onto the staged project's `<FormatConfiguration>`:
+
+| Job file (`.waj`) | Project (`.wrp` / `.wep`) |
+|-------------------|---------------------------|
+| `<MergeSettings title="MasterTOC">` | `<MergeSettings Title="MasterTOC">` |
+| `<TOC name="Layer1">` | `<TOC Name="Layer1">` |
+| `<Group name="Group1" title="Group One" />` | `<MergeGroup GroupID="..." Title="Group One" />` |
+
+### Skeleton Master Pattern
+
+A **skeleton master** is a job whose groups carry only minimal stub content, built solely to produce the merged master TOC and the output shell (parcel containers + titles). The real content is built separately — one or more "satellite" parcel jobs — then joined to the master **by group name**. This supports updating individual parcels without rebuilding the whole merged output (the Reverb merge-settings / deploy-set workflow).
+
+- Give each group at least one stub document. An empty group fails group verification and produces no TOC entry; empty containers are pruned.
+- The master is authoritative for the TOC hierarchy and the title overrides — both live only in `<MergeSettings>`. A standalone parcel build cannot reproduce them.
 
 ---
 
@@ -487,6 +637,26 @@ fi
 1. Verify setting name exactly matches Stationery
 2. Check that setting is valid for this format
 3. List available settings: `python scripts/parse-stationery.py stationery.wxsp`
+
+### Can't Find Build Output
+
+**Issue**: Built a `.waj` but there's no `Output/` next to the job file.
+
+**Explanation**: Stationery-based job files build into the **Staging Folder**, not next to the `.waj`. Look in `<stagingDir>/<JobName>/Output/<TargetName>/` — by default `<My Documents>\WebWorks ePublisher AutoMap\Staging\<JobName>\Output\<TargetName>\`.
+
+**Solutions**:
+1. Check the Staging Folder (see [Output Location (Staging Folder)](#output-location-staging-folder))
+2. Set the staging location explicitly with `-s` / `--stagingdir`
+3. Deploy the output to a known location with `-d` / `--deployfolder`
+
+### Merge Settings Group Not Appearing
+
+**Issue**: A `<Group>` listed in `<MergeSettings>` doesn't show in the merged TOC.
+
+**Solutions**:
+1. The `name` must match a **top-level** group in `<Files>` (nested/child groups cannot be placed)
+2. The referenced group must contain at least one document (empty groups are dropped)
+3. Group names are matched exactly
 
 ---
 

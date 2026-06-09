@@ -100,7 +100,7 @@ bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
 **`-n, --nodeploy`**
 - **Purpose**: Do not copy output to deployment location
 - **Use When**: Testing builds or using custom deployment
-- **Impact**: Output remains in project's Output folder only
+- **Impact**: Output remains in the project's Output folder only. For a Stationery-based job file (`.waj`), that folder is inside the Staging Folder — `<stagingDir>/<JobName>/Output/<target>/`, **not** next to the `.waj`. See [Staging Folder (Job Files)](#staging-folder-job-files).
 - **Example**: `-c -n project.wep`
 
 **`-l, --cleandeploy`**
@@ -138,6 +138,30 @@ bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
 - **Impact**: Output copied to specified path instead of project default
 - **Example**: `--deployfolder "C:\Output" project.wep`
 - **Note**: Must have write permissions to deployment path
+
+### Staging Folder (Job Files)
+
+When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary Express project (`.wrp`) under the **Staging Folder** and builds there. The output lands at `<stagingDir>/<JobName>/Output/<target>/` — **not** next to the `.waj`. This is the most common reason "I can't find my output." (Project files — `.wep`/`.wrp` — build into their own Output folder.)
+
+- **Default Staging Folder**: `%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging` (an AutoMap preference).
+- **Job/target naming**: `<JobName>` is the `<Job name="...">` attribute; `<target>` is the target's `name`.
+
+**`-s <dir>`, `--stagingdir <dir>`**
+- **Purpose**: Override the staging directory for this build
+- **Use When**: Directing job-file output to a known location, or isolating builds
+- **Impact**: Staged project and output go under `<dir>/<JobName>/...`
+- **Forms**: `-s <dir>`, `--stagingdir <dir>`, or `--stagingdir=<dir>` (all equivalent)
+- **Examples**:
+  - Wrapper: `bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" --stagingdir "C:\automap\staging" merged-help.waj`
+  - Direct executable: `"path/to/WebWorks.Automap.exe" --stagingdir "C:\automap\staging" merged-help.waj`
+- **Note**: See the job file guide's [Output Location](./job-file-guide.md#output-location-staging-folder).
+
+### Pass-Through Options
+
+The wrapper intercepts only the options it transforms or applies safe defaults to (clean, deploy, reports, target selection, staging). **Any other option is forwarded to the AutoMap executable verbatim** — so native AutoMap flags work without the wrapper needing to know each one (for example `--nonotify` / `-f`, which suppresses the job-result notification).
+
+- A pass-through option that takes a value must use the `--flag=value` form. The space-separated form (`--flag value`) would let the wrapper mistake the value for the project file, since it cannot know an unrecognized flag's arity.
+- Genuinely unknown flags reach AutoMap, which reports its own "unknown option" error.
 
 ### Performance Options
 
@@ -505,5 +529,5 @@ When adding a new AutoMap CLI option to this skill, update these locations:
 ---
 
 **Version**: 2.5.0
-**Last Updated**: 2026-03-19
+**Last Updated**: 2026-06-08
 **Target**: ePublisher 2024.1+ AutoMap CLI (--skip-reports requires 2025.1+, --version requires 2025.1 build 4652+)
