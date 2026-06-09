@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!--
+  Fixture: a HEALTHY Reverb load.
+
+  Models the real connect.js mechanism: the shell starts with the `preload`
+  class on body#connect_body, and the page_load_complete handler removes it once
+  the first content page renders. Here a timer simulates that render: it removes
+  `preload` AND sets the secondary signals. browser-test.js must report
+  success === true / preloadCleared === true (exit 0).
+-->
+<html>
+<head><meta charset="utf-8"><title>Reverb good fixture</title></head>
+<body id="connect_body" class="preload">
+  <div id="toolbar_div"><div class="ww_skin_search_form"></div></div>
+  <div id="toc"><div class="ww_skin_toc_entry"></div></div>
+  <div id="page_div"><iframe id="page_iframe"></iframe></div>
+
+  <script>
+    // Stand-ins for the runtime globals browser-test.js reads as diagnostics.
+    var Parcels = { loaded_all: false };
+    var Connect = { first_page_loaded: false };
+
+    // Simulate page_load_complete firing after the first content page renders.
+    setTimeout(function () {
+      Parcels.loaded_all = true;
+      Connect.first_page_loaded = true;
+      document.body.classList.remove('preload'); // <-- the real "fully loaded" signal
+    }, 300);
+  </script>
+</body>
+</html>

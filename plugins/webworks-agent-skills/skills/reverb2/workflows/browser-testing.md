@@ -45,51 +45,57 @@ If no project file provided, ask user for the path to the Reverb output's `index
 Execute the headless browser test:
 
 ```bash
-node scripts/browser-test.js "<chrome-path>" "<entry-url>" [format-settings-json]
+node scripts/browser-test.js "<chrome-path>" "<entry-url>" [format-settings-json] [--vanilla]
 ```
 
 Arguments:
 - `chrome-path` - From detect-chrome.sh output
 - `entry-url` - From detect-entry-point.sh or user-provided
 - `format-settings-json` - Optional, for validating feature toggles
+- `--vanilla` - Optional **no-bypass mode** (or `VANILLA=1`). The default launch uses `--disable-web-security --allow-file-access-from-files`, which can **mask `file://`-only breakage**. Run once in default mode and, when validating a build users open from disk, again with `--vanilla` to reproduce a real double-click. A pass in default mode but a fail in `--vanilla` means the output is broken on bare `file://`.
 
 ## Step 4: Analyze Results
 
-Parse the JSON output and check:
+The **pass/fail decision is the `preload` signal** — `success` is true only when `preload` was removed from `body#connect_body` (the first content page rendered). Everything else is a secondary diagnostic.
 
-| Check | Pass Condition |
-|-------|---------------|
-| Reverb Loaded | `reverbLoaded === true` |
-| No Errors | `errors.length === 0` |
-| Toolbar | `components.toolbar.present === true` |
-| TOC | `components.toc.present === true` |
-| Content | `components.content.present === true` |
+| Check | Pass Condition | Role |
+|-------|---------------|------|
+| **Reverb fully loaded** | **`preloadCleared === true`** (== `success`, == `reverbLoaded`) | **Primary** |
+| Parcels accounting | `parcelsLoadedAll === true` | Diagnostic only — **unreliable**, can be true on a stuck build |
+| No console errors | `errors.length === 0` | Diagnostic only — `connect.js` catches exceptions |
+| Toolbar | `components.toolbar.present === true` | Diagnostic |
+| TOC | `components.toc.present === true` | Diagnostic |
+| Content | `components.content.present === true` | Diagnostic |
+
+> **Do not report a pass on `parcelsLoadedAll` or "no errors" alone.** A broken build can show `parcelsLoadedAll: true` with an empty `errors` array while stuck on the spinner. Only `preloadCleared: true` confirms a real load.
 
 ## Step 5: Report Findings
 
 Present results to user:
 
-**If all checks pass:**
+**If `preloadCleared` is true:**
 ```
-Reverb output loaded successfully.
+Reverb output fully loaded (preload cleared on body#connect_body).
+- Mode: {vanillaMode ? "vanilla (no-bypass file://)" : "default (bypass)"}
 - Load time: {loadTime}ms
 - TOC items: {toc.itemCount}
 - All components present
 ```
 
-**If any checks fail:**
+**If `preloadCleared` is false:**
 ```
-Issues found in Reverb output:
-- {list specific failures}
-- {include any console errors}
+Reverb output did NOT fully load — preload still present on body#connect_body (stuck spinner).
+- Diagnostics: parcelsLoadedAll={parcelsLoadedAll}, firstPageLoaded={diagnostics.firstPageLoaded}
+- {include any console errors as supporting detail}
 - {suggest remediation}
 ```
 
 Common issues and remediation:
-- `reverbLoaded: false` - JavaScript error preventing initialization
+- `preloadCleared: false` with `parcelsLoadedAll: true` - runtime reports complete but the first page never rendered; inspect `connect.js`, the parcel manifest, and the screenshot
+- Passes in default mode, fails with `--vanilla` - `file://`-only breakage (cross-origin iframe access); the build needs a web server or a fix
+- `bodyId` warning - entry URL is not the Reverb shell `index.html`
 - Missing toolbar - Check FormatSettings.xml toolbar options
 - Missing TOC - Build may have failed or no topics published
-- Console errors - Check for missing resources or script errors
 </process>
 
 <success_criteria>
@@ -99,7 +105,7 @@ This workflow is complete when:
 - [ ] Entry point located
 - [ ] Browser test executed
 - [ ] Results analyzed and reported to user
-- [ ] Reverb runtime confirmed loaded (`Parcels.loaded_all === true`)
-- [ ] No console errors present (or errors reported)
-- [ ] All expected components present in DOM (or issues reported)
+- [ ] Reverb load confirmed via the **primary** signal: `preloadCleared === true` (`preload` removed from `body#connect_body`)
+- [ ] Secondary diagnostics noted (`parcelsLoadedAll`, console errors, component presence) — not used as the pass condition
+- [ ] If validating a `file://`/disk build, `--vanilla` run performed to rule out no-bypass breakage
 </success_criteria>

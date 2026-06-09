@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!--
+  Fixture: a BROKEN Reverb load that fools the old heuristics.
+
+  The first content page never renders, so connect.js never removes `preload`
+  from body#connect_body — the spinner is stuck forever. But this fixture STILL
+  sets Parcels.loaded_all = true (and the document reaches readyState
+  'complete' with no console errors), which is exactly the false-"passed" trap
+  from issue #109. The old wait (Parcels.loaded_all === true || readyState
+  complete) reports success here; the preload signal correctly reports FAILURE.
+
+  browser-test.js must report success === false / preloadCleared === false
+  (exit 1), with parcelsLoadedAll === true recorded only as a diagnostic.
+-->
+<html>
+<head><meta charset="utf-8"><title>Reverb stuck fixture</title></head>
+<body id="connect_body" class="preload">
+  <div id="toolbar_div"><div class="ww_skin_search_form"></div></div>
+  <div id="toc"><div class="ww_skin_toc_entry"></div></div>
+  <div id="page_div"><iframe id="page_iframe"></iframe></div>
+
+  <script>
+    var Parcels = { loaded_all: false };
+    var Connect = { first_page_loaded: false };
+
+    // The runtime "completes" by its own internal accounting...
+    setTimeout(function () {
+      Parcels.loaded_all = true;
+      // ...but the first page never renders, so `preload` is NEVER removed.
+      // (Connect.first_page_loaded stays false; spinner hangs.)
+    }, 300);
+  </script>
+</body>
+</html>

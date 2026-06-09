@@ -69,18 +69,33 @@ def print_browser_test_results(test_results: dict) -> None:
     print(f"{BOLD}{'═' * 75}{NC}")
     print()
 
-    reverb_loaded = safe_get(test_results, 'reverbLoaded', default=False)
+    # Primary signal: preload removed from body#connect_body. Fall back to the
+    # legacy reverbLoaded key for older result payloads.
+    preload_cleared = safe_get(test_results, 'preloadCleared',
+                               default=safe_get(test_results, 'reverbLoaded', default=False))
+    parcels_loaded_all = safe_get(test_results, 'parcelsLoadedAll', default=None)
+    vanilla_mode = safe_get(test_results, 'vanillaMode', default=False)
     load_time = safe_get(test_results, 'loadTime', default=0)
     error_count = safe_get(test_results, 'errorCount', default=0)
     warning_count = safe_get(test_results, 'warningCount', default=0)
 
-    if reverb_loaded:
-        print(f"{GREEN}\u2705 Reverb Runtime{NC}")
-        print(f"   \u2022 Loaded successfully")
+    mode_label = 'vanilla (no-bypass file://)' if vanilla_mode else 'default (bypass)'
+
+    if preload_cleared:
+        print(f"{GREEN}\u2705 Reverb Runtime{NC} (primary signal: preload cleared on body#connect_body)")
+        print(f"   \u2022 Fully loaded \u2014 first content page rendered")
+        print(f"   \u2022 Launch mode: {mode_label}")
         print(f"   \u2022 Load time: {load_time}ms")
     else:
-        print(f"{RED}\u274c Reverb Runtime{NC}")
-        print(f"   \u2022 Failed to load")
+        print(f"{RED}\u274c Reverb Runtime{NC} (primary signal: preload NOT cleared on body#connect_body)")
+        print(f"   \u2022 Stuck on spinner \u2014 first content page never rendered")
+        print(f"   \u2022 Launch mode: {mode_label}")
+
+    # Secondary diagnostic \u2014 explicitly flagged as unreliable so it is never
+    # mistaken for the pass condition.
+    if parcels_loaded_all is not None:
+        parcels_label = 'true' if parcels_loaded_all else 'false'
+        print(f"   \u2022 Parcels.loaded_all: {parcels_label} (secondary diagnostic \u2014 unreliable)")
 
     print()
 
@@ -234,13 +249,24 @@ def print_summary(test_results: dict) -> None:
     error_count = safe_get(test_results, 'errorCount', default=0)
     warning_count = safe_get(test_results, 'warningCount', default=0)
 
-    if error_count == 0:
-        print(f"{GREEN}\u2705 Status: PASS{NC}")
-    else:
-        print(f"{RED}\u274c Status: FAIL{NC}")
+    # PASS/FAIL follows the primary preload signal, not the console-error count
+    # (connect.js catches exceptions, so errors are an unreliable gate). Prefer
+    # `success`, fall back to preloadCleared/reverbLoaded, then to the old rule.
+    status_pass = safe_get(
+        test_results, 'success',
+        default=safe_get(
+            test_results, 'preloadCleared',
+            default=safe_get(test_results, 'reverbLoaded', default=(error_count == 0)),
+        ),
+    )
 
-    print(f"   \u2022 Errors: {error_count}")
-    print(f"   \u2022 Warnings: {warning_count}")
+    if status_pass:
+        print(f"{GREEN}\u2705 Status: PASS{NC} (preload cleared)")
+    else:
+        print(f"{RED}\u274c Status: FAIL{NC} (preload not cleared)")
+
+    print(f"   \u2022 Errors: {error_count} (secondary)")
+    print(f"   \u2022 Warnings: {warning_count} (secondary)")
 
     # Count active components
     components = safe_get(test_results, 'components', default={})
