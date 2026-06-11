@@ -52,6 +52,15 @@ the _lx.js data. URL-fragment IDs are urllib.parse.unquote'd before lookup, so
 percent-encoded Unicode IDs (e.g., %E6%A6%82%E8%A6%81 -> 概要) round-trip the
 same way the browser runtime resolves them.
 
+Remote chunk discovery (first non-empty source wins):
+    1. The landing page's `#parcels` manifest — multi-parcel / merge-settings
+       (multivolume) mirrors reference their per-parcel chunks only through
+       this runtime-parsed tree. Each parcel anchor href "<Name>.html" maps
+       to a sibling chunk "<Name>_lx.js", exactly as the runtime derives it.
+    2. An `_lx-manifest.json` probe at the base URL.
+    3. `<script src="..._lx.js">` tags scraped from the landing page
+       (single-build / flat mirrors).
+
 Manifest file shape (forward-compatible; Reverb does not currently emit one):
     {"chunks": ["Foo_lx.js", "Bar_lx.js"]}
 The names resolve relative to the remote base URL.
@@ -108,6 +117,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -707,6 +717,88 @@ def extract_chunk_srcs_from_html(html: str, base_url: str) -> list[str]:
     return result
 
 
+class _ParcelAnchorExtractor(HTMLParser):
+    """Collect parcel-anchor href values inside `<div id="parcels">`.
+
+    Mirrors the runtime's parcel filter in connect.js (Parcels.PrepareForLoad):
+    an anchor counts as a parcel anchor when its id has the form
+    "<context>:<id>" with a non-empty context. Entry/exit of the `#parcels`
+    subtree is tracked by counting nested <div> tags (same approach as
+    lint-output.py's ManifestParser) — the generated markup nests divs inside
+    each parcel <li>, but never an unbalanced one.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.hrefs: list[str] = []
+        self._in_parcels = False
+        self._div_depth = 0
+        self._done = False
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        attr = dict(attrs)
+        if tag == 'div':
+            if not self._in_parcels:
+                if not self._done and attr.get('id') == 'parcels':
+                    self._in_parcels = True
+                    self._div_depth = 0
+                return
+            self._div_depth += 1
+            return
+        if not self._in_parcels or tag != 'a':
+            return
+        anchor_id = attr.get('id') or ''
+        href = attr.get('href') or ''
+        if href and ':' in anchor_id and anchor_id.split(':', 1)[0]:
+            self.hrefs.append(href)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != 'div' or not self._in_parcels:
+            return
+        if self._div_depth == 0:
+            # This </div> closes #parcels itself. Like getElementById, only
+            # the first #parcels container counts.
+            self._in_parcels = False
+            self._done = True
+        else:
+            self._div_depth -= 1
+
+
+def extract_parcel_chunk_urls(html: str, base_url: str) -> list[str]:
+    """
+    Derive absolute `_lx.js` chunk URLs from the landing page's `#parcels`
+    manifest, in document order with duplicates removed.
+
+    Multi-parcel (merge-settings / multivolume) mirrors reference their
+    per-parcel landmark chunks only through this runtime-parsed tree — there
+    are no static `<script src="..._lx.js">` tags. The derivation mirrors
+    Parcels.Add in the runtime's connect.js: resolve each parcel anchor's
+    href against the base URL, strip the extension when the last '.' follows
+    the last '/', and append '_lx.js'. Hrefs stay URL-encoded — the chunk is
+    fetched at the encoded URL, exactly as the browser does.
+
+    Returns [] when the page has no usable `#parcels` tree, so discovery
+    falls back to the `_lx-manifest.json` probe and the `<script src>` scrape.
+    """
+    extractor = _ParcelAnchorExtractor()
+    extractor.feed(html)
+    extractor.close()
+
+    base = _ensure_slash(base_url)
+    seen: set[str] = set()
+    result: list[str] = []
+    for href in extractor.hrefs:
+        absolute = urllib.parse.urljoin(base, href)
+        last_dot = absolute.rfind('.')
+        last_slash = absolute.rfind('/')
+        prefix = absolute[:last_dot] if last_dot > last_slash else absolute
+        chunk_url = prefix + '_lx.js'
+        if chunk_url not in seen:
+            seen.add(chunk_url)
+            result.append(chunk_url)
+    return result
+
+
 def extract_generation_hash(html: str) -> Optional[str]:
     """
     Return the `GLOBAL_GENERATION_HASH` constant emitted into the landing page,
@@ -775,8 +867,9 @@ def remote_chunk_texts(
     Return a list of (chunk_url, chunk_bytes) ready for build_index_from_texts.
 
     Pure orchestrator: composes cache_decision, the landing-page fetch, the
-    manifest probe, the HTML scrape, and the cache write. Network access is
-    confined to the `fetcher` callable so tests can stub it end-to-end.
+    `#parcels` manifest parse, the manifest probe, the HTML scrape, and the
+    cache write. Network access is confined to the `fetcher` callable so
+    tests can stub it end-to-end.
     """
     base_url = _ensure_slash(base_url)
     timestamp = _now() if now is None else now
@@ -818,8 +911,11 @@ def remote_chunk_texts(
             "falling back to TTL-only caching."
         )
 
-    discovered: Optional[list[str]] = probe_manifest(base_url, fetcher, timeout)
-    discovery_method = 'manifest'
+    discovered: Optional[list[str]] = extract_parcel_chunk_urls(landing_html, base_url)
+    discovery_method = 'parcels'
+    if not discovered:
+        discovered = probe_manifest(base_url, fetcher, timeout)
+        discovery_method = 'manifest'
     if discovered is None or not discovered:
         discovered = extract_chunk_srcs_from_html(landing_html, base_url)
         discovery_method = 'html-scrape'
@@ -827,8 +923,9 @@ def remote_chunk_texts(
     if not discovered:
         raise RemoteFetchError(
             base_url,
-            "no _lx.js chunks discovered (tried _lx-manifest.json probe and "
-            "<script src=…_lx.js> scrape of the landing page)",
+            "no _lx.js chunks discovered (tried the #parcels manifest parse "
+            "of the landing page, the _lx-manifest.json probe, and the "
+            "<script src=…_lx.js> scrape)",
         )
 
     debug_log(f"remote_chunk_texts: discovered {len(discovered)} chunk(s) via {discovery_method}")
@@ -966,15 +1063,20 @@ def _format_remote_rewrite_url(base_url: str, resolved_path: str) -> str:
     Compose `<base_url><quoted-path>[#anchor]` for remote rewrite output.
 
     Splits `resolved_path` on the first `#` (anchor boundary). The path portion
-    is percent-quoted via urllib.parse.quote(safe='/') so spaces become %20 but
-    path separators stay as `/`. The anchor portion is appended verbatim — the
-    runtime's GetPathById emits anchors that are already URL-safe.
+    is percent-quoted via urllib.parse.quote(safe='/%') so spaces become %20,
+    path separators stay as `/`, and existing %xx escapes survive unchanged —
+    multi-parcel (merge-settings) mirrors emit pre-encoded `f` arrays, and
+    re-quoting them would double-encode `%20` into a 404ing `%2520`. Keeping
+    `%` safe matches the browser runtime, which never re-encodes the escape
+    character when it resolves these paths. The anchor portion is appended
+    verbatim — the runtime's GetPathById emits anchors that are already
+    URL-safe.
     """
     base = _ensure_slash(base_url)
     if '#' in resolved_path:
         path_part, anchor = resolved_path.split('#', 1)
-        return base + urllib.parse.quote(path_part, safe='/') + '#' + anchor
-    return base + urllib.parse.quote(resolved_path, safe='/')
+        return base + urllib.parse.quote(path_part, safe='/%') + '#' + anchor
+    return base + urllib.parse.quote(resolved_path, safe='/%')
 
 
 # ---------------------------------------------------------------------------

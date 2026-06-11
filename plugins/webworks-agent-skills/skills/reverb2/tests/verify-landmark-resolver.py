@@ -35,6 +35,7 @@ MULTI_DIR = FIXTURE_DIR  # contains every *_lx.js fixture
 UNICODE_CHUNK = FIXTURE_DIR / 'unicode-ids_lx.js'
 LANDING_WITH_HASH = FIXTURE_DIR / 'landing-with-hash.html'
 LANDING_NO_HASH = FIXTURE_DIR / 'landing-no-hash.html'
+LANDING_MULTI_PARCEL = FIXTURE_DIR / 'landing-multi-parcel.html'
 LX_MANIFEST = FIXTURE_DIR / 'lx-manifest.json'
 
 
@@ -709,6 +710,54 @@ def test_extract_generation_hash() -> None:
     )
 
 
+def test_extract_parcel_chunk_urls_basic() -> None:
+    html = LANDING_MULTI_PARCEL.read_text(encoding='utf-8')
+    urls = resolver.extract_parcel_chunk_urls(html, 'https://x.example/help/')
+    expected = [
+        'https://x.example/help/Getting%20Started_lx.js',
+        'https://x.example/help/Volume%20A_lx.js',
+        'https://x.example/help/Reference_lx.js',
+    ]
+    check(
+        "extract_parcel_chunk_urls: encoded chunk URLs in order, dedupes, skips non-parcel anchors",
+        urls == expected,
+        f"got {urls}",
+    )
+
+
+def test_extract_parcel_chunk_urls_absent() -> None:
+    html = LANDING_WITH_HASH.read_text(encoding='utf-8')
+    check(
+        "extract_parcel_chunk_urls: returns [] when the page has no #parcels tree",
+        resolver.extract_parcel_chunk_urls(html, 'https://x.example/help/') == [],
+    )
+    check(
+        "extract_parcel_chunk_urls: returns [] for an empty #parcels div",
+        resolver.extract_parcel_chunk_urls(
+            '<div id="parcels"><ul role="tree"></ul></div>',
+            'https://x.example/help/',
+        ) == [],
+    )
+
+
+def test_extract_parcel_chunk_urls_extension_rule() -> None:
+    html = (
+        '<div id="parcels"><ul>'
+        '<li><a id="group:g1" href="sub.dir/Nested%20Volume.html">n</a></li>'
+        '<li><a id="group:g2" href="NoExtension">x</a></li>'
+        '</ul></div>'
+    )
+    urls = resolver.extract_parcel_chunk_urls(html, 'https://x.example/help/')
+    check(
+        "extract_parcel_chunk_urls: strips extension only after the last '/' (mirrors Parcels.Add)",
+        urls == [
+            'https://x.example/help/sub.dir/Nested%20Volume_lx.js',
+            'https://x.example/help/NoExtension_lx.js',
+        ],
+        f"got {urls}",
+    )
+
+
 def _make_remote_chunks_responses(landing_html: str, manifest_status: int = 404) -> dict:
     """Build a stub-fetcher response map for a base URL exposing the unicode fixture chunks."""
     chunk_bytes = SINGLE_CHUNK.read_bytes()
@@ -903,7 +952,8 @@ def test_remote_chunk_texts_empty_discovery_raises(tmp_path: Path) -> None:
     except resolver.RemoteFetchError as e:
         check(
             "remote_chunk_texts: empty discovery raises RemoteFetchError naming base URL and methods",
-            base in str(e) and 'manifest' in str(e).lower() and 'scrape' in str(e).lower(),
+            base in str(e) and 'parcels' in str(e).lower()
+            and 'manifest' in str(e).lower() and 'scrape' in str(e).lower(),
             f"error={e}",
         )
 
@@ -931,6 +981,127 @@ def test_remote_chunk_texts_manifest_preferred(tmp_path: Path) -> None:
         chunk_bytes == [b"chunk A from manifest", b"chunk B from manifest"]
         and (base + 'C_lx.js') not in fetched_urls,
         f"chunk_bytes={chunk_bytes}, fetched={fetched_urls}",
+    )
+
+
+def test_format_remote_rewrite_url_preencoded() -> None:
+    """Multi-parcel mirrors emit pre-encoded `f` arrays; re-quoting them would
+    double-encode %20 into a 404ing %2520. '%' stays in the safe set, matching
+    the browser runtime, which never re-encodes the escape character."""
+    pre = resolver._format_remote_rewrite_url(
+        'https://x.example/help/',
+        'Advanced%20Customizations/_xslt-extensions.04.1.html#wwp100003',
+    )
+    check(
+        "_format_remote_rewrite_url: pre-encoded paths are not double-encoded",
+        pre == 'https://x.example/help/Advanced%20Customizations/_xslt-extensions.04.1.html#wwp100003',
+        f"got {pre}",
+    )
+    raw = resolver._format_remote_rewrite_url(
+        'https://x.example/help/',
+        'Advanced Customizations/page.html',
+    )
+    check(
+        "_format_remote_rewrite_url: raw spaces are still percent-quoted",
+        raw == 'https://x.example/help/Advanced%20Customizations/page.html',
+        f"got {raw}",
+    )
+
+
+def test_remote_chunk_texts_parcels_discovery(tmp_path: Path) -> None:
+    """Issue #111: multi-parcel (merge-settings) mirror — chunks reachable only
+    through the #parcels manifest, no _lx-manifest.json, no <script src> tags,
+    no GLOBAL_GENERATION_HASH literal."""
+    base = 'https://mv.example/help/'
+    chunk_bytes = SINGLE_CHUNK.read_bytes()
+    responses = {
+        base: (200, LANDING_MULTI_PARCEL.read_bytes()),
+        base + 'Getting%20Started_lx.js': (200, chunk_bytes),
+        base + 'Volume%20A_lx.js': (200, chunk_bytes),
+        base + 'Reference_lx.js': (200, chunk_bytes),
+    }
+    fetcher = StubFetcher(responses)
+    cache_dir = tmp_path / 'cache'
+
+    with _StderrCapture() as cap:
+        chunks = resolver.remote_chunk_texts(
+            base_url=base, cache_dir=cache_dir, ttl=3600.0, no_cache=False,
+            fetcher=fetcher, now=1000.0,
+        )
+    chunk_urls = [u for u, _ in chunks]
+    probe_calls = [c for c in fetcher.calls if c[0].endswith('_lx-manifest.json')]
+    check(
+        "remote_chunk_texts: multi-parcel mirror discovers chunks via #parcels (no manifest probe)",
+        chunk_urls == [
+            base + 'Getting%20Started_lx.js',
+            base + 'Volume%20A_lx.js',
+            base + 'Reference_lx.js',
+        ] and not probe_calls,
+        f"chunk_urls={chunk_urls}, probe_calls={probe_calls}",
+    )
+
+    cached_names = set(p.name for p in cache_dir.iterdir())
+    check(
+        "remote_chunk_texts: multi-parcel chunks cached under their encoded names",
+        cached_names == {
+            'Getting%20Started_lx.js', 'Volume%20A_lx.js', 'Reference_lx.js',
+            '_manifest.json',
+        },
+        f"cached={cached_names}",
+    )
+
+    check(
+        "remote_chunk_texts: multi-parcel mirror still warns about the missing generation hash",
+        'GLOBAL_GENERATION_HASH' in cap.read(),
+        f"stderr={cap.read()[:200]!r}",
+    )
+
+
+def test_remote_chunk_texts_parcels_preferred(tmp_path: Path) -> None:
+    """When a landing page has a #parcels tree AND script tags AND a manifest,
+    the #parcels parse wins and nothing else is probed or fetched."""
+    base = 'https://both.example/help/'
+    chunk_bytes = SINGLE_CHUNK.read_bytes()
+    landing_html = (
+        '<html><head>'
+        '<script src="Flat_lx.js"></script>'
+        '<script>var GLOBAL_GENERATION_HASH = "hash42";</script>'
+        '</head><body>'
+        '<div id="parcels"><ul>'
+        '<li><a id="group:g1" href="Parcel%20One.html">Parcel One</a></li>'
+        '</ul></div>'
+        '</body></html>'
+    )
+    responses = {
+        base: (200, landing_html.encode('utf-8')),
+        base + '_lx-manifest.json': (200, LX_MANIFEST.read_bytes()),
+        base + 'Parcel%20One_lx.js': (200, chunk_bytes),
+        base + 'Flat_lx.js': (200, chunk_bytes),
+        base + 'A_lx.js': (200, chunk_bytes),
+        base + 'B_lx.js': (200, chunk_bytes),
+    }
+    fetcher = StubFetcher(responses)
+    cache_dir = tmp_path / 'cache'
+
+    chunks = resolver.remote_chunk_texts(
+        base_url=base, cache_dir=cache_dir, ttl=3600.0, no_cache=False,
+        fetcher=fetcher, now=1000.0,
+    )
+    chunk_urls = [u for u, _ in chunks]
+    fetched = [c[0] for c in fetcher.calls]
+    check(
+        "remote_chunk_texts: #parcels wins over the manifest probe and the script scrape",
+        chunk_urls == [base + 'Parcel%20One_lx.js']
+        and (base + '_lx-manifest.json') not in fetched
+        and (base + 'Flat_lx.js') not in fetched,
+        f"chunk_urls={chunk_urls}, fetched={fetched}",
+    )
+
+    manifest = resolver.read_cache_manifest(cache_dir)
+    check(
+        "remote_chunk_texts: generation hash still recorded with #parcels discovery",
+        manifest is not None and manifest.get('generation_hash') == 'hash42',
+        f"manifest={manifest}",
     )
 
 
@@ -1292,6 +1463,65 @@ resolver.default_fetcher = stub
 
 sys.exit(resolver.main())
 '''
+
+
+def _make_multi_parcel_wrapper_script(base: str, landing_html: bytes, chunk_payload: bytes) -> str:
+    """Wrapper that stubs default_fetcher with multi-parcel mirror responses."""
+    return f'''
+import importlib.util
+import sys
+
+SCRIPT_PATH = {str(SCRIPT_PATH)!r}
+spec = importlib.util.spec_from_file_location("resolve_landmarks", SCRIPT_PATH)
+resolver = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(resolver)
+
+BASE = {base!r}
+LANDING_HTML = {landing_html!r}
+CHUNK_PAYLOAD = {chunk_payload!r}
+
+responses = {{
+    BASE: (200, LANDING_HTML),
+    BASE + 'Getting%20Started_lx.js': (200, CHUNK_PAYLOAD),
+    BASE + 'Volume%20A_lx.js': (200, CHUNK_PAYLOAD),
+    BASE + 'Reference_lx.js': (200, CHUNK_PAYLOAD),
+}}
+
+def stub(url, *, method='GET', timeout=10.0):
+    if url not in responses:
+        raise resolver.RemoteFetchError(url, "stub: no response")
+    return responses[url]
+
+resolver.default_fetcher = stub
+sys.exit(resolver.main())
+'''
+
+
+def test_cli_rewrite_multi_parcel_mirror(tmp_path: Path) -> None:
+    """Issue #111 repro: rewrite a stable URL against a multi-parcel mirror
+    whose chunks are reachable only through the #parcels manifest. Before the
+    fix this exited 2 with 'no _lx.js chunks discovered'."""
+    base = 'https://mv-cli.example/help/'
+    wrapper = tmp_path / 'wrapper.py'
+    wrapper.write_text(_make_multi_parcel_wrapper_script(
+        base=base,
+        landing_html=LANDING_MULTI_PARCEL.read_bytes(),
+        chunk_payload=SINGLE_CHUNK.read_bytes(),
+    ), encoding='utf-8')
+    proc = subprocess.run(
+        [sys.executable, str(wrapper),
+         'rewrite', base + '#/abc1234567890def',
+         '--cache-dir', str(tmp_path / 'cache'),
+         '--cache-ttl', '3600'],
+        capture_output=True, text=True,
+        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+    )
+    expected = base + 'Group/page.html#wwp100'
+    check(
+        "CLI rewrite (remote, multi-parcel): resolves via #parcels discovery (issue #111)",
+        proc.returncode == 0 and proc.stdout.strip() == expected,
+        f"rc={proc.returncode}, stdout={proc.stdout!r}, stderr={proc.stderr!r}",
+    )
 
 
 def test_cli_dump_remote_mode(tmp_path: Path) -> None:
@@ -2120,6 +2350,10 @@ def main() -> int:
     test_extract_chunk_srcs_basic()
     test_extract_chunk_srcs_quote_variants()
     test_extract_generation_hash()
+    test_extract_parcel_chunk_urls_basic()
+    test_extract_parcel_chunk_urls_absent()
+    test_extract_parcel_chunk_urls_extension_rule()
+    test_format_remote_rewrite_url_preencoded()
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         test_remote_chunk_texts_first_call_writes_cache(tmp_path)
@@ -2145,6 +2379,12 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         test_remote_chunk_texts_manifest_preferred(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_parcels_discovery(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_remote_chunk_texts_parcels_preferred(tmp_path)
 
     # CLI: resolve, dump, rewrite (local mode)
     test_cli_resolve_happy_single()
@@ -2173,6 +2413,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         test_cli_resolve_remote_mode_via_proxy_script(tmp_path)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_cli_rewrite_multi_parcel_mirror(tmp_path)
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         test_cli_dump_remote_mode(tmp_path)

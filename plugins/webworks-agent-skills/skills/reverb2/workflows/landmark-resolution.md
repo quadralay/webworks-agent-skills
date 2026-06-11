@@ -55,6 +55,14 @@ python scripts/resolve-landmarks.py rewrite \
     "https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4"
 ```
 
+**Chunk discovery.** Remote mode discovers `_lx.js` chunks from the landing page in precedence order — the first non-empty source wins:
+
+1. **`#parcels` manifest parse** — multi-parcel / merge-settings (multivolume) mirrors reference their per-parcel chunks only through the runtime-parsed `#parcels` tree; each parcel anchor `href="<Name>.html"` maps to a sibling chunk `<Name>_lx.js` (names stay URL-encoded), exactly as `connect.js` derives them at load time.
+2. **`_lx-manifest.json` probe** — a forward-compatible manifest file at the base URL (Reverb does not currently emit one).
+3. **`<script src="..._lx.js">` scrape** — single-build / flat mirrors that load chunks via static script tags.
+
+If all three find nothing, the resolver exits `2` with an error naming every discovery path it tried.
+
 ### Step 1c: Lookup table (pre-built artifact)
 
 Point `--lookup-table` at a JSON file produced by `dump`:
@@ -114,7 +122,7 @@ The resolver returns paths exactly as the Reverb runtime's `GetPathById()` does:
 - **Empty anchor** → bare file path (e.g., `Group/page.html`)
 - **Non-empty anchor** → `file#anchor` (e.g., `Group/page.html#wwp100`)
 
-In remote mode, `rewrite` percent-quotes the path portion of the output URL so it is paste-ready for HTTP fetch tools. Spaces become `%20`; path separators (`/`) stay as `/`. The fragment portion (`#anchor`) is left as-is — runtime anchors are already URL-safe.
+In remote mode, `rewrite` percent-quotes the path portion of the output URL so it is paste-ready for HTTP fetch tools. Spaces become `%20`; path separators (`/`) stay as `/`; existing `%xx` escapes survive unchanged (multi-parcel mirrors emit pre-encoded paths in their chunks — re-quoting would double-encode them). The fragment portion (`#anchor`) is left as-is — runtime anchors are already URL-safe.
 
 If an ID appears multiple times in the chunks (typical: one page-level row at anchor index 0, one paragraph-level row at a specific anchor), the resolver applies **last-write-wins** — which usually returns the paragraph-level `file#anchor` form. This matches the runtime contract.
 
@@ -132,7 +140,7 @@ Within that root, each base URL gets its own directory keyed by `<host>/<percent
 
 **Invalidation:** Reverb 2.0 emits a `GLOBAL_GENERATION_HASH` constant into each build's landing page. The resolver caches that hash alongside the chunks; when the mirror rebuilds, the next remote invocation after `--cache-ttl` seconds sees a new hash and re-fetches every chunk atomically. Within the TTL window, the resolver uses cached chunks without any network access.
 
-If a mirror ships without `GLOBAL_GENERATION_HASH`, the resolver falls back to TTL-only invalidation and prints a one-line warning to stderr.
+If a mirror ships without `GLOBAL_GENERATION_HASH`, the resolver falls back to TTL-only invalidation and prints a one-line warning to stderr. Multi-parcel (merge-settings) mirrors never carry the literal in their landing page — it lives only in `?v=` query strings and inside `connect.js` — so the warning is expected there and resolution still succeeds.
 
 **Force a refresh:** pass `--no-cache` to skip every cache check for that invocation.
 
@@ -302,16 +310,17 @@ python scripts/resolve-landmarks.py \
     rewrite "https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4"
 ```
 
-Expected output:
+Expected output (the published help is a multi-parcel mirror; the exact path tracks its current build):
 
 ```
-https://static.webworks.com/docs/epublisher/latest/help/Advanced%20Customizations/_xslt-extensions.04.1.html
+https://static.webworks.com/docs/epublisher/latest/help/Advanced%20Customizations_%20Overrides_%20and%20Extensions/_xslt-extensions.04.1.html#wwp100003
 ```
 
 Notes:
-- First invocation fetches the landing page, reads `GLOBAL_GENERATION_HASH`, fetches every discovered `_lx.js` chunk, and caches them under `%LOCALAPPDATA%\webworks\reverb-landmarks\static.webworks.com\docs%2Fepublisher%2Flatest%2Fhelp%2F\` (Windows) or the equivalent macOS/Linux path.
+- First invocation fetches the landing page, discovers the per-parcel `_lx.js` chunks from its `#parcels` manifest, fetches them, and caches them under `%LOCALAPPDATA%\webworks\reverb-landmarks\static.webworks.com\docs%2Fepublisher%2Flatest%2Fhelp%2F\` (Windows) or the equivalent macOS/Linux path.
+- This mirror carries no `GLOBAL_GENERATION_HASH` literal in its landing page, so the resolver prints a one-line TTL-only-caching warning to stderr — expected, not a failure.
 - Subsequent invocations within 24 hours use the cache directly — no network access.
-- Spaces in the resolved path are percent-quoted in the output URL (`Advanced Customizations` → `Advanced%20Customizations`) so the URL is paste-ready for `curl`, `wget`, or any HTTP fetch tool.
+- The resolved path is percent-quoted in the output URL so it is paste-ready for `curl`, `wget`, or any HTTP fetch tool. Paths that arrive pre-encoded from the chunks (multi-parcel mirrors) are left as-is — never double-encoded.
 
 ## Worked Example: Local Mirror
 
