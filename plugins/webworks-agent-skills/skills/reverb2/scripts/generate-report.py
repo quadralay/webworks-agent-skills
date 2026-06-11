@@ -292,7 +292,7 @@ def parse_json_arg(arg: str) -> Any:
     # Try to read as file
     if Path(arg).exists():
         try:
-            with open(arg) as f:
+            with open(arg, encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, IOError) as e:
             print(f"{RED}[ERROR]{NC} Failed to read JSON file: {e}", file=sys.stderr)
@@ -303,7 +303,24 @@ def parse_json_arg(arg: str) -> Any:
     return None
 
 
+def ensure_utf8() -> None:
+    """Make this tool Unicode-safe regardless of the caller's environment.
+
+    UTF-8 mode is read at interpreter startup, so the setdefault only
+    affects Python children spawned later; the reconfigure handles this
+    process's own stdio on locale-codepage consoles (Windows cp1252).
+    See CONTRIBUTING.md "New Python Tools".
+    """
+    os.environ.setdefault('PYTHONUTF8', '1')
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8')
+        except (AttributeError, ValueError):
+            pass
+
+
 def main() -> int:
+    ensure_utf8()
     parser = argparse.ArgumentParser(
         description='Generate human-readable report from Reverb analysis results.',
         formatter_class=argparse.RawDescriptionHelpFormatter,

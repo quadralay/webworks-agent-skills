@@ -56,6 +56,10 @@ The script updates both `plugin.json` and `marketplace.json` to keep versions sy
 3. Include the version bump in your PR
 4. Merge PR - version is already updated
 
+## New Python Tools
+
+Create new skill Python tools by copying `templates/skill-python-tool.py` — it bakes in the UTF-8 conventions (stdio reconfigure, `PYTHONUTF8` for children, explicit encodings on file and subprocess I/O) that Windows locale codepages otherwise break. Rules in CONTRIBUTING.md "New Python Tools".
+
 ## Documented Solutions
 
 `docs/solutions/` — documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`). Relevant when implementing or debugging in documented areas.

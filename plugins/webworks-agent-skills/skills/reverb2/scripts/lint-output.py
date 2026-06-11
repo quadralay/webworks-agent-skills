@@ -789,7 +789,24 @@ def render_json(output_dir: Path, findings: list[Finding], success: bool) -> str
 # ---------------------------------------------------------------------------
 
 
+def ensure_utf8() -> None:
+    """Make this tool Unicode-safe regardless of the caller's environment.
+
+    UTF-8 mode is read at interpreter startup, so the setdefault only
+    affects Python children spawned later; the reconfigure handles this
+    process's own stdio on locale-codepage consoles (Windows cp1252).
+    See CONTRIBUTING.md "New Python Tools".
+    """
+    os.environ.setdefault('PYTHONUTF8', '1')
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8')
+        except (AttributeError, ValueError):
+            pass
+
+
 def main() -> int:
+    ensure_utf8()
     parser = argparse.ArgumentParser(
         description='Static linter for WebWorks Reverb 2.0 output directories.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -812,14 +829,6 @@ Examples:
     )
     parser.add_argument('--no-color', action='store_true', help='Disable ANSI color in text output')
     args = parser.parse_args()
-
-    # Findings may contain non-ASCII GroupIDs, paths, or snippets; keep stdout
-    # from choking on a non-UTF-8 console (common on Windows).
-    for stream in (sys.stdout, sys.stderr):
-        try:
-            stream.reconfigure(encoding='utf-8')
-        except (AttributeError, ValueError):
-            pass
 
     output_dir = Path(args.output_dir)
     if not output_dir.is_dir():

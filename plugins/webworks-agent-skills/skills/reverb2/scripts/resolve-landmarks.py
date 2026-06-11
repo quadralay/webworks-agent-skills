@@ -172,6 +172,22 @@ def _now_iso_utc() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 
+def ensure_utf8() -> None:
+    """Make this tool Unicode-safe regardless of the caller's environment.
+
+    UTF-8 mode is read at interpreter startup, so the setdefault only
+    affects Python children spawned later; the reconfigure handles this
+    process's own stdio on locale-codepage consoles (Windows cp1252).
+    See CONTRIBUTING.md "New Python Tools".
+    """
+    os.environ.setdefault('PYTHONUTF8', '1')
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8')
+        except (AttributeError, ValueError):
+            pass
+
+
 def debug_log(message: str) -> None:
     """Print debug message to stderr."""
     if DEBUG:
@@ -1386,6 +1402,8 @@ def _add_source_flags(subparser: argparse.ArgumentParser, required: bool) -> Non
 
 
 def main() -> int:
+    ensure_utf8()
+
     parser = argparse.ArgumentParser(
         description='Resolve Reverb 2.0 stable landmark URLs to direct file paths.',
         formatter_class=argparse.RawDescriptionHelpFormatter,

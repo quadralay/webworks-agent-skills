@@ -46,6 +46,7 @@ import json
 import re
 import shutil
 import subprocess
+import os
 import sys
 import tempfile
 from dataclasses import dataclass, field, asdict
@@ -1627,7 +1628,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def ensure_utf8() -> None:
+    """Make this tool Unicode-safe regardless of the caller's environment.
+
+    UTF-8 mode is read at interpreter startup, so the setdefault only
+    affects Python children spawned later; the reconfigure handles this
+    process's own stdio on locale-codepage consoles (Windows cp1252).
+    See CONTRIBUTING.md "New Python Tools".
+    """
+    os.environ.setdefault('PYTHONUTF8', '1')
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8')
+        except (AttributeError, ValueError):
+            pass
+
+
 def main() -> int:
+    ensure_utf8()
     args = build_parser().parse_args()
     try:
         return args.func(args)

@@ -57,6 +57,24 @@ See [docs/solutions/bash-syntax-errors-in-skill-tables.md](docs/solutions/bash-s
 - **Documentation:** Clear language with examples
 - **Testing:** Validate with real ePublisher projects
 
+### New Python Tools
+
+Start new Python tools from [`templates/skill-python-tool.py`](templates/skill-python-tool.py). ePublisher content is Unicode-first (Japanese outputs, CJK landmark IDs, non-ASCII group names), and Python on Windows defaults console I/O, subprocess pipes, and text-mode file I/O to the locale codepage (cp1252/cp932) — so a tool written without explicit encodings breaks on real projects the first time it meets non-ASCII content (#118). The template bakes in the three rules:
+
+1. Call `ensure_utf8()` first thing in `main()` — Python children spawned later start in full UTF-8 mode, and the tool's own stdout/stderr print Unicode safely on any console.
+2. Always pass `encoding='utf-8'` to text-mode `open()` / `read_text()` / `write_text()`.
+3. Never use bare `text=True` with `subprocess.run` — use the template's `run_utf8()` or pass `encoding='utf-8'` explicitly (pipe decoding ignores `PYTHONIOENCODING`).
+
+Rules 2 and 3 are per-call-site because UTF-8 mode cannot be enabled retroactively for a running interpreter — `ensure_utf8()` covers children and stdio only.
+
+Verify before submitting a PR:
+
+```bash
+python scripts/check-python-utf8.py
+```
+
+The checker statically enforces all three rules (plus the entry-point preamble) across `plugins/`, `templates/`, and `scripts/`, and exits 1 with `file:line` findings on any violation.
+
 ## Versioning
 
 Bump the plugin version **before creating a PR** using the bump script:
