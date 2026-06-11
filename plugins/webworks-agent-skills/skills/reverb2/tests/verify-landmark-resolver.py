@@ -59,6 +59,22 @@ NC = resolver.NC
 _results: list[tuple[str, bool, str]] = []
 
 
+def ensure_utf8() -> None:
+    """Make this harness Unicode-safe regardless of the caller's environment.
+
+    UTF-8 mode is read at interpreter startup, so the setdefault only
+    affects Python children spawned later (every run_cli/wrapper subprocess);
+    the reconfigure handles this process's own stdio on locale-codepage
+    consoles (Windows cp1252). See CONTRIBUTING.md "New Python Tools".
+    """
+    os.environ.setdefault('PYTHONUTF8', '1')
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8')
+        except (AttributeError, ValueError):
+            pass
+
+
 def check(name: str, condition: bool, detail: str = '') -> None:
     _results.append((name, condition, detail))
     if condition:
@@ -74,7 +90,8 @@ def run_cli(*cli_args: str, env: Optional[dict] = None) -> subprocess.CompletedP
     return subprocess.run(
         [sys.executable, str(SCRIPT_PATH), *cli_args],
         capture_output=True,
-        text=True,
+        encoding='utf-8',
+        errors='replace',
         env=proc_env,
     )
 
@@ -1380,7 +1397,7 @@ def test_cli_resolve_remote_mode_via_proxy_script(tmp_path: Path) -> None:
          '--cache-dir', str(cache_dir),
          '--cache-ttl', '3600',
          '--http-timeout', '5'],
-        capture_output=True, text=True, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+        capture_output=True, encoding='utf-8', errors='replace',
     )
     expected = 'https://stub.example/help/Advanced%20Customizations/_xslt-extensions.04.1.html#wwp_overview'
     check(
@@ -1405,7 +1422,7 @@ def test_cli_resolve_remote_mode_via_proxy_script(tmp_path: Path) -> None:
          '--cache-dir', str(second_cache),
          '--cache-ttl', '3600',
          '--http-timeout', '5'],
-        capture_output=True, text=True, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+        capture_output=True, encoding='utf-8', errors='replace',
     )
     # Reuse the same cache: second invocation should skip every fetch.
     proc3 = subprocess.run(
@@ -1416,7 +1433,7 @@ def test_cli_resolve_remote_mode_via_proxy_script(tmp_path: Path) -> None:
          '--cache-ttl', '3600',
          '--http-timeout', '5',
          '--block-fetcher'],
-        capture_output=True, text=True, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+        capture_output=True, encoding='utf-8', errors='replace',
     )
     check(
         "CLI resolve (remote): second call against same cache requires no network",
@@ -1513,8 +1530,7 @@ def test_cli_rewrite_multi_parcel_mirror(tmp_path: Path) -> None:
          'rewrite', base + '#/abc1234567890def',
          '--cache-dir', str(tmp_path / 'cache'),
          '--cache-ttl', '3600'],
-        capture_output=True, text=True,
-        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+        capture_output=True, encoding='utf-8', errors='replace',
     )
     expected = base + 'Group/page.html#wwp100'
     check(
@@ -1541,8 +1557,7 @@ def test_cli_dump_remote_mode(tmp_path: Path) -> None:
          'dump', '--remote-base-url', base,
          '--cache-dir', str(cache_dir),
          '--cache-ttl', '3600'],
-        capture_output=True, text=True,
-        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+        capture_output=True, encoding='utf-8', errors='replace',
     )
     try:
         artifact = json.loads(proc.stdout)
@@ -1586,8 +1601,7 @@ sys.exit(resolver.main())
          '--remote-base-url', base,
          '--cache-dir', str(cache_dir),
          '--cache-ttl', '3600'],
-        capture_output=True, text=True,
-        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+        capture_output=True, encoding='utf-8', errors='replace',
     )
     check(
         "CLI remote: 404 on landing page exits 2 and names the URL",
@@ -1914,8 +1928,7 @@ def test_cli_dump_remote_source_block(tmp_path: Path) -> None:
          '--cache-dir', str(cache_dir),
          '--cache-ttl', '3600',
          '--out', str(out)],
-        capture_output=True, text=True,
-        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+        capture_output=True, encoding='utf-8', errors='replace',
     )
     if proc.returncode != 0:
         check("remote-mode dump source block", False,
@@ -2296,6 +2309,8 @@ class _StderrCapture:
 
 
 def main() -> int:
+    ensure_utf8()
+
     if not SCRIPT_PATH.exists():
         print(f"{RED}FAIL:{NC} resolver script not found at {SCRIPT_PATH}", file=sys.stderr)
         return 2

@@ -67,6 +67,14 @@ Start new Python tools from [`templates/skill-python-tool.py`](templates/skill-p
 
 Rules 2 and 3 are per-call-site because UTF-8 mode cannot be enabled retroactively for a running interpreter — `ensure_utf8()` covers children and stdio only.
 
+Verify before submitting a PR:
+
+```bash
+python scripts/check-python-utf8.py
+```
+
+The checker statically enforces all three rules (plus the entry-point preamble) across `plugins/`, `templates/`, and `scripts/`, and exits 1 with `file:line` findings on any violation.
+
 ## Versioning
 
 Bump the plugin version **before creating a PR** using the bump script:
