@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Reverb 2.0 — Multi-parcel (merge-settings) landing fixture</title>
+    <!-- No GLOBAL_GENERATION_HASH literal and no <script src="..._lx.js"> tags:
+         multivolume mirrors carry the hash only in ?v= query strings and
+         reference per-parcel chunks only through the #parcels tree below. -->
+    <script src="connect.js?v=feedc0de1234"></script>
+    <link rel="stylesheet" href="skin.css?v=feedc0de1234">
+</head>
+<body>
+    <div id="page_div"></div>
+    <div id="parcels" style="display: none;">
+        <ul role="tree">
+            <li id="group:4f2f7c29-1111-2222-3333-444455556666" data-group-title="Getting Started" role="treeitem" aria-expanded="false">
+                <div class="ww_skin_toc_entry ww_skin_toc_folder">
+                    <div class="ww_skin_toc_entry_indent"></div>
+                    <a class="ww_skin_toc_entry_title" id="group:4f2f7c29-1111-2222-3333-444455556666" href="Getting%20Started.html" target="_self" title="Getting Started">Getting Started</a>
+                </div>
+            </li>
+            <li id="group:aaaabbbb-0000-0000-0000-000000000001:aaaabbbb-0000-0000-0000-000000000002" data-group-title="User Guides" role="treeitem" aria-expanded="false">
+                <div class="ww_skin_toc_entry ww_skin_toc_folder">
+                    <div class="ww_skin_toc_entry_indent"></div>
+                    <span class="ww_skin_toc_entry_title" title="User Guides">User Guides</span>
+                </div>
+                <ul role="group">
+                    <li id="group:aaaabbbb-0000-0000-0000-000000000001" data-group-title="Volume A" role="treeitem" aria-expanded="false">
+                        <div class="ww_skin_toc_entry ww_skin_toc_folder">
+                            <a class="ww_skin_toc_entry_title" id="group:aaaabbbb-0000-0000-0000-000000000001" href="Volume%20A.html" target="_self" title="Volume A">Volume A</a>
+                        </div>
+                    </li>
+                    <li id="group:aaaabbbb-0000-0000-0000-000000000002" data-group-title="Reference" role="treeitem" aria-expanded="false">
+                        <div class="ww_skin_toc_entry ww_skin_toc_folder">
+                            <a class="ww_skin_toc_entry_title" id="group:aaaabbbb-0000-0000-0000-000000000002" href="Reference.html" target="_self" title="Reference">Reference</a>
+                        </div>
+                    </li>
+                </ul>
+            </li>
+            <!-- The runtime skips anchors whose id is not "<context>:<id>". -->
+            <li><a href="not-a-parcel.html">plain link without a parcel id</a></li>
+            <!-- Duplicate parcel anchor: collapses to one chunk fetch. -->
+            <li id="group:aaaabbbb-0000-0000-0000-000000000001" data-group-title="Volume A" role="treeitem">
+                <div class="ww_skin_toc_entry">
+                    <a class="ww_skin_toc_entry_title" id="group:aaaabbbb-0000-0000-0000-000000000001" href="Volume%20A.html" target="_self">Volume A</a>
+                </div>
+            </li>
+        </ul>
+    </div>
+    <!-- Outside #parcels: must be ignored even with a parcel-shaped id. -->
+    <a id="group:00000000-dead-beef-0000-000000000000" href="Outside.html">not a parcel</a>
+</body>
+</html>
