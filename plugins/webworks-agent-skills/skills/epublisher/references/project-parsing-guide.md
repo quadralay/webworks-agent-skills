@@ -82,7 +82,7 @@ For per-style trait configuration inside `<GlobalConfiguration>` or `<FormatConf
 </Format>
 ```
 - Output generated to specified directory
-- Can be absolute or relative to project file
+- Can be absolute or relative to project file — prefer relative, including parent-relative `..\`, per [Relative vs Absolute Paths](#relative-vs-absolute-paths)
 
 **When absent:**
 ```xml
@@ -282,7 +282,7 @@ done
 
 **`Path`** (MOST IMPORTANT)
 - Path to source file
-- Can be relative (to project file) or absolute
+- Can be relative (to project file) or absolute — prefer relative, including parent-relative `..\`, per [Relative vs Absolute Paths](#relative-vs-absolute-paths)
 - Use backslashes for Windows: `"Source\file.md"`
 - Example: `"Source\getting-started.md"`, `"C:\Docs\manual.md"`
 
@@ -562,21 +562,31 @@ new_doc_id=$(generate_id_with_prefix "doc")     # docK4Rt8Wq
 
 ### Relative vs Absolute Paths
 
-**Relative (preferred):**
+**Prefer relative paths in all cases** — including parent-relative (`..\`) traversal for sources that live outside the project folder. Relative paths stay portable across machines and play well with version control.
+
+**Child-relative** (source inside the project tree):
 ```xml
 <Document Path="Source\getting-started.md" ... />
 ```
-- Relative to project file directory
-- Portable across machines
-- Recommended for version control
+- Relative to the project file's directory
 
-**Absolute (less common):**
+**Parent-relative** (source outside the project folder — verified to resolve and build correctly):
+```xml
+<Document Path="..\Source\Word\Overview.docx" ... />
+```
+- `..\` walks up to a shared ancestor, then back down to the source
+- Still portable, as long as the project and source move together
+
+**Reach for an absolute path only when** a relative one is impossible or impractical:
+
+1. The source is on a **different drive** than the project file (no shared path root exists)
+2. The source is on a **different network share**
+3. The project file and the source share **only the drive letter or share root** as a common ancestor — a relative path technically works but is long and unmaintainable (e.g. `..\..\..\..\Other\Tree\file.docx`), so absolute is preferable
+
 ```xml
 <Document Path="C:\projects\my-proj\Source\content.md" ... />
 ```
-- Full path from drive root
-- Not portable
-- Use only for external references
+- Full path from drive root; not portable across machines
 
 ### Path Validation
 
@@ -668,5 +678,5 @@ $ bash scripts/manage-sources.sh --validate project.wep
 ---
 
 **Version**: 1.0.0
-**Last Updated**: 2025-11-04
+**Last Updated**: 2026-06-12
 **Target**: ePublisher 2024.1+ project files

@@ -177,7 +177,11 @@ Stationery (.wxsp)              Job File (.waj)
 |-----------|----------|-------------|---------|
 | `path` | Yes | Relative or absolute path to Stationery | `"stationery\main.wxsp"` |
 
-**Path Resolution**: Paths are relative to the job file's directory.
+**Path Resolution**: Paths are relative to the job file's directory. **Prefer a relative path** to the Stationery — including parent-relative (`..\`) traversal when the Stationery lives outside the job file's folder (e.g. `..\stationery\main.wxsp`). Relative paths keep the job portable across machines. Reach for an **absolute path only when** a relative one is impossible or impractical:
+
+1. The Stationery is on a **different drive** than the job file (no shared path root exists)
+2. The Stationery is on a **different network share**
+3. The job file and the Stationery share **only the drive letter or share root** as a common ancestor — a relative path technically works but is long and unmaintainable (e.g. `..\..\..\..\Other\Tree\main.wxsp`), so absolute is preferable
 
 ### `<Files>` Element
 
@@ -197,7 +201,7 @@ Contains one or more `<Document>` elements.
 |-----------|----------|-------------|---------|
 | `path` | Yes | Path to source document | `"Source\en\intro.md"` |
 
-**Path Resolution**: Paths are relative to the job file's directory.
+**Path Resolution**: Paths are relative to the job file's directory. **Prefer a relative path** to each source document — including parent-relative (`..\`) traversal when a document lives outside the job file's folder (e.g. `..\Source\Word\Overview.docx`). Relative paths keep the job portable. Use an absolute path only in the narrow cases listed under the [`<Project>` element](#project-element) (different drive, different network share, or only the drive/share root as a common ancestor).
 
 ### `<Targets>` Element
 
