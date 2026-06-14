@@ -24,16 +24,17 @@ AutoMap is the command-line build tool for ePublisher. It processes source docum
 ### Supported File Types
 
 - **Project files (.wep, .wrp)**: Complete self-contained projects. Require `-t` option to specify which target(s) to build.
-- **Job files (.waj)**: Lean automation files that reference Stationery. Targets to build are controlled by the `build="True"` attribute in the job file itself—the `-t` option is an optional override.
+- **Job files (.waj)**: Lean automation files that reference a Stationery (`.wxsp`) or, optionally, a `.wep`/`.wrp` project origin. Targets to build are controlled by the `build="True"` attribute in the job file itself—the `-t` option is an optional override.
 
 ### Job Files and Stationery
 
-Job files inherit format configuration from Stationery projects (.wxsp), enabling:
+Job files inherit format configuration from a **job origin** referenced by `<Project path="..."/>`, enabling:
 - Separation of format design from build automation
 - Lean, portable job definitions
 - Pre/post build script execution (hook-like capability)
+- Origin is usually a Stationery (`.wxsp`), but a `.wep`/`.wrp` project can be used directly as a *hollow* stationery via `useAsStationery="True"` (2026.1+), removing the manual "Save As Stationery" step from CI
 
-**For job file details, see:** references/job-file-guide.md
+**For job origin modes and job file details, see:** references/job-file-guide.md
 </overview>
 
 <usage>
@@ -217,10 +218,11 @@ python scripts/list-job-targets.py --enabled job.waj
 
 ### Stationery Relationship
 
-Job files reference Stationery via `<Project path="..."/>`:
+Job files reference their origin via `<Project path="..."/>`:
 - Paths are relative to job file location
-- All format settings inherited from Stationery
+- All format settings inherited from the origin (Stationery `.wxsp`, or a `.wep`/`.wrp` project)
 - Targets can override conditions, variables, settings
+- A `.wep`/`.wrp` origin builds **in place** (its own documents, the job's `<Files>` ignored) unless `useAsStationery="True"` stages it as a **hollow stationery** (job documents injected) — see the three job-origin modes in references/job-file-guide.md
 </job_files>
 
 <cli_reference>
