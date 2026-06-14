@@ -146,10 +146,16 @@ def output_simple(targets: list[dict]) -> None:
         print(f"{status} {target['name']}")
 
 
-def output_table(job_name: str, stationery: str, targets: list[dict]) -> None:
+def origin_label(use_as_stationery: bool) -> str:
+    """Label for the job origin line (Stationery vs project-as-stationery)."""
+    return "Origin (project as stationery)" if use_as_stationery else "Stationery"
+
+
+def output_table(job_name: str, stationery: str, targets: list[dict],
+                 use_as_stationery: bool = False) -> None:
     """Output targets in a table format."""
     print(f"\n{CYAN}Job:{NC} {job_name}")
-    print(f"{BLUE}Stationery:{NC} {stationery}")
+    print(f"{BLUE}{origin_label(use_as_stationery)}:{NC} {stationery}")
 
     enabled = sum(1 for t in targets if t['build'])
     print(f"\n{CYAN}Targets ({len(targets)} total, {enabled} enabled):{NC}\n")
@@ -183,10 +189,11 @@ def output_table(job_name: str, stationery: str, targets: list[dict]) -> None:
         print()
 
 
-def output_detailed(job_name: str, stationery: str, targets: list[dict]) -> None:
+def output_detailed(job_name: str, stationery: str, targets: list[dict],
+                    use_as_stationery: bool = False) -> None:
     """Output targets with full configuration details."""
     print(f"\n{CYAN}Job:{NC} {job_name}")
-    print(f"{BLUE}Stationery:{NC} {stationery}")
+    print(f"{BLUE}{origin_label(use_as_stationery)}:{NC} {stationery}")
 
     enabled = sum(1 for t in targets if t['build'])
     print(f"\n{CYAN}Targets ({len(targets)} total, {enabled} enabled):{NC}\n")
@@ -306,6 +313,8 @@ Examples:
     job_name = root.get('name', 'Unknown')
     project = root.find('Project')
     stationery = project.get('path', '') if project is not None else ''
+    use_as_stationery = (project.get('useAsStationery', 'False') == 'True'
+                         if project is not None else False)
 
     # Extract targets
     targets = extract_targets(root)
@@ -330,9 +339,9 @@ Examples:
     elif args.simple:
         output_simple(targets)
     elif args.detailed:
-        output_detailed(job_name, stationery, targets)
+        output_detailed(job_name, stationery, targets, use_as_stationery)
     else:
-        output_table(job_name, stationery, targets)
+        output_table(job_name, stationery, targets, use_as_stationery)
 
     return EXIT_SUCCESS
 

@@ -87,6 +87,8 @@ C:\projects\my-proj\Formats\WebWorks Reverb 2.0.base\Pages\Connect.asp
 C:\projects\my-proj\Formats\WebWorks Reverb 2.0.base\Pages\sass\_colors.scss
 ```
 
+**Note — using a `.wep` as a stationery:** A Designer `.wep` project carries **no** `.base` snapshots, so it has no Level 3 and resolves straight from the Designer installation (Level 4). That is exactly what makes a `.wep` usable directly as a stationery by an AutoMap job (`<Project ... useAsStationery="True">`, ePublisher 2026.1+). A standalone Stationery (`.wxsp`) — and an Express `.wrp` — instead bundle `.base` at this level. See the automap skill's `references/job-file-guide.md`.
+
 ### Level 4: Installation Defaults (Lowest Priority / Fallback)
 
 **Location:** `C:\Program Files\WebWorks\ePublisher\[version]\Formats\[FormatName]\[format-structure]\`

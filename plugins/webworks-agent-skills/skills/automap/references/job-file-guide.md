@@ -5,6 +5,7 @@
 - [Overview](#overview)
 - [Job Files vs Project Files](#job-files-vs-project-files)
 - [Stationery Inheritance](#stationery-inheritance)
+- [Job Origin Modes (Stationery vs Project)](#job-origin-modes-stationery-vs-project)
 - [XML Structure](#xml-structure)
 - [Element Reference](#element-reference)
 - [Output Location (Staging Folder)](#output-location-staging-folder)
@@ -80,6 +81,58 @@ Stationery (.wxsp)              Job File (.waj)
 - Target-specific overrides (conditions, variables, settings)
 - Deploy target names
 - Build flags (clean, build enabled)
+
+---
+
+## Job Origin Modes (Stationery vs Project)
+
+The `<Project>` element's `path` decides where the build's format configuration comes from. As of ePublisher 2026.1 there are **three** origin modes, selected by the referenced file's extension and the optional `useAsStationery` attribute:
+
+| # | `<Project path>` points at | `useAsStationery` | Behavior |
+|---|----------------------------|-------------------|----------|
+| 1 | Stationery (`.wxsp`) | n/a (ignored) | Stage a fresh project from the Stationery, inject the job's `<Files>` and target overrides, then build. *(Existing behavior — the common case.)* |
+| 2 | Project (`.wep`, `.wrp`) | absent / `"False"` | **Build in place.** AutoMap builds the referenced project using *its own* documents and configuration; the job's `<Files>` are **ignored**. *(Existing behavior.)* |
+| 3 | Project (`.wep`, `.wrp`) | `"True"` | **Project used as a stationery (new in 2026.1).** AutoMap uses the live project directly as a stationery: it stages a fresh project from the project's format configuration (stripping the project's own documents, `ProjectID`, and `<Origin>`), injects the job's `<Files>` and target overrides, then builds — exactly like mode 1, but sourced from a Designer/Express project instead of a generated Stationery. |
+
+### Why mode 3 exists
+
+Mode 3 removes the manual **"Save As Stationery"** step from CI. Instead of regenerating a `.wxsp` every time the design changes, the job points straight at the live Designer/Express project and synchronizes from it on every build. A Designer `.wep` carries no `<format>.base` snapshots, so its transforms resolve from the Designer installation — the same way a hollow stationery would. (See the epublisher skill's `references/file-resolver-guide.md` for the `.base` resolution hierarchy.)
+
+### Staging behavior
+
+Modes 1 and 3 are identical from the staging point of view: AutoMap stages a temporary Express project (`.wrp`) under the **Staging Folder** and builds there — see [Output Location (Staging Folder)](#output-location-staging-folder). Only mode 2 builds in place, into the referenced project's own `Output/` folder.
+
+### Designer project as stationery — CI without regenerating Stationery
+
+A job that uses a live Designer project as its stationery looks exactly like a Stationery-based job, except the `<Project>` reference points at a `.wep` and opts in with `useAsStationery="True"`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Job name="docs-ci" version="1.0">
+  <!-- Designer project used as a stationery: build straight from the live project -->
+  <Project path="..\design\design.wep" useAsStationery="True" />
+
+  <Files>
+    <Group name="Guide">
+      <Document path="Source\intro.md" />
+      <Document path="Source\reference.md" />
+    </Group>
+  </Files>
+
+  <Targets>
+    <Target name="WebWorks Reverb 2.0"
+            format="WebWorks Reverb 2.0"
+            formatType="Application"
+            build="True"
+            deployTarget=""
+            cleanOutput="False" />
+  </Targets>
+</Job>
+```
+
+On each build AutoMap re-reads `design.wep`, stages a stationery from its current format configuration, injects the `<Files>` above, and builds — no `.wxsp` to regenerate when the design changes.
+
+> **Without** `useAsStationery="True"`, the same `<Project path="..\design\design.wep" />` reference would fall into mode 2: AutoMap would build `design.wep` in place using *its* documents and ignore the `<Files>` above entirely.
 
 ---
 
@@ -175,7 +228,10 @@ Stationery (.wxsp)              Job File (.waj)
 
 | Attribute | Required | Description | Example |
 |-----------|----------|-------------|---------|
-| `path` | Yes | Relative or absolute path to Stationery | `"stationery\main.wxsp"` |
+| `path` | Yes | Relative or absolute path to the Stationery (`.wxsp`) **or** project (`.wep`/`.wrp`) origin | `"stationery\main.wxsp"`, `"..\design\design.wep"` |
+| `useAsStationery` | No | When `"True"`, use a `.wep`/`.wrp` project directly as a stationery (mode 3 below). `"True"`/`"False"`, default `"False"`. Applies **only** when `path` points at a `.wep`/`.wrp`; ignored for `.wxsp`. *(camelCase, consistent with `build`/`cleanOutput`.)* | `"True"` |
+
+The attribute selects which of the three [Job Origin Modes (Stationery vs Project)](#job-origin-modes-stationery-vs-project) applies. It is optional and backward compatible: omitting it preserves the existing behavior for every existing job file.
 
 **Path Resolution**: Paths are relative to the job file's directory. **Prefer a relative path** to the Stationery — including parent-relative (`..\`) traversal when the Stationery lives outside the job file's folder (e.g. `..\stationery\main.wxsp`). Relative paths keep the job portable across machines. Reach for an **absolute path only when** a relative one is impossible or impractical:
 
@@ -328,7 +384,7 @@ bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" --stagingdir "C:\automa
 **Notes**:
 
 - The staged project (and its `Output/`) persists after the build by default (the AutoMap "Remove temporary files" preference is off), which is why output can be retrieved from the Staging Folder. Deployment (`-d`/`--deployfolder`, or a `deployTarget`) copies output elsewhere; without it, the Staging Folder is the only place output lands.
-- This staging behavior applies to Stationery-based jobs. A `.waj` that references a `.wep`/`.wrp` master project instead builds into that project's own `Output/` folder.
+- This staging behavior applies to Stationery-based jobs (mode 1) **and** to `.wep`/`.wrp` jobs that opt in with `useAsStationery="True"` (mode 3) — both stage a temporary `.wrp` under the Staging Folder. A `.waj` that references a `.wep`/`.wrp` master project **without** `useAsStationery` (mode 2) instead builds in place, into that project's own `Output/` folder, ignoring the job's `<Files>`. See [Job Origin Modes (Stationery vs Project)](#job-origin-modes-stationery-vs-project).
 
 ---
 
@@ -360,6 +416,7 @@ When using `create-job.py` with `--config`, use this JSON format:
 {
   "name": "help-en",
   "stationery": "..\\stationery\\main.wxsp",
+  "useAsStationery": false,
   "groups": [
     {
       "name": "Getting Started",
@@ -390,6 +447,8 @@ When using `create-job.py` with `--config`, use this JSON format:
   ]
 }
 ```
+
+`useAsStationery` is optional and defaults to `false`. Set it to `true` only when `stationery` points at a `.wep`/`.wrp` project you want staged as a stationery (mode 3); `create-job.py` then emits `useAsStationery="True"` on the `<Project>` element, and `parse-job.py --config` round-trips it back. For a `.wxsp` Stationery, leave it `false` (or omit it).
 
 ---
 

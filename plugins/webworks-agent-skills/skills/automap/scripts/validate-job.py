@@ -136,23 +136,54 @@ def validate_root_element(root: Element) -> ValidationResult:
 
 
 def validate_project_element(root: Element, job_dir: Path) -> ValidationResult:
-    """Check that the Project element exists and references a valid Stationery."""
-    result = ValidationResult("Stationery reference")
+    """Check that the Project element exists and references a valid origin.
+
+    The origin may be a Stationery (.wxsp) or a Designer/Express project
+    (.wep/.wrp). A .wep/.wrp origin with useAsStationery="True" is staged as a
+    stationery; without it, the project builds in place. All are valid.
+    """
+    result = ValidationResult("Project/Stationery reference")
 
     project = root.find('Project')
     if project is None:
         return result.fail_check("Missing <Project> element")
 
-    stationery_path = project.get('path')
-    if not stationery_path:
+    origin_path = project.get('path')
+    if not origin_path:
         return result.fail_check("Missing 'path' attribute on Project element")
 
-    # Try to resolve the path
-    resolved = job_dir / stationery_path
-    if resolved.exists():
-        return result.pass_check(f"Found: {stationery_path}")
+    use_as_stationery = project.get('useAsStationery', 'False') == 'True'
+    suffix = Path(origin_path).suffix.lower()
+    is_project_origin = suffix in ('.wep', '.wrp')
+    is_stationery_origin = suffix in ('.wxsp',)
+
+    # Resolve the origin mode for the report message
+    if is_project_origin and use_as_stationery:
+        mode = "project as stationery"
+    elif is_project_origin:
+        mode = "project built in place"
+    elif is_stationery_origin:
+        mode = "Stationery"
     else:
-        return result.fail_check(f"Not found: {stationery_path}")
+        mode = "origin"
+        result.add_warning(
+            f"Unrecognized origin extension '{suffix or '(none)'}' "
+            "(expected .wxsp or .wep/.wrp)"
+        )
+
+    # useAsStationery is only meaningful for a .wep/.wrp origin
+    if use_as_stationery and not is_project_origin:
+        result.add_warning(
+            f"useAsStationery=\"True\" is ignored for a '{suffix or '(none)'}' "
+            "origin (applies only to .wep/.wrp projects)"
+        )
+
+    # Try to resolve the path
+    resolved = job_dir / origin_path
+    if resolved.exists():
+        return result.pass_check(f"Found ({mode}): {origin_path}")
+    else:
+        return result.fail_check(f"Not found: {origin_path}")
 
 
 def validate_files_element(root: Element) -> ValidationResult:
