@@ -147,8 +147,8 @@ def output_simple(targets: list[dict]) -> None:
 
 
 def origin_label(use_as_stationery: bool) -> str:
-    """Label for the job origin line (Stationery vs project-as-hollow-stationery)."""
-    return "Origin (project as hollow stationery)" if use_as_stationery else "Stationery"
+    """Label for the job origin line (Stationery vs project-as-stationery)."""
+    return "Origin (project as stationery)" if use_as_stationery else "Stationery"
 
 
 def output_table(job_name: str, stationery: str, targets: list[dict],

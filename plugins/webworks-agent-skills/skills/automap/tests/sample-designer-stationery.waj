@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Job name="hollow-job" version="1.0">
-  <!-- Hollow stationery: build straight from the live Designer project (mode 3) -->
+<Job name="designer-stationery-job" version="1.0">
+  <!-- Designer project used as a stationery: build straight from the live project (mode 3) -->
   <Project path="design.wep" useAsStationery="True" />
   <Files>
     <Group name="Guide">

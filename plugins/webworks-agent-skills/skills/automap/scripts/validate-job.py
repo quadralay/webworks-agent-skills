@@ -138,9 +138,9 @@ def validate_root_element(root: Element) -> ValidationResult:
 def validate_project_element(root: Element, job_dir: Path) -> ValidationResult:
     """Check that the Project element exists and references a valid origin.
 
-    The origin may be a Stationery (.wxsp/.wsp) or a Designer/Express project
+    The origin may be a Stationery (.wxsp) or a Designer/Express project
     (.wep/.wrp). A .wep/.wrp origin with useAsStationery="True" is staged as a
-    hollow stationery; without it, the project builds in place. All are valid.
+    stationery; without it, the project builds in place. All are valid.
     """
     result = ValidationResult("Project/Stationery reference")
 
@@ -155,11 +155,11 @@ def validate_project_element(root: Element, job_dir: Path) -> ValidationResult:
     use_as_stationery = project.get('useAsStationery', 'False') == 'True'
     suffix = Path(origin_path).suffix.lower()
     is_project_origin = suffix in ('.wep', '.wrp')
-    is_stationery_origin = suffix in ('.wxsp', '.wsp')
+    is_stationery_origin = suffix in ('.wxsp',)
 
     # Resolve the origin mode for the report message
     if is_project_origin and use_as_stationery:
-        mode = "project as hollow stationery"
+        mode = "project as stationery"
     elif is_project_origin:
         mode = "project built in place"
     elif is_stationery_origin:
@@ -168,7 +168,7 @@ def validate_project_element(root: Element, job_dir: Path) -> ValidationResult:
         mode = "origin"
         result.add_warning(
             f"Unrecognized origin extension '{suffix or '(none)'}' "
-            "(expected .wxsp/.wsp or .wep/.wrp)"
+            "(expected .wxsp or .wep/.wrp)"
         )
 
     # useAsStationery is only meaningful for a .wep/.wrp origin

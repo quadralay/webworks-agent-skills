@@ -107,7 +107,7 @@ def extract_job_info(root: Element, job_path: str) -> dict:
     if project_elem is not None:
         stationery_path = project_elem.get('path', '')
         job_info['stationery'] = stationery_path
-        # useAsStationery="True" opts a .wep/.wrp origin into hollow-stationery mode
+        # useAsStationery="True" opts a .wep/.wrp origin into project-as-stationery mode
         job_info['useAsStationery'] = project_elem.get('useAsStationery', 'False') == 'True'
 
         # Try to resolve the path
@@ -183,7 +183,7 @@ def output_human_readable(job_info: dict) -> None:
     # Origin info (Stationery .wxsp, or .wep/.wrp project)
     origin_status = f"{GREEN}exists{NC}" if job_info['stationeryExists'] else f"{YELLOW}not found{NC}"
     if job_info['useAsStationery']:
-        origin_label = "Origin (project as hollow stationery)"
+        origin_label = "Origin (project as stationery)"
     else:
         origin_label = "Stationery"
     print(f"{BLUE}{origin_label}:{NC} {job_info['stationery']} [{origin_status}]")

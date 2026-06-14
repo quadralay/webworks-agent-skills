@@ -32,7 +32,7 @@ Job files inherit format configuration from a **job origin** referenced by `<Pro
 - Separation of format design from build automation
 - Lean, portable job definitions
 - Pre/post build script execution (hook-like capability)
-- Origin is usually a Stationery (`.wxsp`), but a `.wep`/`.wrp` project can be used directly as a *hollow* stationery via `useAsStationery="True"` (2026.1+), removing the manual "Save As Stationery" step from CI
+- Origin is usually a Stationery (`.wxsp`), but a `.wep`/`.wrp` project can be used directly as a stationery via `useAsStationery="True"` (2026.1+), removing the manual "Save As Stationery" step from CI
 
 **For job origin modes and job file details, see:** references/job-file-guide.md
 </overview>
@@ -222,7 +222,7 @@ Job files reference their origin via `<Project path="..."/>`:
 - Paths are relative to job file location
 - All format settings inherited from the origin (Stationery `.wxsp`, or a `.wep`/`.wrp` project)
 - Targets can override conditions, variables, settings
-- A `.wep`/`.wrp` origin builds **in place** (its own documents, the job's `<Files>` ignored) unless `useAsStationery="True"` stages it as a **hollow stationery** (job documents injected) — see the three job-origin modes in references/job-file-guide.md
+- A `.wep`/`.wrp` origin builds **in place** (its own documents, the job's `<Files>` ignored) unless `useAsStationery="True"` stages it as a **stationery** (job documents injected) — see the three job-origin modes in references/job-file-guide.md
 </job_files>
 
 <cli_reference>

@@ -90,13 +90,13 @@ The `<Project>` element's `path` decides where the build's format configuration 
 
 | # | `<Project path>` points at | `useAsStationery` | Behavior |
 |---|----------------------------|-------------------|----------|
-| 1 | Stationery (`.wxsp`, `.wsp`) | n/a (ignored) | Stage a fresh project from the Stationery, inject the job's `<Files>` and target overrides, then build. *(Existing behavior — the common case.)* |
+| 1 | Stationery (`.wxsp`) | n/a (ignored) | Stage a fresh project from the Stationery, inject the job's `<Files>` and target overrides, then build. *(Existing behavior — the common case.)* |
 | 2 | Project (`.wep`, `.wrp`) | absent / `"False"` | **Build in place.** AutoMap builds the referenced project using *its own* documents and configuration; the job's `<Files>` are **ignored**. *(Existing behavior.)* |
-| 3 | Project (`.wep`, `.wrp`) | `"True"` | **Hollow stationery (new in 2026.1).** AutoMap treats the live project as a hollow stationery: it stages a fresh project from the project's format configuration (stripping the design's own documents, `ProjectID`, and `<Origin>`), injects the job's `<Files>` and target overrides, then builds — exactly like mode 1, but sourced from a Designer/Express project instead of a generated Stationery. |
+| 3 | Project (`.wep`, `.wrp`) | `"True"` | **Project used as a stationery (new in 2026.1).** AutoMap uses the live project directly as a stationery: it stages a fresh project from the project's format configuration (stripping the project's own documents, `ProjectID`, and `<Origin>`), injects the job's `<Files>` and target overrides, then builds — exactly like mode 1, but sourced from a Designer/Express project instead of a generated Stationery. |
 
 ### Why mode 3 exists
 
-Mode 3 removes the manual **"Save As Stationery"** step from CI. Instead of regenerating a `.wxsp` every time the design changes, the job points straight at the live Designer/Express project and synchronizes from it on every build. A Designer `.wep` carries no `<format>.base` snapshots, so its transforms resolve from the installation — the same way a hollow Stationery resolves them. (See the epublisher skill's `references/file-resolver-guide.md` for the `.base` resolution hierarchy.)
+Mode 3 removes the manual **"Save As Stationery"** step from CI. Instead of regenerating a `.wxsp` every time the design changes, the job points straight at the live Designer/Express project and synchronizes from it on every build. A Designer `.wep` carries no `<format>.base` snapshots, so its transforms resolve from the Designer installation — the same way a hollow stationery would. (See the epublisher skill's `references/file-resolver-guide.md` for the `.base` resolution hierarchy.)
 
 ### Staging behavior
 
@@ -109,7 +109,7 @@ A job that uses a live Designer project as its stationery looks exactly like a S
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Job name="docs-ci" version="1.0">
-  <!-- Hollow stationery: build straight from the live Designer project -->
+  <!-- Designer project used as a stationery: build straight from the live project -->
   <Project path="..\design\design.wep" useAsStationery="True" />
 
   <Files>
@@ -130,7 +130,7 @@ A job that uses a live Designer project as its stationery looks exactly like a S
 </Job>
 ```
 
-On each build AutoMap re-reads `design.wep`, stages a hollow stationery from its current format configuration, injects the `<Files>` above, and builds — no `.wxsp` to regenerate when the design changes.
+On each build AutoMap re-reads `design.wep`, stages a stationery from its current format configuration, injects the `<Files>` above, and builds — no `.wxsp` to regenerate when the design changes.
 
 > **Without** `useAsStationery="True"`, the same `<Project path="..\design\design.wep" />` reference would fall into mode 2: AutoMap would build `design.wep` in place using *its* documents and ignore the `<Files>` above entirely.
 
@@ -228,8 +228,8 @@ On each build AutoMap re-reads `design.wep`, stages a hollow stationery from its
 
 | Attribute | Required | Description | Example |
 |-----------|----------|-------------|---------|
-| `path` | Yes | Relative or absolute path to the Stationery (`.wxsp`/`.wsp`) **or** project (`.wep`/`.wrp`) origin | `"stationery\main.wxsp"`, `"..\design\design.wep"` |
-| `useAsStationery` | No | When `"True"`, use a `.wep`/`.wrp` project directly as a *hollow* stationery (mode 3 below). `"True"`/`"False"`, default `"False"`. Applies **only** when `path` points at a `.wep`/`.wrp`; ignored for `.wxsp`/`.wsp`. *(camelCase, consistent with `build`/`cleanOutput`.)* | `"True"` |
+| `path` | Yes | Relative or absolute path to the Stationery (`.wxsp`) **or** project (`.wep`/`.wrp`) origin | `"stationery\main.wxsp"`, `"..\design\design.wep"` |
+| `useAsStationery` | No | When `"True"`, use a `.wep`/`.wrp` project directly as a stationery (mode 3 below). `"True"`/`"False"`, default `"False"`. Applies **only** when `path` points at a `.wep`/`.wrp`; ignored for `.wxsp`. *(camelCase, consistent with `build`/`cleanOutput`.)* | `"True"` |
 
 The attribute selects which of the three [Job Origin Modes (Stationery vs Project)](#job-origin-modes-stationery-vs-project) applies. It is optional and backward compatible: omitting it preserves the existing behavior for every existing job file.
 
@@ -448,7 +448,7 @@ When using `create-job.py` with `--config`, use this JSON format:
 }
 ```
 
-`useAsStationery` is optional and defaults to `false`. Set it to `true` only when `stationery` points at a `.wep`/`.wrp` project you want staged as a hollow stationery (mode 3); `create-job.py` then emits `useAsStationery="True"` on the `<Project>` element, and `parse-job.py --config` round-trips it back. For a `.wxsp` Stationery, leave it `false` (or omit it).
+`useAsStationery` is optional and defaults to `false`. Set it to `true` only when `stationery` points at a `.wep`/`.wrp` project you want staged as a stationery (mode 3); `create-job.py` then emits `useAsStationery="True"` on the `<Project>` element, and `parse-job.py --config` round-trips it back. For a `.wxsp` Stationery, leave it `false` (or omit it).
 
 ---
 

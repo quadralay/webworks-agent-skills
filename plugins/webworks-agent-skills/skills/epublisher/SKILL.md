@@ -71,11 +71,11 @@ ePublisher resolves files through a 4-level hierarchy (highest to lowest priorit
 
 **For complete details, see:** references/file-resolver-guide.md
 
-### Stationery and Hollow Stationery
+### Stationery and Using a Project as a Stationery
 
 A **Stationery** (`.wxsp`) is a standalone, distributable project that bundles its format configuration *and* `<format>.base` snapshots, so its transforms resolve from those bundled snapshots. AutoMap jobs (`.waj`) traditionally reference a `.wxsp` and stage a fresh project from it on each build.
 
-A **hollow stationery** has **no** `<format>.base` snapshots, so its transforms resolve from the installation (resolver level 4) instead. A Designer `.wep` is hollow by nature — Designer projects carry no `.base` — so AutoMap can use a `.wep` *directly* as a stationery via `useAsStationery="True"` on the job's `<Project>` element (ePublisher 2026.1+), skipping the manual "Save As Stationery" step. This mirrors the legacy hollow `.wsp`. (Express `.wrp` projects, by contrast, *do* carry `.base` snapshots — see `references/file-resolver-guide.md`.) The synchronization engine is extension-agnostic: it can stage and synchronize against a `.wxsp`, `.wep`, or `.wrp` origin.
+A Designer `.wep` carries **no** `<format>.base` snapshots, so its transforms resolve from the Designer installation (resolver level 4) instead. Because of that, AutoMap can use a `.wep` *directly* as a stationery via `useAsStationery="True"` on the job's `<Project>` element (ePublisher 2026.1+), skipping the manual "Save As Stationery" step. (Express `.wrp` projects, by contrast, *do* carry their own `.base` snapshots — see `references/file-resolver-guide.md`.) The synchronization engine is extension-agnostic: it can stage and synchronize against a `.wxsp`, `.wep`, or `.wrp` origin.
 
 **For job-file usage of `useAsStationery`, see the automap skill's `references/job-file-guide.md`.**
 

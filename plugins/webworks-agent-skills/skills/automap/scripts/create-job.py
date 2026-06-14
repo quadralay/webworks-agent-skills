@@ -247,7 +247,7 @@ def generate_job_xml(config: dict) -> str:
     project = SubElement(job, 'Project')
     project.set('path', config.get('stationery', ''))
     # Emit useAsStationery only when opted in (keeps Stationery jobs unchanged).
-    # Meaningful only for a .wep/.wrp origin; selects hollow-stationery mode.
+    # Meaningful only for a .wep/.wrp origin; selects project-as-stationery mode.
     if config.get('useAsStationery'):
         project.set('useAsStationery', 'True')
 
@@ -481,11 +481,11 @@ def interactive_mode(stationery_path: str) -> Optional[dict]:
         stationery_path
     )
 
-    # A .wep/.wrp origin can be used directly as a hollow stationery (2026.1+).
+    # A .wep/.wrp origin can be used directly as a stationery (2026.1+).
     use_as_stationery = False
     if stationery_rel.lower().endswith(('.wep', '.wrp')):
         use_as_stationery = confirm(
-            "Use this project directly as a hollow stationery (build from the live design)?",
+            "Use this project directly as a stationery (build from the live design)?",
             default=False
         )
 
@@ -512,7 +512,7 @@ def print_summary(config: dict) -> None:
     print(f"\n{'='*60}")
     print(f"Job: {config['name']} (version 1.0)")
     if config.get('useAsStationery'):
-        print(f"Origin (project as hollow stationery): {config['stationery']}")
+        print(f"Origin (project as stationery): {config['stationery']}")
     else:
         print(f"Stationery: {config['stationery']}")
     print('='*60)
@@ -552,7 +552,7 @@ def generate_template(stationery_data: dict, stationery_path: str) -> dict:
     config = {
         'name': 'my-job',
         'stationery': stationery_path,
-        # Set True only when 'stationery' is a .wep/.wrp used as a hollow stationery
+        # Set True only when 'stationery' is a .wep/.wrp used as a stationery
         'useAsStationery': False,
         'groups': [
             {
