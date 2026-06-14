@@ -97,15 +97,18 @@ def extract_job_info(root: Element, job_path: str) -> dict:
         'stationery': '',
         'stationeryResolved': '',
         'stationeryExists': False,
+        'useAsStationery': False,
         'groups': [],
         'targets': []
     }
 
-    # Extract Stationery reference
+    # Extract the job origin reference (Stationery .wxsp, or .wep/.wrp project)
     project_elem = root.find('Project')
     if project_elem is not None:
         stationery_path = project_elem.get('path', '')
         job_info['stationery'] = stationery_path
+        # useAsStationery="True" opts a .wep/.wrp origin into hollow-stationery mode
+        job_info['useAsStationery'] = project_elem.get('useAsStationery', 'False') == 'True'
 
         # Try to resolve the path
         if stationery_path:
@@ -177,9 +180,13 @@ def output_human_readable(job_info: dict) -> None:
     """Output job information in human-readable format."""
     print(f"\n{GREEN}Job:{NC} {job_info['name']} (version {job_info['version']})")
 
-    # Stationery info
-    stationery_status = f"{GREEN}exists{NC}" if job_info['stationeryExists'] else f"{YELLOW}not found{NC}"
-    print(f"{BLUE}Stationery:{NC} {job_info['stationery']} [{stationery_status}]")
+    # Origin info (Stationery .wxsp, or .wep/.wrp project)
+    origin_status = f"{GREEN}exists{NC}" if job_info['stationeryExists'] else f"{YELLOW}not found{NC}"
+    if job_info['useAsStationery']:
+        origin_label = "Origin (project as hollow stationery)"
+    else:
+        origin_label = "Stationery"
+    print(f"{BLUE}{origin_label}:{NC} {job_info['stationery']} [{origin_status}]")
 
     # Groups and documents
     total_docs = sum(len(g['documents']) for g in job_info['groups'])
@@ -230,6 +237,7 @@ def output_config(job_info: dict) -> None:
     config = {
         'name': job_info['name'],
         'stationery': job_info['stationery'],
+        'useAsStationery': job_info['useAsStationery'],
         'groups': job_info['groups'],
         'targets': job_info['targets']
     }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Job name="hollow-job" version="1.0">
+  <!-- Hollow stationery: build straight from the live Designer project (mode 3) -->
+  <Project path="design.wep" useAsStationery="True" />
+  <Files>
+    <Group name="Guide">
+      <Document path="docs\intro.md" />
+    </Group>
+  </Files>
+  <Targets>
+    <Target name="WebWorks Reverb 2.0"
+            format="WebWorks Reverb 2.0"
+            formatType="Application"
+            build="True"
+            deployTarget=""
+            cleanOutput="False" />
+  </Targets>
+</Job>

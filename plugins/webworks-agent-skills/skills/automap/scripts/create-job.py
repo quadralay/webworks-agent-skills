@@ -243,9 +243,13 @@ def generate_job_xml(config: dict) -> str:
     job.set('name', config.get('name', 'untitled'))
     job.set('version', '1.0')
 
-    # Add Project reference
+    # Add Project reference (Stationery .wxsp, or .wep/.wrp project origin)
     project = SubElement(job, 'Project')
     project.set('path', config.get('stationery', ''))
+    # Emit useAsStationery only when opted in (keeps Stationery jobs unchanged).
+    # Meaningful only for a .wep/.wrp origin; selects hollow-stationery mode.
+    if config.get('useAsStationery'):
+        project.set('useAsStationery', 'True')
 
     # Add Files section
     files = SubElement(job, 'Files')
@@ -477,6 +481,14 @@ def interactive_mode(stationery_path: str) -> Optional[dict]:
         stationery_path
     )
 
+    # A .wep/.wrp origin can be used directly as a hollow stationery (2026.1+).
+    use_as_stationery = False
+    if stationery_rel.lower().endswith(('.wep', '.wrp')):
+        use_as_stationery = confirm(
+            "Use this project directly as a hollow stationery (build from the live design)?",
+            default=False
+        )
+
     # Collect groups
     groups = interactive_collect_groups()
 
@@ -487,6 +499,7 @@ def interactive_mode(stationery_path: str) -> Optional[dict]:
     config = {
         'name': job_name,
         'stationery': stationery_rel,
+        'useAsStationery': use_as_stationery,
         'groups': groups,
         'targets': targets
     }
@@ -498,7 +511,10 @@ def print_summary(config: dict) -> None:
     """Print a human-readable summary of the job configuration."""
     print(f"\n{'='*60}")
     print(f"Job: {config['name']} (version 1.0)")
-    print(f"Stationery: {config['stationery']}")
+    if config.get('useAsStationery'):
+        print(f"Origin (project as hollow stationery): {config['stationery']}")
+    else:
+        print(f"Stationery: {config['stationery']}")
     print('='*60)
 
     groups = config.get('groups', [])
@@ -536,6 +552,8 @@ def generate_template(stationery_data: dict, stationery_path: str) -> dict:
     config = {
         'name': 'my-job',
         'stationery': stationery_path,
+        # Set True only when 'stationery' is a .wep/.wrp used as a hollow stationery
+        'useAsStationery': False,
         'groups': [
             {
                 'name': 'Main',

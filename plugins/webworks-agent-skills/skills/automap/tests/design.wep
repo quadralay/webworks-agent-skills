@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="urn:WebWorks-Publish-Project" Version="1.1.2.0"
+         ProjectID="hMDzxVACF5I" RuntimeVersion="2026.1" FormatVersion="{Current}">
+  <!--
+    Minimal Designer (.wep) project used as a test fixture for a hollow-stationery
+    job (sample-hollow.waj, useAsStationery="True"). A Designer project carries no
+    <format>.base snapshots, so transforms resolve from the installation. In
+    hollow-stationery mode AutoMap stages from this project's format configuration
+    and strips the project's own ProjectID and documents below, then injects the
+    job's <Files>.
+  -->
+  <Formats>
+    <Format TargetName="WebWorks Reverb 2.0" Name="WebWorks Reverb 2.0" Type="Application" TargetID="Lf3DjZlhl_A">
+      <OutputDirectory>Output\WebWorks Reverb 2.0</OutputDirectory>
+    </Format>
+  </Formats>
+  <Groups>
+    <Group Name="DesignDocs" Type="normal" Included="true" GroupID="QeGxWoyPnS0" />
+  </Groups>
+</Project>
