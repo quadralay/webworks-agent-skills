@@ -99,7 +99,7 @@ $theme_accent:          #0088CC;
 $theme_surface_menu:    #E8EEF2;
 
 // Map to specific component variables
-$_menu_background_color: $theme_surface_menu;
+$menu_background_color: $theme_surface_menu;
 $link_default_color:     $theme_accent;
 ```
 
