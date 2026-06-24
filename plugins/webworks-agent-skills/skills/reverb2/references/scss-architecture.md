@@ -101,10 +101,10 @@ $_layout_color_6  ← $neo_page_color
 Individual UI element colors derived from layout slots. Examples:
 
 ```scss
-$_toolbar_background_color:  $_layout_color_1;
-$_toolbar_text_color:        $_layout_color_2;
-$_menu_background_color:     $_layout_color_3;
-$_footer_background_color:   $_layout_color_5;
+$toolbar_background_color:  $_layout_color_1;
+$toolbar_text_color:        $_layout_color_2;
+$menu_background_color:     $_layout_color_3;
+$footer_background_color:    $_layout_color_5;
 ```
 
 Override at any tier. Tier 2 (layout slots) is the recommended entry point for the `$theme_` convention — it bypasses neo entirely, providing a more direct cascade with fewer indirection layers. Neo presets exist as a quick-theming convenience but are not needed when using named `$theme_*` variables.
@@ -124,7 +124,7 @@ When adding custom variables to override files, use the `$theme_` prefix with MD
 The prefix is only useful as an upgrade audit tool if every customization actually references it. Three rules keep the convention honest:
 
 - **Always reference the prefixed variable, never an intermediate.** When overriding a component variable, reference `$theme_*` (or `$<project>_*`) directly. Do not reference `$_layout_color_2` or `$neo_main_text_color` in the override — those are intermediaries that obscure intent and break grep-ability.
-- **Do not introduce new auxiliary variables.** If a Reverb component variable like `$link_hover_color` doesn't exist, do not invent one. Reference the prefixed variable directly at the override site. Assigning a Reverb-defined component variable like `$_menu_background_color` to a prefixed variable *is* correct — what's forbidden is introducing *new* names that aren't part of Reverb's variable schema.
+- **Do not introduce new auxiliary variables.** If a Reverb component variable like `$link_hover_color` doesn't exist, do not invent one. Reference the prefixed variable directly at the override site. Assigning a Reverb-defined component variable like `$menu_background_color` to a prefixed variable *is* correct — what's forbidden is introducing *new* names that aren't part of Reverb's variable schema.
 - **Define brand colors once, at the top of the file.** Every prefixed variable has a single definition; component variables reference it.
 
 ```scss
@@ -187,8 +187,8 @@ $theme_surface_content:  #f4f7fa;   // Content area background
 These map directly to component variables rather than layout slots:
 
 ```scss
-$_menu_background_color:    $theme_surface_menu;
-$_page_background_color:    $theme_surface_content;
+$menu_background_color:    $theme_surface_menu;
+$page_background_color:     $theme_surface_content;
 ```
 
 **Why this matters for upgrades:** When upgrading to a new Reverb version, `grep 'theme_'` finds every intentional customization in seconds. Without named variables, raw hex values scattered through 300+ component assignments are nearly impossible to audit against new defaults.
@@ -215,7 +215,7 @@ $_layout_color_5: $theme_surface_footer;
 $_layout_color_6: $theme_surface;
 
 // Additional component overrides beyond the 6-slot cascade
-$_menu_background_color: $theme_surface_menu;
+$menu_background_color: $theme_surface_menu;
 $link_default_color:     $theme_accent;
 ```
 
