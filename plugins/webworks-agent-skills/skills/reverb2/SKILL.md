@@ -302,6 +302,12 @@ $theme_surface:        #FAFBFC;   // → $_layout_color_6
 
 The `on_` prefix denotes contrast color for text/icons on that surface (MD3-inspired). Create additional `$theme_*` variables for any color beyond the 6 core tokens — keeps every value greppable for upgrade traceability.
 
+**Strict rules** (full treatment: `references/scss-architecture.md` § "Strict Rules for Prefixed Variables"):
+
+- Define each brand color once with a `$theme_` / `$<project>_` prefix and assign it to the layout slots first.
+- **Reference the prefixed variable at every override site** — never a `$_layout_color_*` slot or a `$neo_*` variable.
+- **Don't introduce new auxiliary variables.** Pass the prefixed var straight into `darken()` / `lighten()` (`darken($theme_primary, 10%)`); don't create a derived `$..._d15`.
+
 ### Extract Current Values
 
 ```bash
