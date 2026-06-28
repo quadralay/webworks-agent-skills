@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "webworks-agent-skills",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "description": "AI agent skills for WebWorks ePublisher platform: project management, Markdown++ integration, AutoMap automation, and Reverb output testing",
   "owner": {
     "name": "Quadralay Corporation",

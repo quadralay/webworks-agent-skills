@@ -49,6 +49,12 @@ python scripts/extract-scss-variables.py <project-dir> [layout|colors|sizes|tool
 
 ## Step 3: Layer 1 — Variable Override (With `$theme_` Convention)
 
+**SCSS customization rules** (full treatment: `references/scss-architecture.md` § "Strict Rules for Prefixed Variables"):
+
+- Define each brand color once with a `$theme_` / `$<project>_` prefix and assign it to the layout slots first.
+- **Reference the prefixed variable at every override site** — never a `$_layout_color_*` slot or a `$neo_*` variable.
+- **Don't introduce new auxiliary variables.** Pass the prefixed var straight into `darken()` / `lighten()` (`darken($theme_primary, 10%)`); don't create a derived `$..._d15`.
+
 ### 1. Copy the target partial to the project
 
 Resolve the installation path using `resolve-version-root.py` (from the epublisher skill):
