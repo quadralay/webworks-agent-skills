@@ -95,6 +95,8 @@ $_layout_color_5: $theme_surface_footer;
 $_layout_color_6: $theme_surface;
 ```
 
+> **Slot wiring varies by config:** which component a `$_layout_color_*` slot feeds is set in `_colors.scss` and can differ between the base format and a packaged skin (e.g. `$toolbar_background_color` is `$_layout_color_1` in the base format but may be a different slot under a skin). If a slot override doesn't reach the component you expected, verify the slot→property mapping in the actual `_colors.scss` — see `references/scss-architecture.md` § "Tier 3 — Component Variables".
+
 ### 4. Add `$theme_*` variables for additional color needs
 
 Create new `$theme_*` variables for any color that doesn't map through the 6 layout slots. This keeps every intentional value greppable for upgrade traceability:
@@ -195,6 +197,8 @@ Skip to **Step 7** after editing.
 `.weplugin` files are deprecated zip archives. Follow the detailed migration steps in `references/scss-architecture.md` § `.weplugin` Migration, using:
 - `[Override]/Pages/sass/` for copied `_*.scss` partials
 - `[Override]/Pages/` for copied `Connect.asp` (if present)
+
+If the goal is to move the customer off a *skinned look* entirely (a redesign, not a like-for-like port), deliver a *reference* / *match* / *no-skin* target set per `references/scss-architecture.md` § "Migration Delivery Pattern".
 
 Then rebuild to verify (Step 7).
 

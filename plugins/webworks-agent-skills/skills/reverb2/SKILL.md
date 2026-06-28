@@ -266,6 +266,8 @@ Format: `json` (default) or `table`
 
 ## SCSS Customization
 
+**Recommended setup (new projects):** Leave the *Skin* target setting unset and customize the Reverb 2.0 format directly — Layer 1 variable overrides plus `_custom-skin.scss` / `_custom-webworks.scss`, applied at the Formats or Targets level. Don't start from a packaged skin (`.weplugin`/Skin); those are deprecated. Full rationale, plus the customer-migration delivery pattern (reference / match / no-skin targets), in `references/scss-architecture.md` § "Recommended Setup for New Projects: No Skin" and § "Migration Delivery Pattern".
+
 ### Three-Layer Architecture
 
 | Layer | What it controls | Override file | Entry point |
@@ -301,6 +303,8 @@ $theme_surface:        #FAFBFC;   // → $_layout_color_6
 ```
 
 The `on_` prefix denotes contrast color for text/icons on that surface (MD3-inspired). Create additional `$theme_*` variables for any color beyond the 6 core tokens — keeps every value greppable for upgrade traceability.
+
+> **Slot varies by config:** which `$_layout_color_*` slot a component variable (e.g. `$toolbar_background_color`) is wired to can differ between the base format and a packaged skin. Verify the slot→property mapping in the actual `_colors.scss` rather than assuming — see `references/scss-architecture.md` § "Tier 3 — Component Variables".
 
 **Strict rules** (full treatment: `references/scss-architecture.md` § "Strict Rules for Prefixed Variables"):
 
@@ -422,7 +426,7 @@ python scripts/extract-scss-variables.py /path/to/project neo
 
 **Do not apply general web development patterns to Reverb.** Reverb 2.0 is a single-page application with its own JavaScript runtime (`Parcels`), navigation model, and SCSS architecture. Standard web debugging assumptions (e.g., "check the network tab for 404s") may not apply. Always consult the format's source files first.
 
-**`.weplugin` skin packages are deprecated.** These are zip archives typically containing `_colors.scss`, sometimes `_sizes.scss`, and occasionally `Connect.asp`. They will be removed in Reverb 3.0. To migrate: rename to `.zip`, extract, diff against installation defaults to identify actual customizations, then copy customized partials to the appropriate override level (`Formats/WebWorks Reverb 2.0/Pages/sass/` or `Targets/[Target]/Pages/sass/`). Use direct SCSS variable overrides with the `$theme_` naming convention instead. For structural CSS beyond variables, create `_custom-skin.scss` (chrome) or `_custom-webworks.scss` (content) — see `references/scss-architecture.md` § "Why Two Custom Partials, Not One". For non-SCSS overrides (`locales.xml`, ASP templates), see `references/customization-conventions.md`.
+**`.weplugin` skin packages are deprecated.** These are zip archives typically containing `_colors.scss`, sometimes `_sizes.scss`, and occasionally `Connect.asp`. They will be removed in Reverb 3.0. To migrate: rename to `.zip`, extract, diff against installation defaults to identify actual customizations, then copy customized partials to the appropriate override level (`Formats/WebWorks Reverb 2.0/Pages/sass/` or `Targets/[Target]/Pages/sass/`). Use direct SCSS variable overrides with the `$theme_` naming convention instead. For structural CSS beyond variables, create `_custom-skin.scss` (chrome) or `_custom-webworks.scss` (content) — see `references/scss-architecture.md` § "Why Two Custom Partials, Not One". When moving a customer off a *skinned look* (a redesign, not a like-for-like port), follow the reference / match / no-skin delivery pattern in `references/scss-architecture.md` § "Migration Delivery Pattern". For non-SCSS overrides (`locales.xml`, ASP templates), see `references/customization-conventions.md`.
 
 **Reverb output is not the format source.** The generated HTML/CSS/JS in the output directory is transformed output. To understand or fix runtime behavior, examine the format source files: `Pages/scripts/*.js` for JavaScript, `Pages/*.asp` for HTML templates, `Pages/sass/*.scss` for styles.
 
