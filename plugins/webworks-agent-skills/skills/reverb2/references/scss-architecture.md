@@ -13,6 +13,20 @@ Reverb 2.0 CSS customization uses three independent layers, each with its own en
 **Layer 1** is the safest — you only change variable values, never selectors or rules.
 **Layers 2–3** give full CSS control but require understanding Reverb's DOM structure.
 
+## Recommended Setup for New Projects: No Skin
+
+For a **new** project, leave the *Skin* target setting unset and customize the Reverb 2.0 format directly. This is the recommended starting point — not just a `.weplugin` migration endpoint.
+
+Do **not** start from a packaged skin (a `.weplugin` selected via the *Skin* target setting). Packaged skins are deprecated (see [.weplugin Migration](#weplugin-migration) below) and insert an extra indirection layer between your overrides and the output. Customizing the unskinned format keeps every customization greppable and on the file-resolver fall-through path, which is far easier to audit and upgrade.
+
+Customize the unskinned format using the three layers above:
+
+- **Layer 1 — variable overrides** with the `$theme_` convention (`_colors.scss`, `_sizes.scss`, …)
+- **Layer 2 — `_custom-skin.scss`** for structural chrome CSS (toolbar, TOC, navigation)
+- **Layer 3 — `_custom-webworks.scss`** for structural content-page CSS
+
+Apply these at the **Formats** level (`Formats/WebWorks Reverb 2.0/Pages/sass/`) to affect all targets, or at the **Targets** level (`Targets/[Target]/Pages/sass/`) for a single target — see [File Resolver Integration](#file-resolver-integration) below for the full override priority.
+
 ## Compilation Model
 
 Reverb compiles two independent SCSS entry points during publishing:
@@ -106,6 +120,8 @@ $toolbar_text_color:        $_layout_color_2;
 $menu_background_color:     $_layout_color_3;
 $footer_background_color:    $_layout_color_5;
 ```
+
+> **Slot varies by configuration.** The layout slot wired to a given component variable is **not** universal — it can differ between configurations. For example, `$toolbar_background_color` is `$_layout_color_1` in the base Reverb 2.0 format, but under a packaged skin it may be wired to a different slot. Before overriding, verify the slot→property mapping in the actual `_colors.scss` you are editing rather than assuming the base-format mapping holds.
 
 Override at any tier. Tier 2 (layout slots) is the recommended entry point for the `$theme_` convention — it bypasses neo entirely, providing a more direct cascade with fewer indirection layers. Neo presets exist as a quick-theming convenience but are not needed when using named `$theme_*` variables.
 
@@ -236,6 +252,18 @@ $link_default_color:     $theme_accent;
    - `Targets/[TargetName]/Pages/sass/` for target-specific
 4. If `Connect.asp` was customized, copy to `Pages/` at the same level
 5. Remove the `.weplugin` from the project
+
+### Migration Delivery Pattern
+
+The steps above extract a skin's *files*. When the goal is to move a customer off a *skinned look* entirely — a redesign, not a like-for-like port — deliver three targets so the old and new output can be compared side by side and the customer has a clean base to design against:
+
+| Target | *Skin* setting | Purpose |
+|--------|----------------|---------|
+| *reference* | skinned (old) | The old look, unchanged — **comparison only**, never the redesign base |
+| *match* | unset (no skin) | Reproduces the old look on the unskinned format — proves the unskinned format can hit parity |
+| *no-skin* | unset (no skin) | Clean unskinned format — the **recommended redesign base** |
+
+The *reference* target preserves the old output for side-by-side comparison. The *match* target de-risks the move by demonstrating the unskinned format can reproduce the existing look. The *no-skin* target is where the redesign actually happens, customized directly per [Recommended Setup for New Projects](#recommended-setup-for-new-projects-no-skin) above.
 
 ## Removing Redundant Overrides
 
