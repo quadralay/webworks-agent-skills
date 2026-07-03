@@ -185,17 +185,30 @@ The wrapper intercepts only the options it transforms or applies safe defaults t
 
 ### Output Control
 
-**Default behavior:** The wrapper runs in minimal output mode, showing only errors and final build status. This is optimized for AI-assisted workflows where verbose output increases token costs.
+**Default behavior:** The wrapper runs in minimal output mode. Concretely, it sends AutoMap's stdout to `/dev/null` but **lets stderr pass through**, so genuine build errors still surface. After the build it also scans each `Logs/<target>/generate.log` and prints a per-target `N warning(s), M error(s)` summary (see [Post-Build Log Scan](../SKILL.md#post-build-log-scan)). This is optimized for AI-assisted workflows where verbose output increases token costs.
+
+**Errors do not require `--verbose`.** To investigate a reported warning/error count or a failed build, **read `generate.log`** — do not turn on `--verbose`. The log holds the full per-line `[WARN]`/`[ERROR]` detail:
+
+```bash
+# Default build — minimal output, stderr passes through, scan prints counts
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+
+# On a reported error/warning count or non-zero exit, read the log:
+grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/WebWorks Reverb 2.0/generate.log"
+```
+
+For `.waj` job files the log lives under the staging folder, not next to the `.waj`: `<stagingDir>/<JobName>/Logs/<target>/generate.log` (see [Staging Folder (Job Files)](#staging-folder-job-files)).
 
 **`--verbose`** *(wrapper script only)*
-- **Purpose**: Show all build output including progress messages
-- **Use When**: Debugging build issues or monitoring progress manually
+- **Purpose**: Stream AutoMap's progress messages to the console as the build runs
+- **Use When**: A **human** is watching an interactive build and wants live progress. It is **not** an agent error-checking tool — errors already reach you via stderr and `generate.log`, and `--verbose` floods context with AutoMap's banner and per-file progress, inflating token cost.
 - **Impact**: Full output with progress indicators and informational messages
 - **Example**: `bash scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep`
 
 **Default output:**
 ```
 [SUCCESS] Build completed in 45s
+[WARNING] 3 warning(s), 0 error(s) in Logs/Reverb2/generate.log
 ```
 
 **Verbose output:**
@@ -270,7 +283,12 @@ Set appropriate timeout based on project size when using the Bash tool:
 bash scripts/automap-wrapper.sh --all-targets project.wep > build.log 2>&1
 ```
 
-**Verbose mode for debugging:**
+**Investigate a build error (read the log, don't add `--verbose`):**
+```bash
+grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"
+```
+
+**Interactive progress (human watching a live build):**
 ```bash
 bash scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
 ```
@@ -296,11 +314,26 @@ else
 fi
 ```
 
-## Output Monitoring (non-errors require verbose mode)
+## Output Monitoring
+
+**Errors do not require verbose mode.** In default mode the wrapper still lets AutoMap's stderr pass through, and it scans each `generate.log` and prints per-target `[WARN]`/`[ERROR]` counts — so failures and their counts surface without any flag. Only the *informational progress* patterns below (Success/Progress indicators streamed live) require `--verbose`, and those are a convenience for a human watching an interactive build, not something an agent needs.
+
+### Reading `generate.log`
+
+When the scan reports a non-zero warning/error count, or a build exits non-zero, read the per-line detail straight from the log instead of re-running with `--verbose`:
+
+```bash
+grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"
+```
+
+- **Project files** (`.wep`/`.wrp`): the log is at `<project-dir>/Logs/<target>/generate.log`.
+- **Job files** (`.waj`): the log is under the staging folder — `<stagingDir>/<JobName>/Logs/<target>/generate.log` (see [Staging Folder (Job Files)](#staging-folder-job-files)).
+
+The error/warning/progress patterns below are the same tokens the wrapper and the log use; they are useful for interpreting `generate.log` contents as well as live console output.
 
 ### Success Indicators
 
-Monitor console output for these success patterns:
+These success patterns appear in AutoMap's live output (visible with `--verbose`):
 - `"Generation completed successfully"`
 - `"Output deployed to [path]"`
 - `"Build finished"`
@@ -477,12 +510,15 @@ bash scripts/automap-wrapper.sh --all-targets project2.wep
 bash scripts/automap-wrapper.sh --all-targets project3.wep
 ```
 
-### 5. Use Verbose Mode for Debugging
+### 5. Read `generate.log` to Debug Build Issues
 
-When troubleshooting build issues:
+To investigate warnings or errors, read the log rather than reaching for `--verbose` (which floods context with progress noise). Default-mode stderr and the post-build scan already surface failures:
 ```bash
-bash scripts/automap-wrapper.sh --verbose -t "WebWorks Reverb 2.0" project.wep
+bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep   # default, minimal output
+grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/WebWorks Reverb 2.0/generate.log"
 ```
+
+Reserve `--verbose` for a human watching an interactive build who wants live progress.
 
 ### 6. Capture Build Logs
 
@@ -528,6 +564,6 @@ When adding a new AutoMap CLI option to this skill, update these locations:
 
 ---
 
-**Version**: 2.5.0
-**Last Updated**: 2026-06-08
+**Version**: 2.5.1
+**Last Updated**: 2026-07-03
 **Target**: ePublisher 2024.1+ AutoMap CLI (--skip-reports requires 2025.1+, --version requires 2025.1 build 4652+)
