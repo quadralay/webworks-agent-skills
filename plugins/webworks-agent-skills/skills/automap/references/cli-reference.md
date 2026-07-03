@@ -185,7 +185,7 @@ The wrapper intercepts only the options it transforms or applies safe defaults t
 
 ### Output Control
 
-**Default behavior:** The wrapper runs in minimal output mode. Concretely, it sends AutoMap's stdout to `/dev/null` but **lets stderr pass through**, so genuine build errors still surface. After the build it also scans each `Logs/<target>/generate.log` and prints a per-target `N warning(s), M error(s)` summary (see [Post-Build Log Scan](../SKILL.md#post-build-log-scan)). This is optimized for AI-assisted workflows where verbose output increases token costs.
+**Default behavior:** The wrapper runs in minimal output mode. Concretely, it sends AutoMap's stdout to `/dev/null` but **lets stderr pass through**, so genuine build errors still surface. After a successful build (exit 0) it also scans each `Logs/<target>/generate.log` and prints a per-target `N warning(s), M error(s)` summary (see [Post-Build Log Scan](../SKILL.md#post-build-log-scan)). This is optimized for AI-assisted workflows where verbose output increases token costs.
 
 **Errors do not require `--verbose`.** To investigate a reported warning/error count or a failed build, **read `generate.log`** — do not turn on `--verbose`. The log holds the full per-line `[WARN]`/`[ERROR]` detail:
 
@@ -316,7 +316,7 @@ fi
 
 ## Output Monitoring
 
-**Errors do not require verbose mode.** In default mode the wrapper still lets AutoMap's stderr pass through, and it scans each `generate.log` and prints per-target `[WARN]`/`[ERROR]` counts — so failures and their counts surface without any flag. Only the *informational progress* patterns below (Success/Progress indicators streamed live) require `--verbose`, and those are a convenience for a human watching an interactive build, not something an agent needs.
+**Errors do not require verbose mode.** In default mode the wrapper still lets AutoMap's stderr pass through; after a successful build it also scans each `generate.log` and prints per-target `[WARN]`/`[ERROR]` counts, and a non-zero exit is reported directly — so errors surface without any flag (read `generate.log` for the per-line detail). Only the *informational progress* patterns below (Success/Progress indicators streamed live) require `--verbose`, and those are a convenience for a human watching an interactive build, not something an agent needs.
 
 ### Reading `generate.log`
 
