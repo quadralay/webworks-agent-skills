@@ -365,6 +365,20 @@ After a successful build (exit 0), the wrapper scans every `Logs/<TargetName>/ge
 [WARNING] 3 warning(s), 0 error(s) in Logs/Reverb2/generate.log
 ```
 
+### Investigating warnings and errors — read the log, not `--verbose`
+
+The default (minimal) mode already surfaces failures without any flag: it sends AutoMap's stdout to `/dev/null` but **lets stderr pass through**, and the scan above prints per-target counts. To see the per-line detail behind a reported count or a failed build, **read `generate.log`** — do **not** reach for `--verbose`. `--verbose` is an interactive progress aid for a human watching a live build; for an agent it just floods context with AutoMap's banner and per-file progress at real token cost, and it carries no error detail the log doesn't already hold.
+
+Recommended agent pattern:
+
+```bash
+bash scripts/automap-wrapper.sh -t "<target>" project.wep   # default, minimal output
+# On a reported error/warning count or a non-zero exit, read the log:
+grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"
+```
+
+The log lives next to the project for project files (`<project-dir>/Logs/<target>/generate.log`); for `.waj` job files it is under the staging folder (`<stagingDir>/<JobName>/Logs/<target>/generate.log`, see references/job-file-guide.md). Legitimate non-build uses of `--verbose` (e.g. `detect-installation.sh --verbose` for installation troubleshooting) are unaffected.
+
 </post_build_log_scan>
 
 <common_workflows>
@@ -444,7 +458,7 @@ bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 **Cause:** ePublisher build encountered errors.
 
 **Solutions:**
-1. Check AutoMap output for specific error messages
+1. Read `generate.log` for the specific error lines — `grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"`. Default-mode stderr also passes through, so genuine errors surface without `--verbose` (see [Post-Build Log Scan](#post-build-log-scan)).
 2. Verify source documents exist and are accessible
 3. Open project in ePublisher Administrator to check for issues
 4. Try building with `-c` (clean) flag
