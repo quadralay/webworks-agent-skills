@@ -41,14 +41,21 @@ Job files inherit format configuration from a **job origin** referenced by `<Pro
 
 ## How to Use This Skill
 
-**Always use the wrapper script to execute builds.** The wrapper:
-- Automatically detects the AutoMap installation
-- Handles path conversion between Unix and Windows formats
-- Provides consistent error handling and exit codes
-- Supports environment variable override via `AUTOMAP_EXE_PATH`
-- Provides minimal token usage impact by default
+**Always use the wrapper script (`Invoke-Automap.ps1`) to execute builds.** The wrapper exists for exactly four jobs:
 
-Do NOT use `detect-installation.sh` to find the CLI path and call it directly. The wrapper is the execution interface.
+1. **Executable resolution** — auto-detects the AutoMap installation; `AUTOMAP_EXE_PATH` or `-ExePath` overrides it (e.g., development builds)
+2. **Minimal output** — suppresses AutoMap's streaming stdout (banner, per-file progress); stderr passes through, so genuine errors still surface
+3. **Development-safe defaults** — injects `-n` and `--skip-reports`, and requires an explicit target, unless opted out
+4. **Post-build log scan** — reports per-target warning/error counts from `generate.log`
+
+**Every AutoMap flag is pass-through.** The wrapper never translates, renames, or owns AutoMap options. Wrapper-level options are PowerShell-style names (`-NoDefaults`, `-AllTargets`, `-ExePath`, `-Help`) given before the `--` separator; everything after `--` is forwarded to `WebWorks.Automap.exe` verbatim.
+
+Do NOT use `Find-AutomapInstallation.ps1` to find the CLI path and call the executable directly. The wrapper is the execution interface.
+
+### Invocation Modes
+
+- **Invoked by the user (interactive):** You may help with target selection, validate job files, and investigate results.
+- **Invoked by another command or skill (component mode):** Execute the requested build, report the result in the format under [Completion Behavior](#completion-behavior), and stop. Do not prompt for input, offer additional builds, or wait for follow-up questions.
 </usage>
 
 <script_paths>
@@ -60,11 +67,11 @@ All `scripts/` paths in this skill are relative to the skill's base directory (t
 **When executing scripts, always use the full path from the base directory:**
 
 ```bash
-# Correct: use the skill's base directory
-bash /path/to/automap/scripts/automap-wrapper.sh [options] /absolute/path/to/project.waj
+# Correct: use the skill's base directory (works from bash, PowerShell, or cmd)
+powershell -ExecutionPolicy Bypass -File "/path/to/automap/scripts/Invoke-Automap.ps1" -- -t "Target" /absolute/path/to/project.wep
 
 # Wrong: assumes scripts/ exists in the current working directory
-bash scripts/automap-wrapper.sh project.waj
+powershell -ExecutionPolicy Bypass -File scripts/Invoke-Automap.ps1 -- project.waj
 ```
 
 **Do NOT `cd` to a project directory before calling scripts.** Pass project and job file paths as arguments — they can be absolute or relative to the current working directory. The wrapper resolves all paths internally.
@@ -93,60 +100,44 @@ bash scripts/automap-wrapper.sh project.waj
 
 ### Run a Build
 
-**Project files (.wep, .wrp)** - Use `-t` to specify target:
-
 ```bash
-# Build single target (safe defaults: clean, no-deploy, skip-reports)
-bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" project.wep
+# Project file (.wep/.wrp): build one target (defaults applied: no-deploy, skip-reports)
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -- -t "WebWorks Reverb 2.0" project.wep
 
-# CI/CD: Build all targets explicitly
-bash scripts/automap-wrapper.sh --all-targets project.wep
+# Job file (.waj): build its build="True" target set (explicitly waive the target requirement)
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -AllTargets -- job.waj
 
-# Production: Deploy with reports
-bash scripts/automap-wrapper.sh --deploy --with-reports -t "Target" project.wep
+# Production build: exact native CLI semantics (deploys, generates reports)
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -NoDefaults -- -c -t "WebWorks Reverb 2.0" project.wep
 ```
 
-**Job files (.waj)** - Targets determined by `build="True"` in file:
+Other AutoMap flags (`-c` clean, `--target=A,B` multiple targets, `-d` deploy folder, ...) go after `--` in native syntax — see references/cli-reference.md.
 
-```bash
-# Build job file (targets set in file, no -t needed)
-bash scripts/automap-wrapper.sh job.waj
+### Safe Defaults (v3.5.0+)
 
-# With deployment
-bash scripts/automap-wrapper.sh -l -d /path/to/deploy job.waj
-```
+Unless `-NoDefaults` is given, the wrapper injects these **native AutoMap flags** (reported on an `[INFO]` line):
 
-The wrapper automatically detects the AutoMap installation and applies safe defaults.
+| Injected flag | Skipped when | Purpose |
+|---------------|--------------|---------|
+| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled (`-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope`) | Prevent accidental deployment |
+| `--skip-reports` | already present | Faster builds *(2025.1+ — use `-NoDefaults` with older versions)* |
 
-### Safe Defaults (v2.4.0+)
+And one requirement: **an explicit `-t`/`--target` must be present**, so a job file's full `build="True"` set (or a project's every target) never builds by accident. Waive it with `-AllTargets` (defaults still apply) or `-NoDefaults` (verbatim native behavior). On violation the wrapper exits 2 and lists the file's targets.
 
-The wrapper now applies these options by default:
-
-| Default | Opt-Out Flag | Description |
-|---------|--------------|-------------|
-| `-c` (clean) | `--no-clean` | Clean build for consistency |
-| `-n` (no deploy) | `--deploy` | Prevent accidental overwrites |
-| `--skip-reports` | `--with-reports` | Faster builds *(2025.1+)* |
-
-### Interactive Target Selection (Project Files Only)
-
-When using project files (.wep, .wrp) with no target specified:
-- **Single-target projects**: Auto-builds the only target
-- **Multi-target projects**: Prompts for selection (interactive mode)
-- **CI/CD (non-interactive)**: Requires `-t`, `--target=`, or `--all-targets`
-
-**Note:** Job files (.waj) do not need target selection options — see overview for details.
+Note: a clean build (`-c`) is **not** a default — pass it explicitly when you need one.
 
 ### Environment Variable Override
 
-Use `AUTOMAP_EXE_PATH` to bypass auto-detection:
+Use `AUTOMAP_EXE_PATH` (or the `-ExePath` wrapper option) to bypass auto-detection:
 
 ```bash
-# Cache detected path for multiple builds
-export AUTOMAP_EXE_PATH=$(bash scripts/detect-installation.sh)
+# Point to a development/debug build (bash syntax)
+export AUTOMAP_EXE_PATH="C:/builds/debug/WebWorks.Automap.exe"
+```
 
-# Or point to a development/debug build
-export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
+```powershell
+# PowerShell syntax
+$env:AUTOMAP_EXE_PATH = 'C:\builds\debug\WebWorks.Automap.exe'
 ```
 
 ### Verify Installation (Optional)
@@ -154,8 +145,10 @@ export AUTOMAP_EXE_PATH="/c/builds/debug/net48/WebWorks.Automap.exe"
 To check if AutoMap is installed and where:
 
 ```bash
-bash scripts/detect-installation.sh --verbose
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Find-AutomapInstallation.ps1" -ShowBuild
 ```
+
+Add `-Verbose` for detection diagnostics. Detection takes well under a second — no caching needed.
 </quick_start>
 
 <job_files>
@@ -231,44 +224,36 @@ Job files reference their origin via `<Project path="..."/>`:
 
 ### Basic Syntax
 
-```bash
-# Project files (.wep, .wrp) - target selection required
-bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
-
-# Job files (.waj) - targets set in file (no -t needed)
-bash scripts/automap-wrapper.sh [options] <job-file>
+```
+Invoke-Automap.ps1 [wrapper options] [--] <automap options> <project-file>
 ```
 
-### Target Selection
+Wrapper options come first; everything after the `--` separator (or after the first token that is not a wrapper option) is forwarded to `WebWorks.Automap.exe` verbatim. Always include `--` — it makes the boundary explicit.
 
-These options apply primarily to project files (.wep, .wrp). When used with job files, they override the `build="True"` settings.
-
-| Option | Description |
-|--------|-------------|
-| `-t <name>` | Build single target |
-| `--target=<name1>,<name2>` | Build multiple specific targets |
-| `--all-targets` | Build all targets (bypasses interactive selection) |
-
-### Build Options (Safe Defaults)
-
-| Option | Default | Opt-Out | Description |
-|--------|---------|---------|-------------|
-| `-c, --clean` | Enabled | `--no-clean` | Clean build |
-| `-n, --nodeploy` | Enabled | `--deploy` | Skip deployment |
-| `--skip-reports` | Enabled | `--with-reports` | Skip report pipelines *(2025.1+)* |
-| `-l, --cleandeploy` | Disabled | - | Clean deployment location |
-
-### Other Options
+### Wrapper Options (before `--`)
 
 | Option | Description |
 |--------|-------------|
-| `--verbose` | Show all build output (default: minimal) |
-| `-d, --deployfolder PATH` | Override deployment destination (implies `--deploy`) |
-| `-s, --stagingdir DIR` | Override staging directory for job-file (`.waj`) builds; output lands at `DIR/<JobName>/Output/<target>/` |
+| `-NoDefaults` | Verbatim native CLI behavior: no injected flags, no explicit-target requirement. Use for production/CI builds and for AutoMap versions older than 2025.1. |
+| `-AllTargets` | Waive only the explicit-target requirement. For `.waj`, builds the job's `build="True"` set; for projects, builds every target. Defaults still apply. |
+| `-ExePath <path>` | AutoMap executable to run (overrides `AUTOMAP_EXE_PATH` and auto-detection). |
+| `-Help` | Show usage. |
 
-Any other option is passed through to the AutoMap executable (value-bearing pass-through options must use the `--flag=value` form).
+### AutoMap Options (after `--`)
 
-**For complete CLI reference with examples, see:** references/cli-reference.md
+All native flags pass through unchanged — in any form the AutoMap CLI itself accepts (`-t "Name"`, `--target=A,B`, `--stagingdir <dir>`, `--stagingdir=<dir>`, ...). Frequently used:
+
+| Native flag | Description |
+|-------------|-------------|
+| `-t <name>`, `--target=<n1>,<n2>` | Build specific target(s). Case-sensitive. |
+| `-c, --clean` | Clean build (not a wrapper default — pass explicitly) |
+| `-n, --nodeploy` | Skip deployment *(injected by default)* |
+| `--skip-reports` | Skip report pipelines *(injected by default; 2025.1+)* |
+| `-d, --deployfolder <path>` | Deploy to a specific folder (suppresses the `-n` default) |
+| `-l, --cleandeploy` | Clean deploy location first (suppresses the `-n` default) |
+| `-s, --stagingdir <dir>` | Staging directory for job-file (`.waj`) builds; output lands at `<dir>/<JobName>/Output/<target>/` |
+
+**For the complete native CLI reference with examples, see:** references/cli-reference.md
 </cli_reference>
 
 <scripts>
@@ -277,31 +262,15 @@ Any other option is passed through to the AutoMap executable (value-bearing pass
 
 | Script | Purpose |
 |--------|---------|
-| `detect-installation.sh` | Find AutoMap installation |
-| `automap-wrapper.sh` | Execute builds with error handling |
+| `Find-AutomapInstallation.ps1` | Find AutoMap installation (registry, then filesystem) |
+| `Invoke-Automap.ps1` | Execute builds (the execution interface) |
 | `parse-stationery.py` | Extract formats/settings from Stationery |
 | `create-job.py` | Create job files interactively or from config |
 | `parse-job.py` | Parse existing job files |
 | `validate-job.py` | Validate job files before building |
 | `list-job-targets.py` | List targets with build status |
 
-### Installation Detection
-
-```bash
-bash scripts/detect-installation.sh
-```
-
-### Build Wrapper
-
-```bash
-# Project files - use -t to specify targets
-bash scripts/automap-wrapper.sh [options] <project-file> [-t <target-name>]
-
-# Job files - targets set in file (no -t needed)
-bash scripts/automap-wrapper.sh [options] <job-file>
-```
-
-Supports both project files (.wep, .wrp) and job files (.waj). For project files with multiple targets, use `--target="Name1","Name2"` or `--all-targets`.
+Both PowerShell scripts run on Windows PowerShell 5.1 (preinstalled on Windows) and later; `powershell -ExecutionPolicy Bypass -File` works under the default `Restricted` policy without changing user state.
 </scripts>
 
 <references>
@@ -318,9 +287,8 @@ Supports both project files (.wep, .wrp) and job files (.waj). For project files
 
 ## Requirements
 
-- WebWorks ePublisher 2024.1+ with AutoMap component
-- Windows operating system
-- Git Bash or similar Unix-like shell
+- WebWorks ePublisher 2024.1+ with AutoMap component (safe defaults assume 2025.1+; use `-NoDefaults` with 2024.1)
+- Windows operating system with Windows PowerShell 5.1+ (preinstalled)
 - Python 3.10+ (for job file scripts)
 
 ### Python Dependencies
@@ -329,12 +297,6 @@ Install required packages before using job file scripts:
 
 ```bash
 pip install -r scripts/requirements.txt
-```
-
-Or install directly:
-
-```bash
-pip install defusedxml
 ```
 </requirements>
 
@@ -346,7 +308,7 @@ pip install defusedxml
 |------|---------|
 | 0 | Build successful |
 | 1 | Build failed |
-| 2 | Invalid arguments / user cancelled |
+| 2 | Invalid arguments / no target specified |
 | 3 | AutoMap not installed |
 | 4 | Project file not found |
 </exit_codes>
@@ -355,11 +317,11 @@ pip install defusedxml
 
 ## Post-Build Log Scan
 
-After a successful build (exit 0), the wrapper scans every `Logs/<TargetName>/generate.log` under the project directory and reports `[WARN]` and `[ERROR]` counts per target.
+After a successful build (exit 0), the wrapper scans each target's `generate.log` and reports `[WARN]` and `[ERROR]` counts per target.
 
-- Targets with non-zero counts get a one-line summary — yellow when only warnings are present, red when the target has any errors.
-- Targets with zero counts emit nothing; missing `Logs/` directory emits nothing.
-- `--verbose` additionally echoes each extracted `[WARN]`/`[ERROR]` line under a per-target header.
+- Project files (`.wep`, `.wrp`): scans `<project-dir>/Logs/<target>/generate.log`.
+- Job files (`.waj`): scans under the staging folder — `<stagingDir>/<JobName>/Logs/<target>/generate.log` — using the `-s`/`--stagingdir` value from the arguments, or the default staging folder (`%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging`). An `[INFO]` line announces the staging location when counts are found there.
+- Targets with non-zero counts get a one-line summary (`[WARNING]` on stdout when only warnings, `[ERROR]` on stderr when any errors). Clean targets emit nothing.
 - Exit codes are unchanged — the scan is observational. A successful build that records warnings still exits 0.
 
 ```text
@@ -367,21 +329,52 @@ After a successful build (exit 0), the wrapper scans every `Logs/<TargetName>/ge
 [WARNING] 3 warning(s), 0 error(s) in Logs/Reverb2/generate.log
 ```
 
-### Investigating warnings and errors — read the log, not `--verbose`
+### Investigating warnings and errors — read the log
 
-The default (minimal) mode already surfaces failures without any flag: it sends AutoMap's stdout to `/dev/null` but **lets stderr pass through**, and the scan above prints per-target counts. To see the per-line detail behind a reported count or a failed build, **read `generate.log`** — do **not** reach for `--verbose`. `--verbose` is an interactive progress aid for a human watching a live build; for an agent it just floods context with AutoMap's banner and per-file progress at real token cost, and it carries no error detail the log doesn't already hold.
-
-Recommended agent pattern:
+The wrapper's minimal output already surfaces failures: AutoMap's stderr passes through, and the scan prints per-target counts. To see the per-line detail behind a reported count or a failed build, **read `generate.log`** — the wrapper has no verbose/streaming mode, and none is needed: the log holds every `[WARN]`/`[ERROR]` line.
 
 ```bash
-bash scripts/automap-wrapper.sh -t "<target>" project.wep   # default, minimal output
 # On a reported error/warning count or a non-zero exit, read the log:
 grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"
 ```
 
-The log lives next to the project for project files (`<project-dir>/Logs/<target>/generate.log`); for `.waj` job files it is under the staging folder (`<stagingDir>/<JobName>/Logs/<target>/generate.log`, see references/job-file-guide.md). Legitimate non-build uses of `--verbose` (e.g. `detect-installation.sh --verbose` for installation troubleshooting) are unaffected.
+(To watch live progress interactively — a human need, not an agent one — run `WebWorks.Automap.exe` directly.)
 
 </post_build_log_scan>
+
+<completion_behavior>
+
+## Completion Behavior
+
+When invoked by another command or skill (component mode):
+
+1. Execute the build via `Invoke-Automap.ps1` with the provided arguments
+2. Wait for build completion
+3. Report the result in the format below
+4. **Immediately return control** — do not wait for follow-up questions
+5. Do not offer to perform additional builds or related tasks
+6. Do not use interactive prompts
+
+The invoking command is responsible for interpreting results and deciding next steps.
+
+### Output Format for Component Invocation
+
+```
+**Build [successful|failed].**
+
+| Item | Value |
+|------|-------|
+| Project/job file | `path/to/file.waj` |
+| Target(s) | Reverb2 |
+| Output location | `full/path` |
+| Build time | XXX seconds |
+| Exit code | 0 |
+| Log warnings/errors | 3 warning(s), 0 error(s) |
+```
+
+Do not add additional commentary or offers to help.
+
+</completion_behavior>
 
 <common_workflows>
 
@@ -391,41 +384,30 @@ The log lives next to the project for project files (`<project-dir>/Logs/<target
 
 ```bash
 #!/bin/bash
-# Project files: use --all-targets
-if bash scripts/automap-wrapper.sh --all-targets project.wep; then
+WRAPPER="<skill-dir>/scripts/Invoke-Automap.ps1"
+
+# Production build: verbatim native semantics (deploys, reports)
+if powershell -ExecutionPolicy Bypass -File "$WRAPPER" -NoDefaults -- -c -t "WebWorks Reverb 2.0" project.wep; then
     echo "Build successful"
 else
     echo "Build failed" && exit 1
 fi
 
-# Job files: targets set in file, no -t needed
-if bash scripts/automap-wrapper.sh -l -d /deploy/path job.waj; then
-    echo "Build successful"
-else
-    echo "Build failed" && exit 1
-fi
+# Job files: build the enabled target set, deploy to a folder
+powershell -ExecutionPolicy Bypass -File "$WRAPPER" -AllTargets -- -l -d /deploy/path job.waj
 ```
 
-### Batch Building Multiple Projects
+### Iterative Development
 
 ```bash
-# Cache installation path for efficiency
-export AUTOMAP_EXE_PATH=$(bash scripts/detect-installation.sh)
+# Incremental build (default), safe defaults applied
+powershell -ExecutionPolicy Bypass -File "$WRAPPER" -- -t "WebWorks Reverb 2.0" project.wep
 
-for project in projects/*.wep; do
-    # --all-targets required in non-interactive (CI) mode
-    bash scripts/automap-wrapper.sh --all-targets "$project" || echo "Failed: $project"
-done
-```
+# Clean build when state is suspect
+powershell -ExecutionPolicy Bypass -File "$WRAPPER" -- -c -t "WebWorks Reverb 2.0" project.wep
 
-### Interactive Development
-
-```bash
-# No target specified - prompts for selection if multiple targets exist
-bash scripts/automap-wrapper.sh project.wep
-
-# Incremental build (skip clean)
-bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
+# Against a development build of AutoMap
+powershell -ExecutionPolicy Bypass -File "$WRAPPER" -ExePath "C:\dev\WebWorks.Automap.exe" -- -t "WebWorks Reverb 2.0" project.wep
 ```
 </common_workflows>
 
@@ -433,11 +415,13 @@ bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 
 ## Common Mistakes
 
-**Do not call the AutoMap CLI directly.** Always use `automap-wrapper.sh`, which handles installation detection, path conversion, safe defaults, and error handling. The `detect-installation.sh` script is for the wrapper's internal use and environment variable caching — not for building a manual CLI invocation.
+**Do not call the AutoMap CLI directly.** Always use `Invoke-Automap.ps1`, which handles installation detection, safe defaults, minimal output, and the post-build log scan. `Find-AutomapInstallation.ps1` is for the wrapper's internal use and troubleshooting — not for building a manual CLI invocation.
 
-**Do not use `-t` with job files expecting it to work like project files.** Job files (.waj) control which targets to build via `build="True"` attributes in the file itself. The `-t` option with job files is an override, not the primary mechanism. If a build seems to skip targets, check the job file's `build` attributes first.
+**Do not invent wrapper flags.** Older versions of this skill had wrapper-only flags (`--deploy`, `--no-clean`, `--with-reports`, `--all-targets`, `--verbose`). They are gone. Everything after `--` must be a **native AutoMap flag**; the only wrapper options are `-NoDefaults`, `-AllTargets`, `-ExePath`, and `-Help`, and they go **before** `--`. To deploy or generate reports, use `-NoDefaults` (or pass a deploy flag like `-d`, which suppresses the `-n` default).
 
-**Do not `cd` to a project directory before calling the wrapper.** The wrapper accepts project file paths as arguments. Changing the working directory before calling the script causes `scripts/automap-wrapper.sh` to fail because `scripts/` is relative to the skill directory, not the project directory. Always use the full path to the wrapper script.
+**Do not use `-t` with job files expecting it to work like project files.** Job files (.waj) control which targets to build via `build="True"` attributes in the file itself. The `-t` option with job files is an override. To build the job's own enabled set, pass the wrapper option `-AllTargets`.
+
+**Do not `cd` to a project directory before calling the wrapper.** The wrapper accepts project file paths as arguments. Always use the full path to the wrapper script (it lives in the skill directory, not the project directory).
 
 </common_mistakes>
 
@@ -453,17 +437,27 @@ bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 1. Verify ePublisher AutoMap is installed
 2. Check registry: `HKLM\SOFTWARE\WebWorks\ePublisher AutoMap`
 3. Check filesystem: `C:\Program Files\WebWorks\ePublisher\[version]\`
-4. Use `--verbose` flag for detailed detection output
+4. Run `Find-AutomapInstallation.ps1 -Verbose` for detection diagnostics
+5. Set `AUTOMAP_EXE_PATH` (or pass `-ExePath`) to the executable explicitly
 
 ### "Build failed with exit code 1"
 
 **Cause:** ePublisher build encountered errors.
 
 **Solutions:**
-1. Read `generate.log` for the specific error lines — `grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"`. Default-mode stderr also passes through, so genuine errors surface without `--verbose` (see [Post-Build Log Scan](#post-build-log-scan)).
+1. Read `generate.log` for the specific error lines — `grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"`. AutoMap's stderr also passes through the wrapper, so genuine errors surface inline (see [Post-Build Log Scan](#post-build-log-scan)).
 2. Verify source documents exist and are accessible
 3. Open project in ePublisher Administrator to check for issues
-4. Try building with `-c` (clean) flag
+4. Try a clean build (`-c`)
+
+### "No target specified" (exit 2)
+
+**Cause:** The wrapper requires an explicit target by default.
+
+**Solutions:**
+1. Pass `-t "<name>"` or `--target="Name1,Name2"` (the error message lists the file's targets)
+2. To build the file's full declared set intentionally, pass the wrapper option `-AllTargets`
+3. For verbatim native CLI behavior, pass `-NoDefaults`
 
 ### "Target not found"
 
@@ -474,31 +468,19 @@ bash scripts/automap-wrapper.sh --no-clean -t "WebWorks Reverb 2.0" project.wep
 2. Verify target name spelling (case-sensitive)
 3. Check project file for available `<Format>` elements
 
+### Unknown option errors from AutoMap
+
+**Cause:** A flag after `--` is not a native AutoMap option (for example, a retired wrapper flag such as `--deploy` or `--all-targets`), or the installed AutoMap predates the flag (`--skip-reports` requires 2025.1+).
+
+**Solutions:**
+1. Check the native option list in references/cli-reference.md
+2. With pre-2025.1 versions, pass `-NoDefaults` so `--skip-reports` is not injected
+
 ### Job File Errors
 
-**Stationery not found**
-```
-Error: Stationery file not found: ..\stationery\main.wxsp
-```
-- Check `<Project path="..."/>` in job file
-- Verify path is relative to job file location
-- Run: `python scripts/validate-job.py job.waj`
-
-**Invalid target format**
-```
-Error: Format "Unknown Format" not found in Stationery
-```
-- Target `format` attribute must match format name in Stationery
-- Format names are case-sensitive
-- Run: `python scripts/parse-stationery.py stationery.wxsp` to list available formats
-
-**Document path errors**
-```
-Warning: Document not found: Source\missing.md
-```
-- Document paths are relative to job file location
-- Check for typos in path
-- Run: `python scripts/validate-job.py --check-documents job.waj`
+- **Stationery not found** — check `<Project path="..."/>` (relative to the job file); run `python scripts/validate-job.py job.waj`
+- **Format not found in Stationery** — target `format` attribute must match a Stationery format name (case-sensitive); run `python scripts/parse-stationery.py stationery.wxsp`
+- **Document not found** — document paths are relative to the job file; run `python scripts/validate-job.py --check-documents job.waj`
 
 </troubleshooting>
 

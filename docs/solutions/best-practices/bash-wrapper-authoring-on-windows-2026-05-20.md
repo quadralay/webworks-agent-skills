@@ -34,6 +34,12 @@ tags:
 
 # Bash wrapper authoring and testing on Windows Git Bash
 
+> **Superseded (2026-07-11):** the automap skill's bash helpers were ported to
+> Windows PowerShell 5.1 (issue #73) — `skills/automap/scripts/` no longer
+> contains bash wrappers. This guidance remains valid for any future bash
+> helper authored on Windows Git Bash, but the automap examples it cites are
+> historical.
+
 ## Context
 
 Implementing AutoMap generate.log post-build scanning (issue #50) required a bash helper that runs after every successful AutoMap build, tallies `[WARN]`/`[ERROR]` lines per target, and reports them without altering exit codes. The wrapper already runs under `set -euo pipefail` on Windows Git Bash, and the test fixtures had to round-trip through git. The implementation itself was small; the lessons were in the half-dozen ways the surrounding environment fought the change.

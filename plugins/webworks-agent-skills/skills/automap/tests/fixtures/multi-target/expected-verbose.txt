@@ -1,7 +1,0 @@
-[ERROR] 0 warning(s), 1 error(s) in Logs/PDF/generate.log
-[WARNING] Warnings/errors in Logs/PDF/generate.log:
-[ERROR] [ERROR] Unable to create PDF file 'C:\path\to\output.pdf'.
-[WARNING] 2 warning(s), 0 error(s) in Logs/Reverb2/generate.log
-[WARNING] Warnings/errors in Logs/Reverb2/generate.log:
-[WARNING] [WARN] Project configured to use legacy format version '2024.1'.
-[WARNING] [WARN] Stationery topic alias overridden.

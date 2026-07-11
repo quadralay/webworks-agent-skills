@@ -164,7 +164,7 @@ Markdown++ source files build through the helper adapter without special configu
 
 **Practical rules:**
 
-- The `automap` skill's `automap-wrapper.sh` builds projects containing Markdown++ sources identically to other source types.
+- The `automap` skill's `Invoke-Automap.ps1` builds projects containing Markdown++ sources identically to other source types.
 - The helper adapter has no `AdapterConfigurations` entries currently — there are no helper-specific knobs in project files.
 - Job files (`.waj`) referencing Stationery built from Markdown++ sources work the same as job files for Word-based Stationery; the `<Documents>` block lists `.md` files alongside any other source type.
 

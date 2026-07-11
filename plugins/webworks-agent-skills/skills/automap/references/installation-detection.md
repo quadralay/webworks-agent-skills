@@ -2,13 +2,33 @@
 
 ## Overview
 
-This document describes the reliable method for detecting WebWorks ePublisher AutoMap installations on Windows systems using the Windows Registry.
+This document describes how WebWorks ePublisher AutoMap installations are detected on Windows. The skill's implementation is `scripts/Find-AutomapInstallation.ps1` (Windows PowerShell 5.1+); `Invoke-Automap.ps1` calls it automatically when no override is given.
 
-## Registry-Based Detection (Recommended)
+```bash
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Find-AutomapInstallation.ps1" -ShowBuild -Verbose
+```
+
+| Option | Description |
+|--------|-------------|
+| `-Version <ver>` | Detect a specific installed version (e.g. `2024.1`) instead of the latest |
+| `-ShowBuild` | Also print `Build: <n>` (registry-detected installs only) |
+| `-Verbose` | Detection diagnostics on the verbose stream |
+
+Exit codes: `0` found (path printed to stdout), `1` not found.
+
+## Resolution Order (Wrapper)
+
+`Invoke-Automap.ps1` resolves the executable in this order:
+
+1. `-ExePath <path>` wrapper option
+2. `AUTOMAP_EXE_PATH` environment variable
+3. `Find-AutomapInstallation.ps1` (registry, then filesystem — below)
+
+If an explicitly-set override points to a missing file, the wrapper fails with exit 3 rather than silently falling through — an override is a statement of intent.
+
+## Registry-Based Detection (Preferred)
 
 ### Registry Locations
-
-AutoMap installation information is stored in the Windows Registry at the following locations:
 
 **64-bit Installation:**
 ```
@@ -20,48 +40,24 @@ HKEY_LOCAL_MACHINE\SOFTWARE\WebWorks\ePublisher AutoMap\[VERSION]
 HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\WebWorks\ePublisher AutoMap\[VERSION]
 ```
 
-### Registry Key
+### Registry Values
 
-- **Key Name:** `ExePath`
-- **Value Type:** REG_SZ (String)
-- **Value Content:** Full path to the AutoMap Administrator executable
+Each version subkey (e.g. `2026.1`) carries:
 
-Example value:
-```
-C:\Program Files\WebWorks\ePublisher\2024.1\ePublisher AutoMap\WebWorks.Automap.Administrator.exe
-```
+- **`ExePath`** (REG_SZ) — full path to the AutoMap **Administrator** executable:
+  ```
+  C:\Program Files\WebWorks\ePublisher\2026.1\ePublisher AutoMap\WebWorks.Automap.Administrator.exe
+  ```
+- **`Version`** (REG_SZ) — full version string, e.g. `26.1.4712`; the build number is the last fragment.
 
-**Note:** The detection script automatically converts this to the CLI executable path:
-```
-C:\Program Files\WebWorks\ePublisher\2024.1\ePublisher AutoMap\WebWorks.Automap.exe
-```
+### Algorithm
 
-## Detection Algorithm
+1. Enumerate version subkeys in **both** hives (`Get-ChildItem`/`Get-ItemProperty` — native and fast, no `reg.exe` spawning).
+2. Filter to `-Version` if requested.
+3. Sort candidates by version **descending**; on a version tie, prefer the 64-bit hive.
+4. Normalize each candidate's `ExePath` to the CLI executable (below) and return the first whose CLI executable exists on disk.
 
-### Step 1: Query Registry for Versions
-
-1. Check `HKEY_LOCAL_MACHINE\SOFTWARE\WebWorks\ePublisher AutoMap\` for subkeys
-2. If not found, check `HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\WebWorks\ePublisher AutoMap\`
-3. Enumerate all version subkeys (e.g., `2024.1`, `2024.2`, etc.)
-4. Sort versions to find the latest installed version
-
-### Step 2: Read ExePath
-
-1. Navigate to the version subkey (e.g., `2024.1`)
-2. Read the `ExePath` value
-3. Store the full path to the executable
-
-### Step 3: Validate Executable
-
-1. Verify the file exists at the path retrieved from registry
-2. Check file permissions (read and execute)
-3. Optionally verify file signature or version information
-
-### Step 4: Cache Path
-
-1. Store the detected path in memory for session duration
-2. Avoid repeated registry queries
-3. Re-query only if execution fails (handles uninstall scenarios)
+Detection completes in well under a second, so no caching layer is needed — the historical ~8s overhead was the cost of spawning `reg.exe` from bash and text-parsing its output.
 
 ## Executable Path Normalization
 
@@ -72,16 +68,7 @@ The AutoMap installation includes two executables:
 | `WebWorks.Automap.Administrator.exe` | UI for interactive job management | No (intermediate) |
 | `WebWorks.Automap.exe` | CLI for automation and scripting | **Yes** |
 
-### Normalization Process
-
-Both registry and filesystem detection methods initially locate the Administrator executable, then normalize the path to the CLI executable:
-
-1. Detect Administrator executable path
-2. Replace `.Administrator.exe` with `.exe` in the path
-3. Validate that CLI executable exists
-4. Return CLI executable path
-
-This ensures consistent behavior regardless of detection method.
+Both detection methods locate the Administrator executable location, then normalize: replace `.Administrator.exe` with `.exe` and validate the CLI executable exists.
 
 ### Naming Convention Quirk
 
@@ -90,168 +77,50 @@ Note the capitalization difference:
 - **Directory name:** ePublisher AutoMap (capital M)
 - **Executable names:** Automap (lowercase m)
 
-Examples:
 ```
-C:\Program Files\WebWorks\ePublisher\2024.1\ePublisher AutoMap\WebWorks.Automap.exe
-                                                ^^^^^^^^                 ^^^^^^^
+C:\Program Files\WebWorks\ePublisher\2026.1\ePublisher AutoMap\WebWorks.Automap.exe
+                                                ^^^^^^^                 ^^^^^^^
                                                capital M              lowercase m
 ```
 
-## PowerShell Implementation Example
+## Filesystem Fallback
 
-```powershell
-# Function to detect AutoMap installation
-function Get-AutoMapPath {
-    $registryPaths = @(
-        "HKLM:\SOFTWARE\WebWorks\ePublisher AutoMap",
-        "HKLM:\SOFTWARE\WOW6432Node\WebWorks\ePublisher AutoMap"
-    )
+Used only when the registry yields no usable candidate (corrupted registry, permissions issues):
 
-    foreach ($basePath in $registryPaths) {
-        if (Test-Path $basePath) {
-            # Get all version subkeys
-            $versions = Get-ChildItem -Path $basePath | Sort-Object Name -Descending
+1. `C:\Program Files\WebWorks\ePublisher\[version]\ePublisher AutoMap\WebWorks.Automap.exe`
+2. `C:\Program Files (x86)\WebWorks\ePublisher\[version]\ePublisher AutoMap\WebWorks.Automap.exe`
 
-            foreach ($version in $versions) {
-                $exePath = (Get-ItemProperty -Path $version.PSPath).ExePath
-
-                if ($exePath -and (Test-Path $exePath)) {
-                    return @{
-                        Path = $exePath
-                        Version = $version.PSChildName
-                        Source = "Registry"
-                    }
-                }
-            }
-        }
-    }
-
-    return $null
-}
-
-# Usage
-$automap = Get-AutoMapPath
-if ($automap) {
-    Write-Host "Found AutoMap $($automap.Version) at: $($automap.Path)"
-} else {
-    Write-Host "AutoMap installation not found"
-}
-```
-
-## Bash/Shell Implementation Example
-
-Using Windows `reg` command:
-
-```bash
-#!/bin/bash
-
-# Function to detect AutoMap installation
-detect_automap() {
-    # Try 64-bit registry first
-    local reg_path="HKLM\\SOFTWARE\\WebWorks\\ePublisher AutoMap"
-    local versions=$(reg query "$reg_path" 2>/dev/null | grep "HKEY" | sed 's/.*\\//')
-
-    # If not found, try 32-bit registry
-    if [ -z "$versions" ]; then
-        reg_path="HKLM\\SOFTWARE\\WOW6432Node\\WebWorks\\ePublisher AutoMap"
-        versions=$(reg query "$reg_path" 2>/dev/null | grep "HKEY" | sed 's/.*\\//')
-    fi
-
-    # Get the latest version (assuming versions are sortable)
-    local latest_version=$(echo "$versions" | sort -V | tail -1)
-
-    if [ -n "$latest_version" ]; then
-        local full_path="$reg_path\\$latest_version"
-        local exe_path=$(reg query "$full_path" /v ExePath 2>/dev/null | grep ExePath | awk '{print $3}')
-
-        if [ -f "$exe_path" ]; then
-            echo "$exe_path"
-            return 0
-        fi
-    fi
-
-    return 1
-}
-
-# Usage
-AUTOMAP_EXE_PATH=$(detect_automap)
-if [ $? -eq 0 ]; then
-    echo "Found AutoMap at: $AUTOMAP_EXE_PATH"
-else
-    echo "AutoMap installation not found"
-fi
-```
-
-## Fallback Detection Method
-
-If registry detection fails (rare cases: corrupted registry, portable installation, permissions issues), use these fallback methods:
-
-### Standard Installation Paths
-
-Check these common installation locations (looking for Administrator executable, then normalize to CLI):
-
-1. `C:\Program Files\WebWorks\ePublisher\[version]\ePublisher AutoMap\WebWorks.Automap.Administrator.exe`
-2. `C:\Program Files (x86)\WebWorks\ePublisher\[version]\ePublisher AutoMap\WebWorks.Automap.Administrator.exe`
-
-**Note:** After finding the Administrator executable, the script normalizes to the CLI path:
-- `WebWorks.Automap.Administrator.exe` → `WebWorks.Automap.exe`
-
-### Version Discovery
-
-1. List directories in `C:\Program Files\WebWorks\ePublisher\`
-2. Sort by version number (descending)
-3. Check for `ePublisher AutoMap\WebWorks.Automap.Administrator.exe` in each version directory
-4. Normalize to CLI executable path
-
-### User Prompt
-
-As a last resort:
-1. Inform user that AutoMap was not detected
-2. Prompt user to provide the installation path
-3. Validate the provided path
-4. Cache the user-provided path
+Version directories matching `<digits>.<digits>` are sorted descending; the first existing CLI executable wins. Filesystem detection cannot provide a build number.
 
 ## Error Handling
 
-### Common Issues
-
-**Issue 1: Registry key not found**
+**Registry key not found**
 - Cause: AutoMap not installed or installation corrupted
-- Solution: Fallback to standard paths, then prompt user
+- Handled: falls back to standard filesystem paths
 
-**Issue 2: ExePath exists but file not found**
+**ExePath exists but file not found**
 - Cause: AutoMap was uninstalled but registry not cleaned
-- Solution: Try other versions, fallback to file system search
+- Handled: candidate skipped; next version / filesystem tried
 
-**Issue 3: Access denied to registry**
-- Cause: Insufficient permissions
-- Solution: Use fallback methods, inform user about permission requirements
+**Multiple versions installed**
+- Cause: side-by-side installations
+- Handled: highest version wins (64-bit preferred on tie); use `-Version` to pin
 
-**Issue 4: Multiple versions installed**
-- Cause: User upgraded without uninstalling old version
-- Solution: Use the latest version by default, allow user to specify version
-
-## Best Practices
-
-1. **Always query registry first** - It's the most reliable method
-2. **Cache the result** - Avoid repeated registry queries
-3. **Validate the executable** - Always verify the file exists before attempting execution
-4. **Support both 32-bit and 64-bit** - Check both registry locations
-5. **Handle multiple versions** - Default to latest, but allow override
-6. **Provide clear error messages** - Guide users to resolution when detection fails
-7. **Log detection method** - Record whether path came from registry, file system, or user input
+**Nothing found**
+- `[ERROR] AutoMap installation not found` on stderr, exit 1
+- Resolution: install ePublisher AutoMap, or set `AUTOMAP_EXE_PATH` / pass `-ExePath` explicitly
 
 ## Testing Scenarios
 
-- [ ] Fresh installation of AutoMap 2024.1 (64-bit)
-- [ ] Fresh installation of AutoMap 2024.1 (32-bit on 64-bit Windows)
-- [ ] Multiple versions installed (2024.1 and 2024.2)
+- [ ] Fresh installation (64-bit)
+- [ ] Fresh installation (32-bit on 64-bit Windows)
+- [ ] Multiple versions installed (across both hives)
 - [ ] AutoMap uninstalled but registry entry remains
 - [ ] No AutoMap installed
-- [ ] Non-standard installation path
-- [ ] User with limited registry permissions
+- [ ] `-Version` pinning to a non-latest install
+- [ ] `AUTOMAP_EXE_PATH` pointing at a development build
 
 ## Version History
 
+- **2.0** (2026-07-11): PowerShell implementation (`Find-AutomapInstallation.ps1`); merged-hive candidate ordering; caching removed as unnecessary
 - **1.0** (2025-01-27): Initial documentation of registry-based detection method
-
