@@ -1,5 +1,0 @@
-[WARNING] 3 warning(s), 0 error(s) in Logs/Reverb2/generate.log
-[WARNING] Warnings/errors in Logs/Reverb2/generate.log:
-[WARNING] [WARN] Project configured to use legacy format version '2024.1'.
-[WARNING] [WARN] Method None is not supported. Default processing may be applied.
-[WARNING] [WARN] PDF not created.

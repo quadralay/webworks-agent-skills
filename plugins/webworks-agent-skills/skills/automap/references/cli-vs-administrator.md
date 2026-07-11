@@ -76,7 +76,7 @@ Understanding the distinction is important for automation and integration.
 
 ## Detection Script Behavior
 
-The `detect-installation.sh` script:
+The `Find-AutomapInstallation.ps1` script:
 
 1. Detects the Administrator executable (via registry or filesystem)
 2. Normalizes the path to the CLI executable
@@ -164,11 +164,10 @@ fi
 #!/bin/bash
 # Jenkins/GitHub Actions build script
 
-# Detect AutoMap CLI
-AUTOMAP_CLI=$(./detect-installation.sh)
+WRAPPER="<skill-dir>/scripts/Invoke-Automap.ps1"
 
-# Clean build, no deploy
-"$AUTOMAP_CLI" -c -n -t "Production Target" my-project.wep
+# Clean build, no deploy (wrapper injects -n and --skip-reports)
+powershell -ExecutionPolicy Bypass -File "$WRAPPER" -- -c -t "Production Target" my-project.wep
 
 # Check result
 if [ $? -eq 0 ]; then
@@ -191,11 +190,11 @@ projects=(
     "project3.wep"
 )
 
-AUTOMAP_CLI=$(./detect-installation.sh)
+WRAPPER="<skill-dir>/scripts/Invoke-Automap.ps1"
 
 for project in "${projects[@]}"; do
     echo "Building $project..."
-    "$AUTOMAP_CLI" -c -n "$project"
+    powershell -ExecutionPolicy Bypass -File "$WRAPPER" -AllTargets -- -c "$project"
 
     if [ $? -ne 0 ]; then
         echo "Failed to build $project"
@@ -234,7 +233,7 @@ if ($LASTEXITCODE -eq 0) {
 **Cause:** Detection script returned Administrator executable path instead of CLI path.
 
 **Solution:**
-1. Check detection script output: `./detect-installation.sh --verbose`
+1. Check detection script output: `powershell -ExecutionPolicy Bypass -File Find-AutomapInstallation.ps1 -Verbose`
 2. Verify output ends with `WebWorks.Automap.exe` (not `.Administrator.exe`)
 3. If incorrect, verify the normalization function is working
 
@@ -246,7 +245,7 @@ if ($LASTEXITCODE -eq 0) {
 
 **Solution:**
 - Ensure detection script returns CLI executable path
-- Verify `normalize_to_cli_path()` function is being called
+- Verify the `.Administrator.exe` to `.exe` normalization is being applied
 - Check that CLI executable exists at normalized path
 
 ### Exit Code Always 0

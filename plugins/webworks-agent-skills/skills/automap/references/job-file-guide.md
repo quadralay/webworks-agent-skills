@@ -373,7 +373,7 @@ When AutoMap builds a Stationery-based job file (`.waj`), it does **not** build 
 
 ```bash
 # Via the wrapper
-bash scripts/automap-wrapper.sh -t "WebWorks Reverb 2.0" --stagingdir "C:\automap\staging" merged-help.waj
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -- -t "WebWorks Reverb 2.0" --stagingdir "C:\automap\staging" merged-help.waj
 
 # Directly
 "path/to/WebWorks.Automap.exe" --stagingdir "C:\automap\staging" merged-help.waj
@@ -640,8 +640,8 @@ Use multiple targets with different conditions:
 # Validate first
 python scripts/validate-job.py --check-stationery job.waj || exit 1
 
-# Run build
-bash scripts/automap-wrapper.sh job.waj
+# Run build (job's enabled target set; wrapper defaults still apply)
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -AllTargets -- job.waj
 
 # Check result
 if [ $? -eq 0 ]; then

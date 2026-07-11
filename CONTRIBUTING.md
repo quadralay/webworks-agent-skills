@@ -53,7 +53,7 @@ See [docs/solutions/bash-syntax-errors-in-skill-tables.md](docs/solutions/bash-s
 ## Development Guidelines
 
 - **Python scripts:** Parsing, validation, complex logic
-- **Shell scripts:** Program wrappers with error handling
+- **PowerShell scripts (Windows PowerShell 5.1 baseline):** Program wrappers with error handling for Windows-only tools (e.g., AutoMap)
 - **Documentation:** Clear language with examples
 - **Testing:** Validate with real ePublisher projects
 

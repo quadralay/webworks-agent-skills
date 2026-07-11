@@ -768,7 +768,7 @@ Examples:
 
         print(f"\n{CYAN}Next steps:{NC}")
         print(f"  - Validate: python validate-job.py {output_path}")
-        print(f"  - Build: ./automap-wrapper.sh {output_path}")
+        print(f"  - Build: powershell -ExecutionPolicy Bypass -File Invoke-Automap.ps1 -AllTargets -- {output_path}")
 
         return EXIT_SUCCESS
 
