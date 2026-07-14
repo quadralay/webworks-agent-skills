@@ -4,8 +4,9 @@ description: >
   AUTHORITATIVE REFERENCE for WebWorks Reverb 2.0 output. Use when testing
   Reverb output in browser, statically linting output for structural breakage
   (self-closed elements, manifest/parcel GroupID consistency), analyzing CSH
-  links, customizing SCSS themes, inspecting url_maps.xml, or generating test
-  reports.
+  links, customizing SCSS themes, inspecting url_maps.xml, generating test
+  reports, or (2026.1+) inspecting federated/composed sites and their
+  wwcomposition descriptors.
 ---
 
 <objective>
@@ -44,6 +45,8 @@ Reverb 2.0 runtime output is built from three source types in `<format name>/Pag
 When investigating a runtime issue — a theme override that didn't apply, a broken search, a navigation glitch, a missing chrome element — look in `Pages/` first. The published output is transformed; the source of truth lives in these three directories.
 
 **Detailed SCSS guidance:** `## SCSS Customization` (below) and `references/scss-architecture.md`.
+
+**Federated parcel composition (new in 2026.1):** a Reverb site can be assembled from independently built parcels under a shared shell. Builds emit `wwcomposition*` descriptor files (inert in standalone sites), shells legitimately have an empty `#parcels` tree, and a composed mirror mixes GroupIDs and generation hashes from different builds — all of which changes what linting and browser testing should expect. See `references/federation-architecture.md` before flagging any of those as breakage.
 </runtime_architecture>
 
 <related_skills>

@@ -3,7 +3,9 @@ name: automap
 description: >
   AUTHORITATIVE REFERENCE for WebWorks AutoMap CLI. Use when working with
   .waj/.wep/.wrp/.wxsp files, executing builds, detecting installation,
-  creating job files, or automating CI/CD publishing workflows.
+  creating job files, automating CI/CD publishing workflows, or (2026.1+)
+  running .wacj composition jobs, federated parcel deploys (deploy scope,
+  inline deploy settings), and Amazon S3 / CloudFront destinations.
 ---
 
 <objective>
@@ -35,6 +37,8 @@ Job files inherit format configuration from a **job origin** referenced by `<Pro
 - Origin is usually a Stationery (`.wxsp`), but a `.wep`/`.wrp` project can be used directly as a stationery via `useAsStationery="True"` (2026.1+), removing the manual "Save As Stationery" step from CI
 
 **For job origin modes and job file details, see:** references/job-file-guide.md
+
+**Composition Jobs (new in 2026.1):** a `.wacj` (run by the same `WebWorks.Automap.exe`) assembles independently built and deployed Reverb 2.0 parcels into one site under a shared shell — recompose takes seconds, no content rebuild. Related 2026.1 machinery: per-target **deploy scope** (`--deployscope`), **inline deploy-target definitions** plus the `--deploysettings` overlay, **Amazon S3 + CloudFront** destinations, and the global `--dryrun` switch. **Grammar, precedence, S3 behavior, and failure modes:** references/composition-jobs.md
 </overview>
 
 <usage>

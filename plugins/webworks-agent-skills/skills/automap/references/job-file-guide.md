@@ -499,6 +499,34 @@ Settings override format-level configuration from Stationery:
 python scripts/parse-stationery.py stationery.wxsp
 ```
 
+### Deployment (new in 2026.1: scope and inline definitions)
+
+A `<Target>` element routes deployment through `deployTarget` (a named
+destination) and, as of ePublisher 2026.1, can scope what the deployment
+publishes with `deployScope`:
+
+```xml
+<Targets>
+  <Target name="WebWorks Reverb 2.0" format="WebWorks Reverb 2.0"
+          formatType="Application" build="True"
+          deployTarget="ProductionMirror" deployScope="groups" />
+</Targets>
+```
+
+- `deployScope` — `everything` (default), `groups` (content only), or
+  `shell` (site files only). Overrides the scope declared in the project;
+  `--deployscope` on the CLI overrides both. Supports federated parcel
+  composition in WebWorks Reverb 2.0.
+- The job can carry the **definition** of its named destinations inline in a
+  `<DeploySettings>` element (a direct child of `<Job>`, exact deploy.prefs
+  entry schema), so a version-controlled job runs on machines with no seeded
+  deploy preferences. Folder and Amazon S3 definitions only; WebDAV is
+  rejected (embeds credentials). Precedence per name: job inline >
+  `--deploysettings` overlay file > deploy.prefs.
+
+**For the full federation workflow (.wacj composition jobs, S3 + CloudFront
+destinations, dry run), see:** references/composition-jobs.md
+
 ---
 
 ## Merge Settings (Multivolume / Merged TOC)
