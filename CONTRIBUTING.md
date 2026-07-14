@@ -29,6 +29,35 @@ plugins/
             └── UPSTREAM.md        # Source URL, last sync SHA, port process
 ```
 
+## Pre-Release Feature Annotations
+
+Skills track ePublisher **trunk**, not the shipped release: content for features
+that have landed in source but not yet shipped is written immediately, annotated
+with the target release, and the annotations are stripped at GA. This keeps the
+skills authoritative for early-access/dev builds while protecting users of the
+shipped release from being told about functionality they don't have.
+
+**Annotating (pre-GA):**
+
+- A wholly new reference for an unshipped feature opens with a blockquote banner:
+  `> **Applies to ePublisher <version> and later** (new in <version>).`
+- A new section or sentence inside an existing file carries the inline marker
+  `(new in <version>)` or `(<version>+)` — e.g. `(new in 2026.1)`, `(2026.1+)`.
+- List the feature under a `### ePublisher <version>` heading in the epublisher
+  skill's `references/version-compatibility.md` so agents can gate on the
+  user's installed version.
+
+**Stripping (at GA):**
+
+1. `grep -rn "new in <version>\|<version>+\|Applies to ePublisher <version>" plugins/`
+2. Remove banners and inline markers; keep the content. Version-compatibility
+   entries stay (they become the historical record).
+3. Bump the plugin version; note the stripped release in the PR.
+
+The cycle then resets for the next release's features. Precedents:
+`useAsStationery` (annotated pre-2026.1-GA) and the 2026.1 federated parcel
+composition set.
+
 ## SKILL.md Authoring
 
 ### Size Limit

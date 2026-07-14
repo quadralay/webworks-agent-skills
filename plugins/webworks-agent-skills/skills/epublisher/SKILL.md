@@ -79,6 +79,10 @@ A Designer `.wep` carries **no** `<format>.base` snapshots, so its transforms re
 
 **For job-file usage of `useAsStationery`, see the automap skill's `references/job-file-guide.md`.**
 
+### Deploy Targets and Deploy Scope (new in 2026.1)
+
+Output destinations (Target Settings **Deploy to** / **Add deploy target**) are machine-global named definitions shared across projects. As of ePublisher 2026.1: destinations can be **Folder** or **Amazon S3** (bucket/region/named credential profile/CloudFront distribution — no stored secrets; dry run supported); each target also declares a **Deploy** scope — Everything (complete site), Groups (content only), or Shell (site files only) — which powers federated parcel composition in WebWorks Reverb 2.0 (the field is disabled for formats without the capability). Deployments never delete outside their own scope slice, and Clean remains AutoMap-only. For the federation workflow, `.wacj` composition jobs, and inline deploy-target definitions, see the automap skill's `references/composition-jobs.md`; for version gating, `references/version-compatibility.md`.
+
 ### Project File Format
 
 The `.wep` file is XML containing target definitions:
