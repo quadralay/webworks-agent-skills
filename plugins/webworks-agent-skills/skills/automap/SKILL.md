@@ -49,8 +49,8 @@ Job files inherit format configuration from a **job origin** referenced by `<Pro
 
 1. **Executable resolution** — auto-detects the AutoMap installation; `AUTOMAP_EXE_PATH` or `-ExePath` overrides it (e.g., development builds)
 2. **Minimal output** — suppresses AutoMap's streaming stdout (banner, per-file progress); stderr passes through, so genuine errors still surface
-3. **Development-safe defaults** — injects `-n` and `--skip-reports`, and requires an explicit target, unless opted out
-4. **Post-build log scan** — reports per-target warning/error counts from `generate.log`
+3. **Development-safe defaults** — injects `-n` and `--skip-reports`, and requires an explicit target, unless opted out. A composition job (`.wacj`) always runs with native semantics: no flag applies to a compose and targets belong to member builds, so nothing is injected and no target is required (`--dryrun` is the native rehearsal switch)
+4. **Post-build log scan** — reports per-target warning/error counts from `generate.log`, and for a `.wacj` from the composition's `<job name>-log.txt` beside the file
 
 **Every AutoMap flag is pass-through.** The wrapper never translates, renames, or owns AutoMap options. Wrapper-level options are PowerShell-style names (`-NoDefaults`, `-AllTargets`, `-ExePath`, `-Help`) given before the `--` separator; everything after `--` is forwarded to `WebWorks.Automap.exe` verbatim.
 
@@ -111,6 +111,10 @@ powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1
 # Job file (.waj): build its build="True" target set (explicitly waive the target requirement)
 powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -AllTargets -- job.waj
 
+# Composition job (.wacj): rehearse the compose dry, then run it for real
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -- --dryrun composition.wacj
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -- composition.wacj
+
 # Production build: exact native CLI semantics (deploys, generates reports)
 powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -NoDefaults -- -c -t "WebWorks Reverb 2.0" project.wep
 ```
@@ -127,6 +131,8 @@ Unless `-NoDefaults` is given, the wrapper injects these **native AutoMap flags*
 | `--skip-reports` | already present | Faster builds *(2025.1+ — use `-NoDefaults` with older versions)* |
 
 And one requirement: **an explicit `-t`/`--target` must be present**, so a job file's full `build="True"` set (or a project's every target) never builds by accident. Waive it with `-AllTargets` (defaults still apply) or `-NoDefaults` (verbatim native behavior). On violation the wrapper exits 2 and lists the file's targets.
+
+**Composition jobs are exempt.** A `.wacj` composes already-deployed output: `-n` would fight the run's purpose, `--skip-reports` has nothing to skip, and output targets belong to the member builds. The wrapper therefore runs a `.wacj` with native semantics automatically (reported on an `[INFO]` line) — no injected flags, no target requirement. To rehearse a compose without touching the mirror, pass the native `--dryrun` switch.
 
 Note: a clean build (`-c`) is **not** a default — pass it explicitly when you need one.
 
