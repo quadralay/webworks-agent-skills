@@ -40,6 +40,11 @@ Set-Content -LiteralPath $job -Encoding Ascii -Value @'
 <Job name="Sample Job"><Targets><Target name="Target A" build="True"/><Target name="Target B" build="False"/></Targets></Job>
 '@
 
+$composition = Join-Path $work 'sample.wacj'
+Set-Content -LiteralPath $composition -Encoding Ascii -Value @'
+<CompositionJob name="Sample Composition" version="1.0"><Jobs><Job path="sample.waj" role="shell"/></Jobs><Destination name="Mirror"/></CompositionJob>
+'@
+
 $argsFile = Join-Path $work 'stub-args.txt'
 $env:STUB_OUT = $argsFile
 $env:STUB_EXIT = '0'
@@ -155,6 +160,30 @@ Assert 'build failure: reported with code' ($r.Output -match '\[ERROR\] Build fa
 # 12. -ExePath without a value: exit 2.
 $r = Invoke-Wrapper @('-ExePath')
 Assert 'dangling -ExePath: exit 2' ($r.ExitCode -eq 2) $r.Output
+
+# 13. Composition job (.wacj): recognized, native semantics, no target guard.
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '--dryrun', $composition)
+Assert 'wacj: exit 0' ($r.ExitCode -eq 0) $r.Output
+Assert 'wacj: nothing injected' (-not ($r.StubArgs -match '(^| )-n( |$)') -and -not ($r.StubArgs -match '--skip-reports')) $r.StubArgs
+Assert 'wacj: --dryrun forwarded verbatim' ($r.StubArgs -match '--dryrun') $r.StubArgs
+Assert 'wacj: native-semantics info line' ($r.Output -match '\[INFO\] Composition job \(\.wacj\)') $r.Output
+
+# 14. Composition job with explicit -NoDefaults: no redundant info line.
+$r = Invoke-Wrapper @('-ExePath', $stub, '-NoDefaults', '--', $composition)
+Assert 'wacj -NoDefaults: exit 0' ($r.ExitCode -eq 0) $r.Output
+Assert 'wacj -NoDefaults: no info line' (-not ($r.Output -match '\[INFO\] Composition job')) $r.Output
+
+# 15. Composition log scan: <job name>-log.txt beside the .wacj is summarized.
+$compositionLog = Join-Path $work 'Sample Composition-log.txt'
+Set-Content -LiteralPath $compositionLog -Encoding Ascii -Value @'
+Composition job 'Sample Composition' started.
+[Warning] parcel 'Extra' has no descriptor; omitted.
+[Error] Destination 'Mirror' is not defined in deploy.prefs, the --deploysettings overlay, or inline in the composition job.
+'@
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', $composition)
+Assert 'wacj log scan: counts reported' ($r.Output -match '\[ERROR\] 1 warning\(s\), 1 error\(s\) in Sample Composition-log\.txt') $r.Output
+Assert 'wacj log scan: exit code unaffected' ($r.ExitCode -eq 0) $r.Output
+Remove-Item -LiteralPath $compositionLog -ErrorAction SilentlyContinue
 
 # --- Results ---------------------------------------------------------------
 

@@ -8,8 +8,12 @@ The wrapper exists for exactly four jobs:
   2. Suppress AutoMap's streaming stdout (stderr passes through), reporting
      a one-line result instead.
   3. Apply development-safe default flags (-n, --skip-reports) and require
-     an explicit target, unless opted out.
-  4. Scan generate.log files after a successful build and report per-target
+     an explicit target, unless opted out. Composition jobs (.wacj) always
+     run with native semantics: no flag applies to a compose and targets
+     belong to member builds, so nothing is injected and no target is
+     required (use --dryrun to rehearse a compose safely).
+  4. Scan generate.log files (and, for a .wacj, the composition's
+     <job name>-log.txt beside the file) after a successful run and report
      warning/error counts.
 
 Every AutoMap flag is PASS-THROUGH. The wrapper never translates, renames,
@@ -51,7 +55,7 @@ Requires Windows PowerShell 5.1 or later.
 
 Set-StrictMode -Version 2.0
 
-$script:ProjectExtensionPattern = '\.(wep|wrp|waj|wxsp)$'
+$script:ProjectExtensionPattern = '\.(wep|wrp|waj|wacj|wxsp)$'
 $script:DefaultStagingRoot = Join-Path $env:USERPROFILE 'Documents\WebWorks ePublisher AutoMap\Staging'
 
 function Write-StderrLine {
@@ -76,7 +80,9 @@ Everything else is forwarded to WebWorks.Automap.exe verbatim. Run
 
 Defaults injected unless -NoDefaults: -n (unless deploy flags present),
 --skip-reports (2025.1+). An explicit -t/--target is required unless
--NoDefaults or -AllTargets.
+-NoDefaults or -AllTargets. A composition job (.wacj) always runs with
+native semantics -- nothing is injected and no target is required; pass
+--dryrun to rehearse a compose without touching the mirror.
 
 Examples:
   # Dev build, safe defaults applied
@@ -84,6 +90,10 @@ Examples:
 
   # Job file: build its enabled target set, still no deploy/reports
   Invoke-Automap.ps1 -AllTargets -- job.waj
+
+  # Composition job: rehearse the compose dry, then run it for real
+  Invoke-Automap.ps1 -- --dryrun composition.wacj
+  Invoke-Automap.ps1 -- composition.wacj
 
   # Production: exact native semantics (deploys, generates reports)
   Invoke-Automap.ps1 -NoDefaults -- -c -t "WebWorks Reverb 2.0" project.wep
@@ -185,6 +195,47 @@ function Get-GenerateLogSummaries {
         }
     }
     return $summaries
+}
+
+# A composition job writes a job-style log beside the .wacj file, named
+# <job name>-log.txt (job name attribute, falling back to the file's base
+# name). Returns a summary object like Get-GenerateLogSummaries, or $null
+# when the log is absent or clean. Purely observational.
+function Get-CompositionLogSummary {
+    param([string]$Path)
+
+    $fullPath = (Resolve-Path -LiteralPath $Path).Path
+    $dir = Split-Path -Parent $fullPath
+
+    $jobName = $null
+    $content = Get-Content -LiteralPath $fullPath -Raw -ErrorAction SilentlyContinue
+    if ($content) {
+        $nameMatch = [regex]::Match($content, '<CompositionJob\b[^>]*\bname\s*=\s*"([^"]*)"')
+        if ($nameMatch.Success) { $jobName = $nameMatch.Groups[1].Value }
+    }
+    if (-not $jobName) { $jobName = [System.IO.Path]::GetFileNameWithoutExtension($fullPath) }
+
+    $logFile = Join-Path $dir "$jobName-log.txt"
+    if (-not (Test-Path -LiteralPath $logFile -PathType Leaf)) { return $null }
+
+    $warnCount = 0
+    $errorCount = 0
+    try {
+        $warnCount = @(Select-String -LiteralPath $logFile -Pattern '[Warning]' -SimpleMatch).Count
+        $errorCount = @(Select-String -LiteralPath $logFile -Pattern '[Error]' -SimpleMatch).Count
+    }
+    catch {
+        return $null
+    }
+    if (($warnCount -eq 0) -and ($errorCount -eq 0)) { return $null }
+
+    $isError = ($errorCount -gt 0)
+    $label = '[WARNING]'
+    if ($isError) { $label = '[ERROR]' }
+    return [pscustomobject]@{
+        Text    = "$label $warnCount warning(s), $errorCount error(s) in $jobName-log.txt"
+        IsError = $isError
+    }
 }
 
 # Determines the directories whose Logs/ should be scanned after a build.
@@ -300,7 +351,7 @@ function Invoke-Main {
         })
 
     if ($projectFiles.Count -eq 0) {
-        Write-StderrLine '[ERROR] No project or job file (.wep, .wrp, .waj, .wxsp) found in arguments'
+        Write-StderrLine '[ERROR] No project or job file (.wep, .wrp, .waj, .wacj, .wxsp) found in arguments'
         Show-Usage
         exit 2
     }
@@ -310,6 +361,17 @@ function Invoke-Main {
             Write-StderrLine "[ERROR] Project file not found: $file"
             exit 4
         }
+    }
+
+    # --- Composition jobs run verbatim -------------------------------------
+    # A .wacj composes already-deployed output: -n would fight the run's
+    # purpose, --skip-reports has nothing to skip, and output targets belong
+    # to the member builds, not the composition. So a composition implies
+    # -NoDefaults; --dryrun is the native way to rehearse a compose safely.
+    $compositionFiles = @($projectFiles | Where-Object { $_ -match '\.wacj$' })
+    if (($compositionFiles.Count -gt 0) -and (-not $noDefaults)) {
+        $noDefaults = $true
+        Write-Output '[INFO] Composition job (.wacj): native CLI semantics (no injected flags, no target requirement); pass --dryrun to rehearse the compose.'
     }
 
     # --- Explicit-target requirement --------------------------------------
@@ -388,7 +450,15 @@ function Invoke-Main {
 
     # --- Post-build log scan (observational; never alters the exit code) ---
     try {
-        foreach ($base in Get-LogScanBases -ProjectFiles $projectFiles -PassthroughArgs $passthrough) {
+        foreach ($file in $compositionFiles) {
+            $summary = Get-CompositionLogSummary -Path $file
+            if ($summary) {
+                if ($summary.IsError) { Write-StderrLine $summary.Text }
+                else { Write-Output $summary.Text }
+            }
+        }
+        $buildFiles = @($projectFiles | Where-Object { $_ -notmatch '\.wacj$' })
+        foreach ($base in Get-LogScanBases -ProjectFiles $buildFiles -PassthroughArgs $passthrough) {
             $summaries = @(Get-GenerateLogSummaries -BaseDir $base.Dir)
             if (($summaries.Count -gt 0) -and $base.Announce) {
                 Write-Output "[INFO] Logs under staging folder: $($base.Dir)"

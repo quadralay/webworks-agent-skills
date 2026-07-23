@@ -27,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1
 - `[wrapper options]`: PowerShell-style options for the wrapper itself (`-NoDefaults`, `-AllTargets`, `-ExePath <path>`, `-Help`)
 - `--`: separator — everything after it is forwarded to `WebWorks.Automap.exe` verbatim. (Technically optional: the first token that is not a wrapper option also ends wrapper parsing. Always include it anyway; it makes the boundary explicit.)
 - `<automap options>`: native AutoMap CLI flags (see [Native Command Options](#native-command-options))
-- `<project-file>`: path to `.wep`, `.wrp`, `.waj`, or `.wxsp` project/job file
+- `<project-file>`: path to `.wep`, `.wrp`, `.waj`, `.wacj`, or `.wxsp` project/job file. A composition job (`.wacj`) always runs with native semantics — the wrapper injects nothing and requires no target (pass `--dryrun` to rehearse the compose).
 
 ## Wrapper Options
 
