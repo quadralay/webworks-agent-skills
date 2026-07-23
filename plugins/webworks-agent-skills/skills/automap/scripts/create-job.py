@@ -268,7 +268,9 @@ def generate_job_xml(config: dict) -> str:
         target.set('format', target_config.get('format', ''))
         target.set('formatType', target_config.get('formatType', 'Application'))
         target.set('build', 'True' if target_config.get('build', True) else 'False')
-        target.set('deployTarget', target_config.get('deployTarget', ''))
+        # destination= is the current spelling; the pre-release deployTarget
+        # config key is accepted for one release.
+        target.set('destination', target_config.get('destination', target_config.get('deployTarget', '')))
         target.set('cleanOutput', 'True' if target_config.get('cleanOutput', False) else 'False')
 
         # Add Conditions if present
@@ -403,7 +405,7 @@ def interactive_collect_targets(stationery_data: dict) -> list[dict]:
             'formatType': selected_format['type'],
             'build': confirm("  Build this target by default?"),
             'cleanOutput': confirm("  Clean output before build?", default=False),
-            'deployTarget': prompt("  Deploy target name (blank for none)", ""),
+            'destination': prompt("  Destination name (blank for none)", ""),
             'conditions': [],
             'variables': [],
             'settings': []
@@ -530,8 +532,9 @@ def print_summary(config: dict) -> None:
     for target in targets:
         status = "[BUILD]" if target.get('build', True) else "[SKIP]"
         print(f"\n  {status} {target['name']}")
-        if target.get('deployTarget'):
-            print(f"         Deploy: {target['deployTarget']}")
+        destination = target.get('destination') or target.get('deployTarget')
+        if destination:
+            print(f"         Deploy: {destination}")
         if target.get('conditions'):
             conds = ', '.join(f"{c['name']}={c['value']}" for c in target['conditions'])
             print(f"         Conditions: {conds}")
@@ -574,7 +577,7 @@ def generate_template(stationery_data: dict, stationery_path: str) -> dict:
             'formatType': fmt['type'],
             'build': True,
             'cleanOutput': False,
-            'deployTarget': '',
+            'destination': '',
             'conditions': [],
             'variables': [],
             'settings': []

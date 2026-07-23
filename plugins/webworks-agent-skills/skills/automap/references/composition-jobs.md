@@ -47,7 +47,7 @@ element):
     <Group name="Administration Guide"/>
   </MergeSettings>
 
-  <DeployTarget name="ProductionMirror"/>
+  <Destination name="ProductionMirror"/>
 </CompositionJob>
 ```
 
@@ -63,7 +63,9 @@ element):
   (DISCOVERY mode); declared groups plus `discover` is the hybrid. The root
   `title` attribute is accepted for `.waj` grammar parity but unused (warned):
   the composed site's title is shell chrome.
-- **`<DeployTarget name>`** — the shared destination. Resolution order:
+- **`<Destination name>`** — the shared destination. (2026.1 pre-release
+  builds spelled this `<DeployTarget>`; that spelling is still read for one
+  release and rewritten as `<Destination>` on save.) Resolution order:
   the composition job's own inline `<DeploySettings>` → a `--deploysettings`
   overlay file → the machine's deploy preferences (`deploy.prefs`), with a
   drift warning when an inline definition shadows a differing preference.
@@ -85,7 +87,7 @@ rebuild and redeploy the shell.
 & $automapExe composition.wacj --deployscope=shell   # NOT valid — scope belongs to member builds
 ```
 
-- Exit code 0 on success; non-zero on error (undefined deploy target, missing
+- Exit code 0 on success; non-zero on error (undefined destination, missing
   shell descriptor, member build failure).
 - A job-style log is written beside the file: `<name>-log.txt`.
 - Expected success lines: `Harvested N parcel descriptor(s) from the mirror`,
@@ -121,7 +123,7 @@ correctly. Per-parcel knowledge-base archives
 Groups-scope Clean also sweeps the build's own prior-generation archives
 (never a sibling's).
 
-## Inline deploy-target definitions
+## Inline destination definitions
 
 Deploy preferences are per-user, per-machine state; a version-controlled job
 that references a destination by name alone needs every machine seeded. Both
@@ -137,12 +139,12 @@ entry schema — references stay by name:
   </DeploySetting>
 </DeploySettings>
 
-<!-- .wacj: inside <DeployTarget> -->
-<DeployTarget name="ProductionMirror">
+<!-- .wacj: inside <Destination> -->
+<Destination name="ProductionMirror">
   <DeploySettings>
     <DeploySetting Name="ProductionMirror" Action="s3">...</DeploySetting>
   </DeploySettings>
-</DeployTarget>
+</Destination>
 ```
 
 - Precedence per name: **job file's own inline > `--deploysettings` overlay
@@ -194,8 +196,8 @@ deploying machine.
 - A failed deploy is an **error**: it reaches the per-target error count and
   the process exit status (2026.1; earlier versions logged a warning and
   exited 0).
-- `Deploy target '<name>' is not defined in deploy.prefs or inline in the
-  composition job.` — seed the name via inline definitions, an overlay file,
+- `Destination '<name>' is not defined in deploy.prefs, the --deploysettings
+  overlay, or inline in the composition job.` — seed the name via inline definitions, an overlay file,
   or deploy.prefs.
 - `The mirror has no shell composition descriptor (wwcomposition-shell.xml)`
   — the shell was never deployed to that mirror (or the path points at an

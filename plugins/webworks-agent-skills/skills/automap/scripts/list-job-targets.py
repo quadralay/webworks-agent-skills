@@ -92,7 +92,7 @@ def extract_targets(root: Element) -> list[dict]:
             'formatType': target_elem.get('formatType', 'Application'),
             'build': target_elem.get('build', 'True') == 'True',
             'cleanOutput': target_elem.get('cleanOutput', 'False') == 'True',
-            'deployTarget': target_elem.get('deployTarget', ''),
+            'destination': target_elem.get('destination') or target_elem.get('deployTarget', ''),
             'conditionsCount': 0,
             'variablesCount': 0,
             'settingsCount': 0,
@@ -169,8 +169,8 @@ def output_table(job_name: str, stationery: str, targets: list[dict],
         print(f"  {status} {target['name']}")
         print(f"          Format: {target['format']}")
 
-        if target['deployTarget']:
-            print(f"          Deploy: {target['deployTarget']}")
+        if target['destination']:
+            print(f"          Deploy: {target['destination']}")
 
         if target['cleanOutput']:
             print(f"          Clean: Yes")
@@ -208,8 +208,8 @@ def output_detailed(job_name: str, stationery: str, targets: list[dict],
         print(f"          Format: {target['format']}")
         print(f"          Type: {target['formatType']}")
 
-        if target['deployTarget']:
-            print(f"          Deploy: {target['deployTarget']}")
+        if target['destination']:
+            print(f"          Deploy: {target['destination']}")
 
         print(f"          Clean: {'Yes' if target['cleanOutput'] else 'No'}")
 
