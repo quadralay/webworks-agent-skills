@@ -127,7 +127,7 @@ All options below belong after the `--` separator and are forwarded to `WebWorks
 - **Use When**: Layer-scoped deployments (e.g., publishing only group parcels, or only the shell)
 
 **`--deploysettings <file>`** *(2026.1+)*
-- **Purpose**: XML file of inline deploy-target definitions (deploy.prefs entry schema, file/s3 actions only) overlaying deploy.prefs by name
+- **Purpose**: XML file of inline destination definitions (deploy.prefs entry schema, file/s3 actions only) overlaying deploy.prefs by name
 - **Use When**: CI environments where deploy.prefs is not configured on the machine
 
 ### Staging Folder (Job Files)

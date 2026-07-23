@@ -79,7 +79,7 @@ Stationery (.wxsp)              Job File (.waj)
 - Source documents and organization
 - Which targets to build
 - Target-specific overrides (conditions, variables, settings)
-- Deploy target names
+- Destination names
 - Build flags (clean, build enabled)
 
 ---
@@ -124,7 +124,7 @@ A job that uses a live Designer project as its stationery looks exactly like a S
             format="WebWorks Reverb 2.0"
             formatType="Application"
             build="True"
-            deployTarget=""
+            destination=""
             cleanOutput="False" />
   </Targets>
 </Job>
@@ -154,7 +154,7 @@ On each build AutoMap re-reads `design.wep`, stages a stationery from its curren
             format="WebWorks Reverb 2.0"
             formatType="Application"
             build="True"
-            deployTarget=""
+            destination=""
             cleanOutput="False" />
   </Targets>
 </Job>
@@ -184,7 +184,7 @@ On each build AutoMap re-reads `design.wep`, stages a stationery from its curren
             format="WebWorks Reverb 2.0"
             formatType="Application"
             build="True"
-            deployTarget="Production Help"
+            destination="Production Help"
             cleanOutput="False">
 
       <Conditions Expression="" UseClassicConditions="False" UseDocumentExpression="True">
@@ -207,7 +207,7 @@ On each build AutoMap re-reads `design.wep`, stages a stationery from its curren
             format="PDF - XSL-FO"
             formatType="Document"
             build="False"
-            deployTarget=""
+            destination=""
             cleanOutput="False" />
   </Targets>
 </Job>
@@ -271,7 +271,7 @@ Container for build targets. Contains one or more `<Target>` elements.
 | `format` | Yes | Format name from Stationery | Must match exactly (case-sensitive) |
 | `formatType` | Yes | Format type | `"Application"`, `"Document"` |
 | `build` | Yes | Build this target by default | `"True"`, `"False"` |
-| `deployTarget` | No | Deployment target name | Empty string or name |
+| `destination` | No | Named destination (pre-release spelling `deployTarget` still read for one release) | Empty string or name |
 | `cleanOutput` | Yes | Clean output before build | `"True"`, `"False"` |
 
 ### `<Conditions>` Element
@@ -383,7 +383,7 @@ powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1
 
 **Notes**:
 
-- The staged project (and its `Output/`) persists after the build by default (the AutoMap "Remove temporary files" preference is off), which is why output can be retrieved from the Staging Folder. Deployment (`-d`/`--deployfolder`, or a `deployTarget`) copies output elsewhere; without it, the Staging Folder is the only place output lands.
+- The staged project (and its `Output/`) persists after the build by default (the AutoMap "Remove temporary files" preference is off), which is why output can be retrieved from the Staging Folder. Deployment (`-d`/`--deployfolder`, or a `destination`) copies output elsewhere; without it, the Staging Folder is the only place output lands.
 - This staging behavior applies to Stationery-based jobs (mode 1) **and** to `.wep`/`.wrp` jobs that opt in with `useAsStationery="True"` (mode 3) — both stage a temporary `.wrp` under the Staging Folder. A `.waj` that references a `.wep`/`.wrp` master project **without** `useAsStationery` (mode 2) instead builds in place, into that project's own `Output/` folder, ignoring the job's `<Files>`. See [Job Origin Modes (Stationery vs Project)](#job-origin-modes-stationery-vs-project).
 
 ---
@@ -433,7 +433,7 @@ When using `create-job.py` with `--config`, use this JSON format:
       "formatType": "Application",
       "build": true,
       "cleanOutput": false,
-      "deployTarget": "Production",
+      "destination": "Production",
       "conditions": [
         {"name": "OnlineOnly", "value": "True"}
       ],
@@ -501,15 +501,16 @@ python scripts/parse-stationery.py stationery.wxsp
 
 ### Deployment (new in 2026.1: scope and inline definitions)
 
-A `<Target>` element routes deployment through `deployTarget` (a named
-destination) and, as of ePublisher 2026.1, can scope what the deployment
+A `<Target>` element routes deployment through `destination` (a named
+destination; the 2026.1 pre-release spelling `deployTarget` is still read for
+one release) and, as of ePublisher 2026.1, can scope what the deployment
 publishes with `deployScope`:
 
 ```xml
 <Targets>
   <Target name="WebWorks Reverb 2.0" format="WebWorks Reverb 2.0"
           formatType="Application" build="True"
-          deployTarget="ProductionMirror" deployScope="groups" />
+          destination="ProductionMirror" deployScope="groups" />
 </Targets>
 ```
 
@@ -565,7 +566,7 @@ Groups are referenced **by name** (matching a top-level `<Files>` group). AutoMa
             format="WebWorks Reverb 2.0"
             formatType="Application"
             build="True"
-            deployTarget=""
+            destination=""
             cleanOutput="False">
 
       <!-- Define the merged TOC: title, containers, and parcel placement -->

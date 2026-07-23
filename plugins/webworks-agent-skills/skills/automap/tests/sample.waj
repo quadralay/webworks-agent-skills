@@ -15,7 +15,7 @@
             format="WebWorks Reverb 2.0"
             formatType="Application"
             build="True"
-            deployTarget=""
+            destination=""
             cleanOutput="False">
       <Conditions Expression="" UseClassicConditions="False" UseDocumentExpression="True">
         <Condition name="OnlineOnly" value="True" Passthrough="False" UseDocumentValue="False" />
@@ -31,7 +31,7 @@
             format="PDF - XSL-FO"
             formatType="Document"
             build="False"
-            deployTarget=""
+            destination=""
             cleanOutput="False" />
   </Targets>
 </Job>

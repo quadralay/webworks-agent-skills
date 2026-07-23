@@ -138,7 +138,7 @@ def extract_job_info(root: Element, job_path: str) -> dict:
                 'formatType': target_elem.get('formatType', 'Application'),
                 'build': target_elem.get('build', 'True') == 'True',
                 'cleanOutput': target_elem.get('cleanOutput', 'False') == 'True',
-                'deployTarget': target_elem.get('deployTarget', ''),
+                'destination': target_elem.get('destination') or target_elem.get('deployTarget', ''),
                 'conditions': [],
                 'variables': [],
                 'settings': []
@@ -206,8 +206,8 @@ def output_human_readable(job_info: dict) -> None:
         print(f"         Format: {target['format']}")
         print(f"         Type: {target['formatType']}")
 
-        if target['deployTarget']:
-            print(f"         Deploy: {target['deployTarget']}")
+        if target['destination']:
+            print(f"         Deploy: {target['destination']}")
 
         if target['cleanOutput']:
             print(f"         Clean: Yes")
