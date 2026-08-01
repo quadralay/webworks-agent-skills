@@ -1,0 +1,10 @@
+Composition job 'Product Docs' started at 9:14:02 AM, 2026-03-11.
+Running WebWorks ePublisher AutoMap version 2026.1.0.
+[WARN] The MergeSettings title 'Product Documentation' is not used by composition; the composed site's title comes from the shell project's build.
+Member 'shell': output target 'WebWorks Reverb 2.0' (WebWorks Reverb 2.0, composition Jobs/@target).
+Member 'api-guide': output target 'WebWorks Reverb 2.0' (WebWorks Reverb 2.0, composition Jobs/@target).
+[WARN] Member 'api-guide' deploys to destination 'Staging', not the composition's destination 'ProductionMirror'.
+Composed group 'API Guide'.
+Composition job 'Product Docs' finished at 9:14:37 AM, 2026-03-11.
+Total time: 00:00:35.
+1 group(s) composed, 2 warning(s), 0 error(s) reported.

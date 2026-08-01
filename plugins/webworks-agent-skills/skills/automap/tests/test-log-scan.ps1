@@ -1,6 +1,7 @@
 <#
 test-log-scan.ps1
-Test driver for Get-GenerateLogSummaries in Invoke-Automap.ps1.
+Test driver for Get-GenerateLogSummaries and Get-CompositionLogSummary in
+Invoke-Automap.ps1.
 
 Dot-sources the wrapper (its main-flow guard prevents a build from running),
 invokes the log scan against each fixture directory, and compares the summary
@@ -21,11 +22,11 @@ $fixtures = Join-Path $scriptDir 'fixtures'
 $script:Pass = 0
 $script:Fail = 0
 
-function Test-Fixture {
+function Assert-Summary {
     param(
         [string]$Name,
-        [string]$FixtureDir,
-        [string]$ExpectedFile
+        [string]$ExpectedFile,
+        [string]$Actual
     )
 
     $expected = ''
@@ -35,7 +36,7 @@ function Test-Fixture {
     }
     $expected = ($expected -replace "`r`n", "`n").TrimEnd("`n")
 
-    $actual = (@(Get-GenerateLogSummaries -BaseDir $FixtureDir) | ForEach-Object { $_.Text }) -join "`n"
+    $actual = $Actual
 
     if ($expected -ceq $actual) {
         $script:Pass++
@@ -50,6 +51,29 @@ function Test-Fixture {
         Write-Output $actual
         Write-Output '----------------'
     }
+}
+
+function Test-Fixture {
+    param(
+        [string]$Name,
+        [string]$FixtureDir,
+        [string]$ExpectedFile
+    )
+
+    $actual = (@(Get-GenerateLogSummaries -BaseDir $FixtureDir) | ForEach-Object { $_.Text }) -join "`n"
+    Assert-Summary -Name $Name -ExpectedFile $ExpectedFile -Actual $actual
+}
+
+function Test-CompositionFixture {
+    param(
+        [string]$Name,
+        [string]$CompositionFile,
+        [string]$ExpectedFile
+    )
+
+    $actual = (@(Get-CompositionLogSummary -Path $CompositionFile) |
+        Where-Object { $_ } | ForEach-Object { $_.Text }) -join "`n"
+    Assert-Summary -Name $Name -ExpectedFile $ExpectedFile -Actual $actual
 }
 
 # Single-target, warnings only: summary format.
@@ -82,6 +106,18 @@ Test-Fixture 'no-logs-dir' `
 Test-Fixture 'empty-logs-dir' `
     (Join-Path $fixtures 'empty-logs-dir') `
     (Join-Path $fixtures 'empty-logs-dir\expected-default.txt')
+
+# Composition log, warnings only: the product writes [WARN]/[ERROR] (Publish
+# Core's Messages.Warn/.Error), so warnings must be counted, not dropped.
+Test-CompositionFixture 'composition-warning' `
+    (Join-Path $fixtures 'composition-warning\composition.wacj') `
+    (Join-Path $fixtures 'composition-warning\expected-default.txt')
+
+# Composition log with both markers: summary is [ERROR], both counted. The log
+# is located by the <CompositionJob name="..."> attribute, not the file name.
+Test-CompositionFixture 'composition-mixed' `
+    (Join-Path $fixtures 'composition-mixed\composition.wacj') `
+    (Join-Path $fixtures 'composition-mixed\expected-default.txt')
 
 Write-Output ''
 Write-Output "Results: $($script:Pass) passed, $($script:Fail) failed"

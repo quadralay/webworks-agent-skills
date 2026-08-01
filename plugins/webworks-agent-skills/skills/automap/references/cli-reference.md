@@ -46,7 +46,7 @@ Unless `-NoDefaults` is given, the wrapper injects these **native** flags and re
 
 | Injected flag | Skipped when | Purpose |
 |---------------|--------------|---------|
-| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled: `-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope` | Prevents accidental deployment during development |
+| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled: `-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope`, `--destination`, `--dryrun` | Prevents accidental deployment during development |
 | `--skip-reports` | already present | Faster builds *(2025.1+; use `-NoDefaults` with older versions)* |
 
 **Explicit-target requirement:** unless `-NoDefaults` or `-AllTargets` is given, the arguments must include `-t` or `--target`. Otherwise the wrapper exits 2 and lists the file's available targets (for `.waj`, annotating which are `build="True"` enabled). This prevents a job file's full enabled set — or a project's every target — from building by accident.

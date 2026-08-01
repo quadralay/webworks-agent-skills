@@ -1,0 +1,8 @@
+Composition job 'Product Docs' started at 9:22:44 AM, 2026-03-11.
+Running WebWorks ePublisher AutoMap version 2026.1.0.
+[WARN] Member 'api-guide' deploys to destination 'Staging', not the composition's destination 'ProductionMirror'.
+Member 'shell': output target 'WebWorks Reverb 2.0' (WebWorks Reverb 2.0, composition Jobs/@target).
+[ERROR] Destination 'ProductionMirror' is not defined in deploy.prefs, the --deploysettings overlay, or inline in the composition job.
+Composition job 'Product Docs' finished at 9:22:46 AM, 2026-03-11.
+Total time: 00:00:02.
+0 group(s) composed, 1 warning(s), 1 error(s) reported.

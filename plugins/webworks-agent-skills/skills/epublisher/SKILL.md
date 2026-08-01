@@ -81,7 +81,7 @@ A Designer `.wep` carries **no** `<format>.base` snapshots, so its transforms re
 
 ### Deploy Destinations and Deploy Scope (new in 2026.1)
 
-Output destinations (Target Settings **Deploy to** / Edit > **Deploy Destinations**) are machine-global named definitions shared across projects. As of ePublisher 2026.1: destinations can be **Folder** or **Amazon S3** (bucket/region/named credential profile/CloudFront distribution — no stored secrets; dry run supported); each target also declares a **Deploy** scope — Everything (complete site), Groups (content only), or Shell (site files only) — which powers federated parcel composition in WebWorks Reverb 2.0 (the field is disabled for formats without the capability). Deployments never delete outside their own scope slice, and Clean remains AutoMap-only. For the federation workflow, `.wacj` composition jobs, and inline destination definitions, see the automap skill's `references/composition-jobs.md`; for version gating, `references/version-compatibility.md`.
+Output destinations (Target Settings **Deploy to** / Edit > **Deploy Destinations**) are named definitions stored per user, per machine (`deploy.prefs`) and shared across projects and across Designer, Express, and AutoMap. As of ePublisher 2026.1: destinations can be **Folder** or **Amazon S3** (bucket/region/named credential profile/CloudFront distribution — no stored secrets; dry run supported); each target also declares a **Deploy** scope — Everything (complete site), Groups (content only), or Shell (site files only) — which powers federated parcel composition in WebWorks Reverb 2.0 (the field is disabled for formats without the capability). Deployments never delete outside their own scope slice, and Clean remains AutoMap-only. For the federation workflow, `.wacj` composition jobs, and inline destination definitions, see the automap skill's `references/composition-jobs.md`; for version gating, `references/version-compatibility.md`.
 
 ### Project File Format
 
@@ -218,7 +218,7 @@ For platform-level gotchas (.wez files, XSLT 1.0 constraint, UI name mapping), s
 **Solutions:**
 1. Verify file is a valid .wep/.wrp/.wxsp file
 2. Check if project was created in a compatible ePublisher version
-3. Open project in ePublisher Administrator to verify structure
+3. Open project in ePublisher Designer (`.wep`) or Express (`.wrp`) to verify structure
 
 ### "Project file not found"
 
@@ -235,7 +235,7 @@ For platform-level gotchas (.wez files, XSLT 1.0 constraint, UI name mapping), s
 
 **Solutions:**
 1. Use .wep (WebWorks ePublisher Project)
-2. Use .wrp (WebWorks ePublisher Report Project)
+2. Use .wrp (WebWorks ePublisher Express Project)
 3. Use .wxsp (WebWorks ePublisher Stationery Project)
 
 </troubleshooting>

@@ -38,7 +38,8 @@ separator; everything after -- is always forwarded verbatim):
 Default flags injected unless -NoDefaults:
   -n               unless -n/--nodeploy already present, or deploy intent
                    is signaled (-d/--deployfolder, -l/--cleandeploy,
-                   --deploysettings, --deployscope).
+                   --deploysettings, --deployscope, --destination,
+                   --dryrun).
   --skip-reports   unless already present (requires ePublisher 2025.1+;
                    use -NoDefaults with older versions).
 And an explicit -t/--target is required unless -NoDefaults or -AllTargets.
@@ -221,8 +222,8 @@ function Get-CompositionLogSummary {
     $warnCount = 0
     $errorCount = 0
     try {
-        $warnCount = @(Select-String -LiteralPath $logFile -Pattern '[Warning]' -SimpleMatch).Count
-        $errorCount = @(Select-String -LiteralPath $logFile -Pattern '[Error]' -SimpleMatch).Count
+        $warnCount = @(Select-String -LiteralPath $logFile -Pattern '[WARN]' -SimpleMatch).Count
+        $errorCount = @(Select-String -LiteralPath $logFile -Pattern '[ERROR]' -SimpleMatch).Count
     }
     catch {
         return $null
@@ -409,7 +410,9 @@ function Invoke-Main {
                 ($token -ceq '--deployfolder') -or ($token -clike '--deployfolder=*') -or
                 ($token -ceq '--cleandeploy') -or
                 ($token -ceq '--deploysettings') -or ($token -clike '--deploysettings=*') -or
-                ($token -ceq '--deployscope') -or ($token -clike '--deployscope=*')) {
+                ($token -ceq '--deployscope') -or ($token -clike '--deployscope=*') -or
+                ($token -ceq '--destination') -or ($token -clike '--destination=*') -or
+                ($token -ceq '--dryrun')) {
                 $deployIntent = $true
             }
         }

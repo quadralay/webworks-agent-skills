@@ -127,7 +127,7 @@ Unless `-NoDefaults` is given, the wrapper injects these **native AutoMap flags*
 
 | Injected flag | Skipped when | Purpose |
 |---------------|--------------|---------|
-| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled (`-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope`) | Prevent accidental deployment |
+| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled (`-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope`, `--destination`, `--dryrun`) | Prevent accidental deployment |
 | `--skip-reports` | already present | Faster builds *(2025.1+ — use `-NoDefaults` with older versions)* |
 
 And one requirement: **an explicit `-t`/`--target` must be present**, so a job file's full `build="True"` set (or a project's every target) never builds by accident. Waive it with `-AllTargets` (defaults still apply) or `-NoDefaults` (verbatim native behavior). On violation the wrapper exits 2 and lists the file's targets.
@@ -457,7 +457,7 @@ powershell -ExecutionPolicy Bypass -File "$WRAPPER" -ExePath "C:\dev\WebWorks.Au
 **Solutions:**
 1. Read `generate.log` for the specific error lines — `grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"`. AutoMap's stderr also passes through the wrapper, so genuine errors surface inline (see [Post-Build Log Scan](#post-build-log-scan)).
 2. Verify source documents exist and are accessible
-3. Open project in ePublisher Administrator to check for issues
+3. Open project in ePublisher Designer (`.wep`) or Express (`.wrp`) to check for issues
 4. Try a clean build (`-c`)
 
 ### "No target specified" (exit 2)
