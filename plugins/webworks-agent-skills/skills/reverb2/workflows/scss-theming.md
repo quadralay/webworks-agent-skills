@@ -4,8 +4,9 @@
 
 <required_reading>
 Read before proceeding:
-- `references/scss-architecture.md` — three-layer model, color cascade, `$theme_` convention
+- `references/scss-architecture.md` — theming layers, the `custom.scss` seam, color cascade, `$theme_` convention
 - `../epublisher/references/file-resolver-guide.md` — override hierarchy and parallel structure rules
+- `references/runtime-rendered-ui.md` — only when the request touches the splash page or the Assistant avatar (2026.1+): those surfaces are built at runtime, so styling them means `$splash_groups_*` / `ww_skin_assistant_avatar*`, not template edits
 </required_reading>
 
 <process>
@@ -18,8 +19,10 @@ Ask the user what they want to customize, then route to the correct layer:
 |---------|-------|---------|
 | "Change brand colors" | 1 — Variable overrides | Step 2, then Step 3 |
 | "Adjust font sizes / spacing" | 1 — Variable overrides | Step 2, then Step 3 |
-| "Customize toolbar / TOC / navigation look" | 2 — Skin CSS | Step 2, then Step 4 |
-| "Style content page elements" | 3 — Content page CSS | Step 2, then Step 5 |
+| "Add custom CSS rules" (2026.1+) | 2 — `custom.scss` | Step 2, then Step 3B |
+| "Customize toolbar / TOC / navigation look" | 2a — Skin CSS | Step 2, then Step 3B, then Step 4 if needed |
+| "Style content page elements" | 2b — Content page CSS | Step 2, then Step 3B, then Step 5 if needed |
+| "Restyle the splash page" (2026.1+) | 1 + 2 | Step 2, then `references/runtime-rendered-ui.md` § "Splash Groups Grid" |
 | "Show current theme values" | — | Step 2 (extract only) |
 | "Migrate .weplugin skin" | — | Step 2, then Step 6 |
 
@@ -119,9 +122,54 @@ The same copy-and-edit pattern applies to all partials (`_colors.scss`, `_sizes.
 
 Skip to **Step 7** after editing.
 
-## Step 4: Layer 2 — Skin CSS Overrides
+## Step 3B: Layer 2 — `custom.scss` (ePublisher 2026.1+, preferred)
 
-Use when SCSS variables are insufficient and structural CSS changes are needed for the chrome (toolbar, TOC, navigation, breadcrumbs, popups). For why this is split from content-page overrides, see `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
+Use when SCSS variables are insufficient and structural CSS is needed — chrome or content, either one. On 2026.1+ Reverb 2.0 this is the seam to reach for first. **Check the build first:** if the installed format has no `Pages/sass/custom.scss`, the project is on a pre-2026.1 build — use Step 4 / Step 5 instead.
+
+### 1. Copy `custom.scss` to the project
+
+```bash
+cp "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/custom.scss" \
+   "[Override]/Pages/sass/custom.scss"
+```
+
+The copy **replaces** the stock file entirely. Keep its `@import` block (`functions`, `colors`, `fonts`, `icons`, `sizes`, `borders`) — dropping it breaks every skin-variable reference in your own rules.
+
+### 2. Add rules below the imports
+
+```scss
+@import "functions";
+@import "colors";
+@import "fonts";
+@import "icons";
+@import "sizes";
+@import "borders";
+
+// Chrome — scope with .ww_skin_*
+.ww_skin_search_input {
+  width: 300px;
+}
+
+// Content page
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+@media print {
+  .ww_skin_page_toolbar { display: none; }
+}
+```
+
+No entry point to copy and no import hook to add — `css/custom.css` is already linked **last** by `Connect.asp`, `Page.asp`, `Splash.asp`, `NotFound.asp`, `Popup.asp`, and `Search.asp`, so these rules win equal-specificity contests against every stock sheet on every page type.
+
+**Scope your selectors.** `custom.css` loads after **both** `webworks.css` and `skin.css`, so a bare `a { }` rule here reaches chrome links too — the boundary the `_custom-skin.scss` / `_custom-webworks.scss` split enforces by sheet order does not exist in this one file.
+
+Skip to **Step 7** after editing.
+
+## Step 4: Layer 2a — Skin CSS Overrides (pre-2026.1, or when cascade depth matters)
+
+Use when SCSS variables are insufficient and structural CSS changes are needed for the chrome (toolbar, TOC, navigation, breadcrumbs, popups) — on a pre-2026.1 build, in a project that already wires this partial, or when a rule must stay inside `skin.css`'s cascade depth. For why this is split from content-page overrides, see `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
 
 ### 1. Copy `skin.scss` to the project
 
@@ -154,9 +202,9 @@ cp "[Install]/Formats/WebWorks Reverb 2.0/Pages/sass/skin.scss" \
 
 Skip to **Step 7** after editing.
 
-## Step 5: Layer 3 — Content Page CSS Overrides
+## Step 5: Layer 2b — Content Page CSS Overrides (pre-2026.1, or when cascade depth matters)
 
-Use when customizing the content page inside the iframe (fonts, links, tables, mini-TOC, code blocks). Keep `a { }`, paragraph, and table rules here — putting them in `_custom-skin.scss` would incorrectly elevate their cascade specificity. See `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
+Use when customizing the content page inside the iframe (fonts, links, tables, mini-TOC, code blocks) via the partial route. Keep `a { }`, paragraph, and table rules here — putting them in `_custom-skin.scss` would incorrectly elevate their cascade specificity. See `references/scss-architecture.md` § "Why Two Custom Partials, Not One".
 
 ### 1. Copy `webworks.scss` to the project
 
@@ -228,7 +276,7 @@ See `references/scss-architecture.md` § "Removing Redundant Overrides" for the 
 Confirm to user:
 ```
 Theme customization applied:
-- Layer: {1/2/3}
+- Layer: {1 / 2 (custom.scss) / 2a (skin) / 2b (content)}
 - Override level: {target-specific / format-level}
 - Files modified: {list}
 - Status: Ready to rebuild (or already rebuilt)
@@ -242,7 +290,8 @@ This workflow is complete when:
 - [ ] Override level determined (target vs format)
 - [ ] Override files created at correct location with parallel structure
 - [ ] `$theme_` naming convention used for custom variables (Layer 1)
-- [ ] Import hooks added to copied entry points (Layers 2–3)
+- [ ] For Layer 2 (`custom.scss`): the `@import` block was preserved and selectors are scoped (chrome vs content)
+- [ ] Import hooks added to copied entry points (Layers 2a–2b only)
 - [ ] User informed of next steps (rebuild)
 - [ ] Build completes without SCSS errors (if rebuild performed)
 - [ ] Redundant override files deleted if they match installed defaults

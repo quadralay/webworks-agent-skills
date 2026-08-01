@@ -314,6 +314,50 @@ def test_cli_missing_asset_warns() -> None:
               f"rc={proc_strict.returncode}")
 
 
+def test_build_renders_splash_groups() -> None:
+    with CopyOfGood() as root:
+        detected = linter.build_renders_splash_groups(root)
+        os.remove(root / 'scripts' / 'page.js')
+        absent = linter.build_renders_splash_groups(root)
+        check("build_renders_splash_groups: true with page.js, false without", detected and not absent,
+              f"detected={detected} absent={absent}")
+
+
+def test_cli_splash_groups_missing_container() -> None:
+    with CopyOfGood() as root:
+        splash = root / 'splash.html'
+        _write(splash, _read(splash).replace('id="splash_groups"', 'id="legacy_splash_image"'))
+        proc = run_cli(str(root), '--json')
+        data = json.loads(proc.stdout)
+        sg = _checks_present(data['findings'], 'splash-groups-container')
+        ok = (
+            proc.returncode == 0  # warnings alone do not fail
+            and data['success'] is True
+            and any(f['file'] == 'splash.html' and f['severity'] == 'warn' for f in sg)
+        )
+        check("CLI: splash.html without the Groups Grid container warns, exit 0", ok,
+              f"rc={proc.returncode} findings={sg}")
+
+        proc_strict = run_cli(str(root), '--json', '--strict')
+        ok_strict = proc_strict.returncode == 1
+        check("CLI: --strict turns the splash-groups warning into exit 1", ok_strict,
+              f"rc={proc_strict.returncode}")
+
+
+def test_cli_splash_groups_skipped_for_older_build() -> None:
+    """A pre-2026.1 build has no splash_groups lookup, so the check must not fire."""
+    with CopyOfGood() as root:
+        splash = root / 'splash.html'
+        _write(splash, _read(splash).replace('id="splash_groups"', 'id="legacy_splash_image"'))
+        os.remove(root / 'scripts' / 'page.js')
+        proc = run_cli(str(root), '--json', '--strict')
+        data = json.loads(proc.stdout)
+        sg = _checks_present(data['findings'], 'splash-groups-container')
+        ok = proc.returncode == 0 and not sg
+        check("CLI: older build (no splash_groups in page.js) is not flagged", ok,
+              f"rc={proc.returncode} findings={sg}")
+
+
 def test_cli_missing_index() -> None:
     tmp = Path(tempfile.mkdtemp(prefix='lint-output-empty-'))
     try:
@@ -374,6 +418,9 @@ def main() -> int:
         test_cli_older_build_omits_lx_chunk,
         test_cli_missing_content_dir,
         test_cli_missing_asset_warns,
+        test_build_renders_splash_groups,
+        test_cli_splash_groups_missing_container,
+        test_cli_splash_groups_skipped_for_older_build,
         test_cli_missing_index,
         test_cli_not_a_directory,
     ]

@@ -674,7 +674,7 @@ The inline job `<MergeSettings>` is applied onto the staged project's `<FormatCo
 
 ### Skeleton Master Pattern
 
-A **skeleton master** is a job whose groups carry only minimal stub content, built solely to produce the merged master TOC and the output shell (parcel containers + titles). The real content is built separately — one or more "satellite" parcel jobs — then joined to the master **by group name**. This supports updating individual parcels without rebuilding the whole merged output (the Reverb merge-settings / deploy-set workflow).
+A **skeleton master** is a job whose groups carry only minimal stub content, built solely to produce the merged master TOC and the output shell (parcel containers + titles). The real content is built separately — one or more "satellite" parcel jobs — then joined to the master **by group name**. This supports updating individual parcels without rebuilding the whole merged output (federated parcel composition — see composition-jobs.md).
 
 - Give each group at least one stub document. An empty group fails group verification and produces no TOC entry; empty containers are pruned.
 - The master is authoritative for the TOC hierarchy and the title overrides — both live only in `<MergeSettings>`. A standalone parcel build cannot reproduce them.

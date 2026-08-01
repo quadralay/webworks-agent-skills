@@ -37,8 +37,22 @@ An upgrade auditor runs one grep per project tag (for example, `grep -r 'DICAD' 
 
 This procedure assumes the customer's `locales.xml` overrides the installed default through the file resolver hierarchy. If `locales.xml` is missing from the project override directory, no upgrade is required — the installed default already applies and will continue to apply after the format upgrade.
 
+## Overrides That Go Inert on 2026.1
+
+An override does not have to break to stop working — the format can simply stop
+consulting it. Audit for these when upgrading a Reverb 2.0 project:
+
+| Override | What changed | What to do instead |
+|---|---|---|
+| `Pages/images/splash.png` | No template references it any more (EPUB2907). The file still ships, so the override resolves and is copied — it just never renders. **Silent.** | Override `Pages/Splash.asp`, or restyle the Groups Grid via the `$splash_groups_*` variables and `custom.scss` |
+| A pre-2026.1 `Pages/Splash.asp` | Still resolves and still renders — but it has no `<nav id="splash_groups">`, so the new Groups Grid never appears. **Silent.** | Re-base the override on the current `Splash.asp`. `scripts/lint-output.py` flags this (`splash-groups-container`, warn) |
+| A copied `skin.scss` / `webworks.scss` whose only customization is an `@import "custom-*"` line | Still works. But `custom.scss` (2026.1+) needs no entry-point copy at all | Consider moving the rules to `custom.scss` and deleting the copied entry point — see `scss-architecture.md` § "Removing Redundant Overrides" |
+
+Mechanism and hooks for the first two: `runtime-rendered-ui.md`.
+
 ---
 
 **See also:**
-- `scss-architecture.md` — `$theme_` and project-prefix variable conventions for SCSS files
+- `scss-architecture.md` — `$theme_` and project-prefix variable conventions for SCSS files, and the `custom.scss` layer
+- `runtime-rendered-ui.md` — splash Groups Grid and Assistant avatar (runtime-built DOM)
 - `../epublisher/references/file-resolver-guide.md` — how overrides are resolved
