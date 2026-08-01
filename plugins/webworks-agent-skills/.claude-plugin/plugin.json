@@ -1,6 +1,6 @@
 {
   "name": "webworks-agent-skills",
-  "version": "3.8.1",
+  "version": "3.8.2",
   "description": "AI agent skills for WebWorks ePublisher platform: project management, Markdown++ integration, AutoMap automation, and Reverb output testing",
   "author": {
     "name": "Quadralay Corporation",
