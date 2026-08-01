@@ -1,0 +1,3 @@
+[ERROR] 1 warning(s), 1 error(s) in Logs/DE/generate.log
+[WARNING] 2 warning(s), 0 error(s) in Logs/FR/generate.log
+[ERROR] 1 warning(s), 1 error(s) in Logs/JA/generate.log

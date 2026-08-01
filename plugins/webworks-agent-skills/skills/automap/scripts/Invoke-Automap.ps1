@@ -59,6 +59,31 @@ Set-StrictMode -Version 2.0
 $script:ProjectExtensionPattern = '\.(wep|wrp|waj|wacj|wxsp)$'
 $script:DefaultStagingRoot = Join-Path $env:USERPROFILE 'Documents\WebWorks ePublisher AutoMap\Staging'
 
+# Severity markers the product stamps on log lines. Publish Core localizes
+# them (Core/Resources/Messages.resx plus its .de/.fr/.ja satellites, keys
+# Warn/Error), and the satellites ship with every install, so matching the
+# English tokens alone reports a false 0/0 on a localized machine. Both scan
+# sites share these sets. Each token carries its closing bracket, so '[WARN]'
+# cannot also match inside '[WARNUNG]'.
+#
+# The Japanese tokens are built from character codes rather than written as
+# literals: this file has no BOM, and Windows PowerShell 5.1 parses a BOM-less
+# script in the host's ANSI codepage, which would mangle literal kanji.
+$script:WarnMarkers = @(
+    '[WARN]',                                                # en
+    '[WARNUNG]',                                             # de
+    '[AVERTISSEMENT]',                                       # fr
+    ('[' + [char]0x8B66 + [char]0x544A + ']')                # ja
+)
+$script:ErrorMarkers = @(
+    '[ERROR]',                                               # en
+    '[FEHLER]',                                              # de
+    '[ERREUR]',                                              # fr
+    ('[' + [char]0x30A8 + [char]0x30E9 + [char]0x30FC + ']') # ja
+)
+$script:WarnMarkerPattern = (($script:WarnMarkers | ForEach-Object { [regex]::Escape($_) }) -join '|')
+$script:ErrorMarkerPattern = (($script:ErrorMarkers | ForEach-Object { [regex]::Escape($_) }) -join '|')
+
 function Write-StderrLine {
     param([string]$Message)
     [Console]::Error.WriteLine($Message)
@@ -162,6 +187,25 @@ function Get-AutomapExePath {
     return $null
 }
 
+# Counts marked lines in one log file and returns @{ Warn = <n>; Error = <n> },
+# or $null when the file cannot be read. The read encoding is pinned to UTF-8
+# because that is what the product writes -- generate.log with a BOM, the
+# composition log without -- so the non-ASCII tokens do not depend on the
+# host's active codepage.
+function Get-LogMarkerCount {
+    param([string]$Path)
+
+    try {
+        return [pscustomobject]@{
+            Warn  = @(Select-String -LiteralPath $Path -Pattern $script:WarnMarkerPattern -Encoding UTF8).Count
+            Error = @(Select-String -LiteralPath $Path -Pattern $script:ErrorMarkerPattern -Encoding UTF8).Count
+        }
+    }
+    catch {
+        return $null
+    }
+}
+
 # Scans Logs/<Target>/generate.log under a base directory and returns one
 # summary object per target that has warnings or errors:
 #   @{ Text = '[WARNING] 3 warning(s), 0 error(s) in Logs/T/generate.log'; IsError = $false }
@@ -174,15 +218,10 @@ function Get-GenerateLogSummaries {
     if (-not (Test-Path -LiteralPath $logsRoot -PathType Container)) { return $summaries }
 
     foreach ($logFile in Get-ChildItem -Path (Join-Path $logsRoot '*\generate.log') -ErrorAction SilentlyContinue | Sort-Object FullName) {
-        $warnCount = 0
-        $errorCount = 0
-        try {
-            $warnCount = @(Select-String -LiteralPath $logFile.FullName -Pattern '[WARN]' -SimpleMatch).Count
-            $errorCount = @(Select-String -LiteralPath $logFile.FullName -Pattern '[ERROR]' -SimpleMatch).Count
-        }
-        catch {
-            continue
-        }
+        $counts = Get-LogMarkerCount -Path $logFile.FullName
+        if (-not $counts) { continue }
+        $warnCount = $counts.Warn
+        $errorCount = $counts.Error
         if (($warnCount -eq 0) -and ($errorCount -eq 0)) { continue }
 
         # Display path relative to the base directory, forward slashes.
@@ -219,15 +258,10 @@ function Get-CompositionLogSummary {
     $logFile = Join-Path $dir "$jobName-log.txt"
     if (-not (Test-Path -LiteralPath $logFile -PathType Leaf)) { return $null }
 
-    $warnCount = 0
-    $errorCount = 0
-    try {
-        $warnCount = @(Select-String -LiteralPath $logFile -Pattern '[WARN]' -SimpleMatch).Count
-        $errorCount = @(Select-String -LiteralPath $logFile -Pattern '[ERROR]' -SimpleMatch).Count
-    }
-    catch {
-        return $null
-    }
+    $counts = Get-LogMarkerCount -Path $logFile
+    if (-not $counts) { return $null }
+    $warnCount = $counts.Warn
+    $errorCount = $counts.Error
     if (($warnCount -eq 0) -and ($errorCount -eq 0)) { return $null }
 
     $isError = ($errorCount -gt 0)

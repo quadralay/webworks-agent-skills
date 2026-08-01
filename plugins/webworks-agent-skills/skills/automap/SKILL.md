@@ -343,7 +343,7 @@ After a successful build (exit 0), the wrapper scans each target's `generate.log
 - Targets with non-zero counts get a one-line summary (`[WARNING]` on stdout when only warnings, `[ERROR]` on stderr when any errors). Clean targets emit nothing.
 - Exit codes are unchanged — the scan is observational. A successful build that records warnings still exits 0.
 
-**Caveat — the scan matches English markers only.** `[WARN]`/`[ERROR]` are localized: a German install writes `[WARNUNG]`/`[FEHLER]`, French `[AVERTISSEMENT]`/`[ERREUR]`, Japanese the kanji equivalents. The scan's patterns are hard-coded English, so on a non-English install it reports 0/0 for logs that are full of marked lines. **Do not read a zero count on such a machine as a clean build** — check the exit code, or grep the log for the console's own tokens.
+**The scan matches the shipped localized markers.** `[WARN]`/`[ERROR]` are localized, and the scan covers every spelling ePublisher ships: German `[WARNUNG]`/`[FEHLER]`, French `[AVERTISSEMENT]`/`[ERREUR]`, Japanese `[警告]`/`[エラー]`. An install language with no translated resources falls back to the English markers, which the scan also matches, so counts are trustworthy on any install.
 
 For a `.wacj`, the scanned `<job name>-log.txt` also contains **relayed member-build lines** that keep their markers. Those belong to the member's own ledger, so the wrapper's count is deliberately looser than the composition's own closing tally — see references/composition-jobs.md.
 

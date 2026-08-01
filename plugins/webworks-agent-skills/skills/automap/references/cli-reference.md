@@ -299,7 +299,7 @@ grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"
 
 The patterns below are the tokens used in `generate.log` and AutoMap's console output.
 
-> **Markers are localized.** `[WARN]` / `[ERROR]` are the *English-install* spellings. The same resources drive every log in the product, so a German install writes `[WARNUNG]` / `[FEHLER]`, a French one `[AVERTISSEMENT]` / `[ERREUR]`, and a Japanese one the kanji equivalents. The wrapper's post-build scan matches the English tokens only, so on a non-English install its per-target counts read 0 even when the log is full of marked lines. On such a machine, grep for the console's own tokens, or fall back to the process exit code. (2026.1 extended the same markers from `generate.log` to the job and composition logs.)
+> **Markers are localized.** `[WARN]` / `[ERROR]` are the *English-install* spellings. The same resources (Publish Core `Messages.resx`, keys `Warn`/`Error`) drive every log in the product, so a German install writes `[WARNUNG]` / `[FEHLER]`, a French one `[AVERTISSEMENT]` / `[ERREUR]`, and a Japanese one `[警告]` / `[エラー]`. The wrapper's post-build scan matches all four spellings of each severity, so its per-target counts are correct on any install; a language with no translated resources falls back to the English tokens, which the scan also matches. A hand-written `grep` still needs the local spelling — use the pattern for the install's language. The scan does **not** count `[FATAL]` (German `[UNBEHEBBAR]`, French `[IRRÉCUPPÉRABLE]`, Japanese `[致命的]`); a fatal failure surfaces as a non-zero exit code instead. (2026.1 extended the same markers from `generate.log` to the job and composition logs.)
 
 ### Error Patterns
 

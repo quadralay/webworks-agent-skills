@@ -97,6 +97,16 @@ Test-Fixture 'mixed-target' `
     (Join-Path $fixtures 'mixed-target') `
     (Join-Path $fixtures 'mixed-target\expected-default.txt')
 
+# Localized installs: Publish Core translates the markers it writes (de
+# [WARNUNG]/[FEHLER], fr [AVERTISSEMENT]/[ERREUR], ja the kanji pair), so an
+# English-only scan would report a false 0/0 here. The German log also pins
+# the token boundary: '[WARN]' must not also match inside '[WARNUNG]', or the
+# warning count would read 2. Logs are UTF-8 with a BOM, as the product writes
+# generate.log.
+Test-Fixture 'localized-targets' `
+    (Join-Path $fixtures 'localized-targets') `
+    (Join-Path $fixtures 'localized-targets\expected-default.txt')
+
 # Missing Logs/ directory emits nothing.
 Test-Fixture 'no-logs-dir' `
     (Join-Path $fixtures 'no-logs-dir') `
@@ -118,6 +128,13 @@ Test-CompositionFixture 'composition-warning' `
 Test-CompositionFixture 'composition-mixed' `
     (Join-Path $fixtures 'composition-mixed\composition.wacj') `
     (Join-Path $fixtures 'composition-mixed\expected-default.txt')
+
+# Localized composition log: same marker set as generate.log, but this log is
+# written without a BOM (FileInfo.CreateText()), so it also covers reading
+# non-ASCII markers out of a BOM-less UTF-8 file.
+Test-CompositionFixture 'composition-localized' `
+    (Join-Path $fixtures 'composition-localized\composition.wacj') `
+    (Join-Path $fixtures 'composition-localized\expected-default.txt')
 
 Write-Output ''
 Write-Output "Results: $($script:Pass) passed, $($script:Fail) failed"
