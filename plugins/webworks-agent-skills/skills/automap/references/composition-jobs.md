@@ -512,6 +512,8 @@ The skill's Python tools understand `.wacj` as well as `.waj`:
   build flag and the output target each composes through, the site-TOC spec,
   and the destination (with inline definitions). `--json` adds
   `"kind": "composition"`; `--config` exports a config for `create-job.py`.
+  The Merge Settings `mode` is reported with the Administrator's labels:
+  `automatic`, `custom`, `custom+include-new`.
 - `python scripts/validate-job.py composition.wacj` — grammar preflight:
   member `path`/`role`/`build`, MergeSettings mode and spec, `<Destination>`
   (missing name fails; the pre-release `<DeployTarget>` spelling warns; an

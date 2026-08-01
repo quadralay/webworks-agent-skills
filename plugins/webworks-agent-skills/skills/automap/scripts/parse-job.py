@@ -40,7 +40,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.wacj import (  # noqa: E402
     COMPOSITION_EXTENSION, COMPOSITION_ROOT, JOB_EXTENSION, JOB_ROOT,
-    MODE_DISCOVERY, MODE_HYBRID, TARGET_SOURCE_AUTO,
+    MODE_AUTOMATIC, MODE_CUSTOM_INCLUDE_NEW, TARGET_SOURCE_AUTO,
     extract_composition_info, is_composition_path, iter_spec,
 )
 
@@ -273,9 +273,9 @@ def output_composition_human(info: dict) -> None:
     print(f"\n{GREEN}Composition Job:{NC} {info['name'] or '(unnamed)'} (version {version})")
 
     mode_note = {
-        MODE_DISCOVERY: 'parcel set discovered from the mirror',
-        MODE_HYBRID: 'declared spec plus discovered extras',
-    }.get(info['mode'], 'parcel set is exactly the declared spec')
+        MODE_AUTOMATIC: 'compose every parcel found at the destination',
+        MODE_CUSTOM_INCLUDE_NEW: 'declared placements plus newly published parcels',
+    }.get(info['mode'], 'compose exactly the declared placements')
     print(f"{BLUE}Mode:{NC} {info['mode']} ({mode_note})")
 
     output_target = info['outputTarget'] or '(auto-detect per member)'
@@ -302,12 +302,12 @@ def output_composition_human(info: dict) -> None:
     merge = info['mergeSettings']
     print(f"\n{CYAN}Site TOC (MergeSettings):{NC}")
     if not merge['present']:
-        print("  (none - discovery mode)")
+        print("  (none - Automatic: compose every parcel found at the destination)")
     else:
         if merge['title']:
             print(f"  Title: {merge['title']} (accepted for grammar parity; not used by composition)")
         if merge['discover']:
-            print("  Discover: True (declared spec plus discovered extras)")
+            print("  Discover: True (also include newly published parcels not listed above)")
         if not merge['spec']:
             print("  (empty spec)")
         for depth, node in iter_spec(merge['spec']):
@@ -373,7 +373,7 @@ def output_composition_config(info: dict) -> None:
         },
     }
 
-    # MergeSettings is omitted entirely in discovery mode - its absence is the
+    # MergeSettings is omitted entirely in Automatic mode - its absence is the
     # mode, so a round-trip must not invent an empty element.
     if info['mergeSettings']['present']:
         config['mergeSettings'] = {

@@ -54,7 +54,8 @@ from lib.wacj import (  # noqa: E402
     DEPLOY_ACTION_ATTR, DEPLOY_CONFIGURATION_ELEMENT, DEPLOY_SETTING_ELEMENT,
     DEPLOY_SETTING_NAME_ATTR, DEPLOY_SETTINGS_ELEMENT, DESTINATION_ELEMENT,
     GROUP_ELEMENT, JOB_ELEMENT, JOBS_ELEMENT, MEMBER_EXTENSIONS,
-    MERGE_SETTINGS_ELEMENT, ROLE_INFER, ROLES, TOC_ELEMENT,
+    MERGE_SETTINGS_ELEMENT, MODE_CUSTOM, MODE_CUSTOM_INCLUDE_NEW, ROLE_INFER,
+    ROLES, TOC_ELEMENT,
 )
 
 # Exit codes
@@ -469,8 +470,8 @@ def generate_composition_xml(config: dict) -> str:
             if member_config.get('target'):
                 member.set('target', member_config['target'])
 
-    # Discovery mode is expressed by the ABSENCE of MergeSettings; an empty
-    # element is spec mode with an empty spec.
+    # Automatic mode is expressed by the ABSENCE of MergeSettings; an empty
+    # element is Custom mode with an empty spec.
     merge_config = config.get('mergeSettings')
     if merge_config is not None:
         merge = SubElement(composition, MERGE_SETTINGS_ELEMENT)
@@ -513,8 +514,9 @@ def generate_composition_template() -> dict:
             {'path': 'shell.waj', 'role': 'shell', 'build': False, 'target': ''},
             {'path': 'parcel-a.waj', 'role': 'parcel', 'build': False, 'target': ''}
         ],
-        # Omit "mergeSettings" entirely for discovery mode (the parcel set is
-        # discovered from the mirror); set "discover": true for hybrid mode.
+        # Omit "mergeSettings" entirely for Automatic mode (compose every
+        # parcel found at the destination); keep it for Custom mode, and set
+        # "discover": true to also include newly published parcels not listed.
         'mergeSettings': {
             'title': '',
             'discover': False,
@@ -551,9 +553,9 @@ def print_composition_summary(config: dict) -> None:
 
     merge = config.get('mergeSettings')
     if merge is None:
-        print("\nSite TOC: (none - discovery mode)")
+        print("\nSite TOC: (none - Automatic: compose every parcel found at the destination)")
     else:
-        mode = 'hybrid' if merge.get('discover') else 'spec'
+        mode = MODE_CUSTOM_INCLUDE_NEW if merge.get('discover') else MODE_CUSTOM
         print(f"\nSite TOC ({mode} mode): {len(merge.get('spec', []))} top-level nodes")
 
     destination = config.get('destination', {})

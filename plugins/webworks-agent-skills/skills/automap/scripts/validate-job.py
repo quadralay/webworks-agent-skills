@@ -40,7 +40,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.wacj import (  # noqa: E402
     ACTION_WEBDAV, COMPOSITION_EXTENSION, COMPOSITION_ROOT, JOB_EXTENSION,
-    JOB_ROOT, MEMBER_EXTENSIONS, MERGE_SETTINGS_ELEMENT, MODE_DISCOVERY,
+    JOB_ROOT, MEMBER_EXTENSIONS, MERGE_SETTINGS_ELEMENT, MODE_AUTOMATIC,
     ROLE_SHELL, TARGET_SOURCE_AUTO, TARGET_SOURCE_COMPOSITION,
     TARGET_SOURCE_MEMBER, extract_composition_info, is_composition_path,
     iter_spec, spec_group_names, unknown_spec_children,
@@ -523,8 +523,8 @@ def validate_composition_merge_settings(info: dict, root: Element) -> Validation
 
     merge = info['mergeSettings']
     if not merge['present']:
-        # Absence IS discovery mode, not an omission.
-        return result.pass_check(f"{MODE_DISCOVERY} mode (no <MergeSettings>)")
+        # Absence IS Automatic mode, not an omission.
+        return result.pass_check(f"{MODE_AUTOMATIC} mode (no <MergeSettings>)")
 
     if merge['title']:
         result.add_warning(

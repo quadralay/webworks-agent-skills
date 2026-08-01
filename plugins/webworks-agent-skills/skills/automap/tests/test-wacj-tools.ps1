@@ -97,7 +97,7 @@ $composition = Join-Path $federation 'composition.wacj'
 $result = Invoke-Tool -Tool 'parse-job.py' -Arguments @($composition)
 Assert-Equal 'parse-job .wacj exit code' 0 $result.ExitCode
 Assert-Contains 'parse-job names the composition' 'Composition Job:' $result.Output
-Assert-Contains 'parse-job reports spec mode' 'spec (parcel set is exactly the declared spec)' $result.Output
+Assert-Contains 'parse-job reports Custom mode' 'custom (compose exactly the declared placements)' $result.Output
 Assert-Contains 'parse-job reports the member count' 'Members (3 total, 1 built' $result.Output
 Assert-Contains 'parse-job reports the inline definition' 'Inline definition: ProductionMirror' $result.Output
 
@@ -146,6 +146,12 @@ Assert-Contains 'validate-job warns on duplicate groups' 'declared more than onc
 Assert-Contains 'validate-job warns on the legacy spelling' 'pre-release spelling' $result.Output
 Assert-Contains 'validate-job rejects an inline WebDAV definition' "WebDAV ('http') action" $result.Output
 
+# No <MergeSettings> at all is Automatic mode, not an omission.
+$result = Invoke-Tool -Tool 'parse-job.py' -Arguments @('--json', (Join-Path $invalid 'no-destination.wacj'))
+$json = $result.Output | ConvertFrom-Json
+Assert-Equal 'parse-job reports Automatic mode' 'automatic' $json.mode
+Assert-Equal 'parse-job reports no MergeSettings' $false $json.mergeSettings.present
+
 $result = Invoke-Tool -Tool 'validate-job.py' -Arguments @((Join-Path $invalid 'no-destination.wacj'))
 Assert-Equal 'validate-job rejects a composition with no destination' 3 $result.ExitCode
 Assert-Contains 'validate-job names the missing destination' 'Missing <Destination' $result.Output
@@ -180,6 +186,23 @@ try {
 
     $result = Invoke-Tool -Tool 'validate-job.py' -Arguments @((Join-Path $temp 'from-template.wacj'))
     Assert-Equal 'the generated .wacj validates' 0 $result.ExitCode
+
+    # discover="true" is Custom mode with "Also include newly published
+    # parcels not listed above" checked.
+    $template = (Invoke-Tool -Tool 'create-job.py' -Arguments @('--template', '--composition')).Output | ConvertFrom-Json
+    $template.mergeSettings.discover = $true
+    Set-Content -LiteralPath (Join-Path $temp 'include-new.json') `
+        -Value ($template | ConvertTo-Json -Depth 10) -Encoding UTF8
+
+    $result = Invoke-Tool -Tool 'create-job.py' `
+        -Arguments @('--config', 'include-new.json', '--output', 'include-new.wacj', '-y') `
+        -WorkingDirectory $temp
+    Assert-Equal 'create-job generates the include-new variant' 0 $result.ExitCode
+    Assert-Contains 'create-job emits discover="true"' 'discover="true"' `
+        (Get-Content -LiteralPath (Join-Path $temp 'include-new.wacj') -Raw)
+
+    $json = (Invoke-Tool -Tool 'parse-job.py' -Arguments @('--json', (Join-Path $temp 'include-new.wacj'))).Output | ConvertFrom-Json
+    Assert-Equal 'parse-job reports the include-new mode' 'custom+include-new' $json.mode
 
     # Round trip: parse --config -> create-job -> parse --json must be identical
     # apart from the resolved member paths, which follow the file's location.

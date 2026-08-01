@@ -36,7 +36,7 @@ Grammar (2026.1)::
 Reader defaults that the tools must reproduce: an unrecognized ``role`` is
 ``infer``; ``build`` defaults to ``False`` (a hand-authored member is federated
 unless it opts in); ``discover`` defaults to ``False``; a missing
-``<MergeSettings>`` means discovery mode.
+``<MergeSettings>`` means Automatic mode.
 """
 
 from pathlib import Path
@@ -84,10 +84,15 @@ ACTION_FOLDER = 'file'
 ACTION_S3 = 's3'
 ACTION_WEBDAV = 'http'
 
-# Composition modes implied by <MergeSettings> (CompositionJob.Mode)
-MODE_DISCOVERY = 'discovery'
-MODE_SPEC = 'spec'
-MODE_HYBRID = 'hybrid'
+# Composition modes implied by <MergeSettings> (CompositionJob.Mode), named as
+# the Administrator's Merge Settings area names them:
+#   Automatic        - omit <MergeSettings>; compose every parcel at the destination
+#   Custom           - declared <Group>/<TOC> placements
+#   Custom + include-new - discover="true" plus placements ("Also include newly
+#                      published parcels not listed above")
+MODE_AUTOMATIC = 'automatic'
+MODE_CUSTOM = 'custom'
+MODE_CUSTOM_INCLUDE_NEW = 'custom+include-new'
 
 # How a member's output target was selected
 TARGET_SOURCE_MEMBER = 'member override'
@@ -256,7 +261,7 @@ def extract_composition_info(root: Element, job_path: str) -> dict:
             'discover': False,
             'spec': [],
         },
-        'mode': MODE_DISCOVERY,
+        'mode': MODE_AUTOMATIC,
         'destination': {
             'declared': False,
             'element': '',
@@ -308,7 +313,7 @@ def extract_composition_info(root: Element, job_path: str) -> dict:
                 'targetSource': target_source,
             })
 
-    # Merge settings (site TOC spec). Absence means discovery mode.
+    # Merge settings (site TOC spec). Absence means Automatic mode.
     merge_elem = root.find(MERGE_SETTINGS_ELEMENT)
     if merge_elem is not None:
         discover = parse_bool(merge_elem.get('discover'), False)
@@ -320,7 +325,7 @@ def extract_composition_info(root: Element, job_path: str) -> dict:
             'spec': [node for node in (_spec_node(child) for child in merge_elem)
                      if node is not None],
         }
-        info['mode'] = MODE_HYBRID if discover else MODE_SPEC
+        info['mode'] = MODE_CUSTOM_INCLUDE_NEW if discover else MODE_CUSTOM
 
     # Shared federated destination.
     destination_elem, destination_tag = find_destination(root)

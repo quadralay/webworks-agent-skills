@@ -10,7 +10,7 @@
                           parcel-a.waj is rebuilt by this composition
                           (derivative), parcel-b.wep overrides the output
                           target name ("names may vary, formats may not")
-    MergeSettings         SPEC mode: a <TOC> container plus a top-level <Group>
+    MergeSettings         Custom mode: a <TOC> container plus a top-level <Group>
     Destination           the shared mirror, with an inline definition so the
                           job is a whole artifact under version control
 -->
