@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Composition job with no <Destination>: the members are fine, but the run
+  fails at once ("cannot resolve the destination") because the shared mirror
+  is what a composition composes into. Also has no member declaring
+  role="shell", so the first member resolves the format (a warning, not an
+  error).
+-->
+<CompositionJob name="No Destination" version="1.0">
+  <Jobs target="WebWorks Reverb 2.0">
+    <Job path="api-guide.waj" role="parcel" />
+    <Job path="user-guide.waj" role="parcel" />
+  </Jobs>
+</CompositionJob>

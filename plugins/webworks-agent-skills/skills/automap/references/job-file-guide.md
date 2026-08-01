@@ -9,6 +9,7 @@
 - [XML Structure](#xml-structure)
 - [Element Reference](#element-reference)
 - [Output Location (Staging Folder)](#output-location-staging-folder)
+- [Build Options (Skip reports / Verbose logging)](#build-options-skip-reports--verbose-logging)
 - [Creating Job Files](#creating-job-files)
 - [Target Configuration](#target-configuration)
 - [Merge Settings (Multivolume / Merged TOC)](#merge-settings-multivolume--merged-toc)
@@ -92,11 +93,34 @@ The `<Project>` element's `path` decides where the build's format configuration 
 |---|----------------------------|-------------------|----------|
 | 1 | Stationery (`.wxsp`) | n/a (ignored) | Stage a fresh project from the Stationery, inject the job's `<Files>` and target overrides, then build. *(Existing behavior — the common case.)* |
 | 2 | Project (`.wep`, `.wrp`) | absent / `"False"` | **Build in place.** AutoMap builds the referenced project using *its own* documents and configuration; the job's `<Files>` are **ignored**. *(Existing behavior.)* |
-| 3 | Project (`.wep`, `.wrp`) | `"True"` | **Project used as a stationery (new in 2026.1).** AutoMap uses the live project directly as a stationery: it stages a fresh project from the project's format configuration (stripping the project's own documents, `ProjectID`, and `<Origin>`), injects the job's `<Files>` and target overrides, then builds — exactly like mode 1, but sourced from a Designer/Express project instead of a generated Stationery. |
+| 3 | Project (`.wep`, `.wrp`) | `"True"` | **Project used as a stationery (new in 2026.1).** AutoMap uses the live project directly as a stationery: it stages a fresh project from the project's format configuration (stripping the project's own documents, document groups, **merge settings**, `ProjectID`, and `<Origin>`), injects the job's `<Files>` and target overrides, then builds — exactly like mode 1, but sourced from a Designer/Express project instead of a generated Stationery. |
 
 ### Why mode 3 exists
 
-Mode 3 removes the manual **"Save As Stationery"** step from CI. Instead of regenerating a `.wxsp` every time the design changes, the job points straight at the live Designer/Express project and synchronizes from it on every build. A Designer `.wep` carries no `<format>.base` snapshots, so its transforms resolve from the Designer installation — the same way a hollow stationery would. (See the epublisher skill's `references/file-resolver-guide.md` for the `.base` resolution hierarchy.)
+Mode 3 removes the manual **"Save As Stationery"** step from CI. Instead of regenerating a `.wxsp` every time the design changes, the job points straight at the live Designer/Express project and synchronizes from it on every build. Without it, a design change that never reached the Stationery is a build that silently publishes the previous design.
+
+### What the origin supplies, and what it does not
+
+The origin project supplies the **design**: output formats, targets and target settings, styles, and any format/target overrides it carries. Everything publication-specific comes from the job.
+
+Not carried into the build: the origin's own **source documents**, **document groups**, and **merge settings**. A design project that holds sample documents for previewing therefore cannot leak those samples — or their TOC arrangement — into the job's output. A job that needs a multivolume TOC declares its own `<MergeSettings>` on the target (see [Merge Settings (Multivolume / Merged TOC)](#merge-settings-multivolume--merged-toc)).
+
+### Keep the installation and the design project on the same version
+
+A design project used as a stationery does **not** carry its own copy of the output format files — a Designer `.wep` has no `<format>.base` snapshots, so its transforms resolve from the ePublisher installation that runs the job, the same way a hollow stationery's would. (See the epublisher skill's `references/file-resolver-guide.md` for the `.base` resolution hierarchy.)
+
+**Keep the installation that runs your jobs at the same version as the one the design project is maintained in.** A version mismatch resolves the design against a different format build than the designer sees. That is silent fidelity drift, not a build error — nothing in the log flags it.
+
+### Creating one: the two New Job intents
+
+In the AutoMap Administrator, both mode 2 and mode 3 name a `.wep`/`.wrp` file; the intent selected on the **New Job** window decides which one you get, and AutoMap records the difference in the job file:
+
+| New Job option | Origin picker | Resulting mode |
+|----------------|---------------|----------------|
+| **Create a new publishing job** | *Choose ePublisher stationery or project* — accepts `.wxsp`, `.wep`, `.wrp` | mode 1 for a `.wxsp`; **mode 3** (`useAsStationery="True"`) for a `.wep`/`.wrp` |
+| **Automate an existing project** | *Choose ePublisher project* — accepts `.wep`, `.wrp` | **mode 2** (build in place) |
+
+The picker for the first option is the tell: one field, one filter, three extensions. Selecting a project there routes through the stationery wizard — the one with the Files page — because the job still supplies its own documents.
 
 ### Staging behavior
 
@@ -238,6 +262,25 @@ The attribute selects which of the three [Job Origin Modes (Stationery vs Projec
 1. The Stationery is on a **different drive** than the job file (no shared path root exists)
 2. The Stationery is on a **different network share**
 3. The job file and the Stationery share **only the drive letter or share root** as a common ancestor — a relative path technically works but is long and unmaintainable (e.g. `..\..\..\..\Other\Tree\main.wxsp`), so absolute is preferable
+
+### `<Options>` Element
+
+*(2026.1+)* Optional direct child of `<Job>`, written after `<Project>`. Stores the job's **build options** — behavior that travels with the job file, so it applies however the job runs: on its schedule, from **Run**, or from a direct CLI invocation. See [Build Options (Skip reports / Verbose logging)](#build-options-skip-reports--verbose-logging).
+
+| Attribute | Required | Description | Values | Default |
+|-----------|----------|-------------|--------|---------|
+| `skipReports` | No | Skip report generation for every target the job builds | `"True"`, `"False"` | `False` |
+| `verboseLogging` | No | Record the generation engine's step-by-step progress in the console and job log | `"True"`, `"False"` | `True` |
+
+```xml
+<Job name="nightly" version="1.0">
+  <Project path="stationery\main.wxsp" />
+  <Options skipReports="True" verboseLogging="False" />
+  ...
+</Job>
+```
+
+**Written only when non-default.** A job that keeps both defaults carries no `<Options>` element at all, so jobs saved before the element existed load unchanged and round-trip byte-stable. On load, `skipReports` is true only for an explicit `"true"`; `verboseLogging` is false only for an explicit `"false"`.
 
 ### `<Files>` Element
 
@@ -388,6 +431,36 @@ powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1
 
 ---
 
+## Build Options (Skip reports / Verbose logging)
+
+*(2026.1+)* A job can store two build options in the job file itself, in the [`<Options>` element](#options-element). The AutoMap Administrator exposes them on the job editor's **Job Info** tab, in the **Build options** area. Because they live in the job, they apply on a schedule, from **Run**, and from a direct command-line invocation alike — which matters because a scheduled task invokes the CLI with no flags at all.
+
+| Build option | Job attribute | Default | Effect |
+|--------------|---------------|---------|--------|
+| **Skip reports** | `skipReports="True"` | cleared | Skips report generation for every target the job builds. Reports add time, so this shortens large conversions. |
+| **Verbose logging** | `verboseLogging="False"` | selected | Clearing it omits the generation engine's step-by-step progress messages from the console and the job log, leaving milestone, warning, and error messages. |
+
+### The stored option and the CLI switch combine — they do not override
+
+Each option has an equivalent CLI switch, and the two sources are **combined**, never resolved as a precedence:
+
+| Sources | Rule | Result |
+|---------|------|--------|
+| `skipReports="True"` **or** `--skip-reports` | OR | reports are skipped |
+| `verboseLogging="False"` **or** `-q` / `--quiet` | either quiets | progress messages suppressed |
+
+So a job that stores Skip reports skips reports even on a bare `WebWorks.Automap.exe job.waj`, and a job that leaves Verbose logging selected can still be run quietly from a script. Neither switch can turn a stored option back *on* — there is no `--with-reports` and no un-quiet switch.
+
+> **Note:** Clearing Verbose logging affects the console and the job log only. The per-target `generate.log` is a separate sink and always keeps full detail.
+
+### Consequence for the wrapper
+
+`Invoke-Automap.ps1` injects `--skip-reports` unconditionally (unless already present, or `-NoDefaults` is given). Given the OR rule, that injection is **idempotent with a job's stored option** — a job with `skipReports="True"` behaves the same either way, and a job with the option cleared still gets reports skipped for that run because the switch was passed. The wrapper's `[INFO]` line reports the injected flag, not the job's stored option, so a job that stores Skip reports shows no extra signal. When you need a run's report behavior to match exactly what the job declares (verifying a scheduled task's output, for example), use `-NoDefaults`.
+
+The wrapper never injects `-q`. Its own stdout suppression is a separate mechanism — see cli-reference.md's [Console Output](./cli-reference.md#console-output).
+
+---
+
 ## Creating Job Files
 
 ### Using Scripts
@@ -407,6 +480,8 @@ python scripts/create-job.py --config config.json --output job.waj
 # 3. Validate the result
 python scripts/validate-job.py --check-stationery job.waj
 ```
+
+`validate-job.py` and `parse-job.py` dispatch on the root element (`<Job>` vs `<CompositionJob>`) and report a rename when the file extension and root disagree. For `.wacj` composition jobs, see composition-jobs.md's Tooling section.
 
 ### Configuration File Format
 
@@ -704,6 +779,20 @@ fi
 1. Format names are case-sensitive
 2. List available formats: `python scripts/parse-stationery.py stationery.wxsp`
 3. Update the `format` attribute to match exactly
+
+### Job Target Missing from the Stationery
+
+**Error**: `Target "<name>" is not defined by the job's stationery (<path>). Resave the stationery with this target, or remove or rename the job target, then run again.`
+
+Distinct from [Invalid Format Name](#invalid-format-name) above: there the target's `format` attribute names a format the Stationery lacks; here the **target itself** — a `<Target name="...">` the job declares — has no same-named target in the Stationery. The job declares *how* a target builds; the Stationery declares *what* exists. The two have drifted, usually because a target was renamed or removed in the Stationery after the job was written.
+
+**This is a hard error as of 2026.1.** Earlier versions silently recreated the missing target using the output format's **default settings**. The job kept producing output, but that output was configured with format defaults rather than the Stationery author's settings, and nothing indicated the substitution. The error message names both the target and the Stationery so the drift is unambiguous.
+
+**Solutions**:
+1. Resave the Stationery with that target, or
+2. Remove or rename the job target so the two agree, then run again
+
+A composition raises the same error, with the same remedy wording, for a member's declared target — but **before any member build starts**, prefixed with `Member '<name>': `. See composition-jobs.md.
 
 ### Document Not Found
 

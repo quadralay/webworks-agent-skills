@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Parcel member of composition.wacj, marked build="true" there: the composition
+  rebuilds it and passes its own destination down, so this job declares no
+  destination of its own. Its <Group> name is the parcel's federation identity,
+  the name the composition's MergeSettings places in the site TOC.
+-->
+<Job name="parcel-a" version="1.0">
+  <Project path="..\..\sample.wxsp" />
+  <Files>
+    <Group name="Parcel A">
+      <Document path="docs\intro.md" />
+    </Group>
+  </Files>
+  <Targets>
+    <Target name="WebWorks Reverb 2.0"
+            format="WebWorks Reverb 2.0"
+            formatType="Application"
+            build="True"
+            destination=""
+            deployScope="groups"
+            cleanOutput="False" />
+  </Targets>
+</Job>

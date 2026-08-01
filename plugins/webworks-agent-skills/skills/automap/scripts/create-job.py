@@ -2,7 +2,8 @@
 """
 create-job.py
 
-Create AutoMap job files (.waj) interactively or from a configuration file.
+Create AutoMap job files (.waj) and composition job files (.wacj)
+interactively or from a configuration file.
 
 Usage:
     # Interactive mode (prompts for all input)
@@ -14,11 +15,16 @@ Usage:
     # Generate config template
     python create-job.py --template --stationery path/to/stationery.wxsp
 
+    # Generate a composition job config template, then build the .wacj
+    python create-job.py --template --composition > composition-config.json
+    python create-job.py --config composition-config.json -o composition.wacj
+
 Features:
     - Interactive workflow for job creation
     - Config file mode for scripted creation
     - Validates against Stationery formats
     - Generates valid AutoMap job XML
+    - Generates composition job XML (members, site TOC spec, destination)
     - Preview before writing
 
 Exit Codes:
@@ -39,6 +45,17 @@ from xml.etree.ElementTree import Element, SubElement, tostring  # For creating 
 from pathlib import Path
 from typing import Optional
 from xml.dom import minidom
+
+# The .wacj grammar lives beside this script in lib/wacj.py so every AutoMap
+# tool shares one definition of the composition element vocabulary.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lib.wacj import (  # noqa: E402
+    ACTION_WEBDAV, COMPOSITION_EXTENSION, COMPOSITION_ROOT,
+    DEPLOY_ACTION_ATTR, DEPLOY_CONFIGURATION_ELEMENT, DEPLOY_SETTING_ELEMENT,
+    DEPLOY_SETTING_NAME_ATTR, DEPLOY_SETTINGS_ELEMENT, DESTINATION_ELEMENT,
+    GROUP_ELEMENT, JOB_ELEMENT, JOBS_ELEMENT, MEMBER_EXTENSIONS,
+    MERGE_SETTINGS_ELEMENT, ROLE_INFER, ROLES, TOC_ELEMENT,
+)
 
 # Exit codes
 EXIT_SUCCESS = 0
@@ -306,19 +323,245 @@ def generate_job_xml(config: dict) -> str:
                 setting_elem.set('name', setting.get('name', ''))
                 setting_elem.set('value', setting.get('value', ''))
 
-    # Convert to string with pretty printing
-    xml_str = tostring(job, encoding='unicode')
+    return pretty_xml(job)
+
+
+def pretty_xml(root: Element) -> str:
+    """Serialize an element tree with an indented, declaration-first layout."""
+    xml_str = tostring(root, encoding='unicode')
     dom = minidom.parseString(xml_str)
-    pretty_xml = dom.toprettyxml(indent='  ', encoding=None)
+    pretty = dom.toprettyxml(indent='  ', encoding=None)
 
     # Remove extra blank lines and fix declaration
-    lines = pretty_xml.split('\n')
+    lines = pretty.split('\n')
     # Replace first line with proper declaration
     lines[0] = '<?xml version="1.0" encoding="utf-8"?>'
     # Remove empty lines
     lines = [line for line in lines if line.strip()]
 
     return '\n'.join(lines)
+
+
+def is_composition_config(config: dict) -> bool:
+    """True when a config describes a composition job (.wacj), not a .waj."""
+    return config.get('kind') == 'composition' or 'members' in config
+
+
+def validate_composition_config(config: dict) -> list[str]:
+    """Validate a composition job configuration before XML generation."""
+    errors = []
+
+    if not config.get('name', '').strip():
+        errors.append("Composition name cannot be empty")
+
+    members = config.get('members', [])
+    if not members:
+        errors.append("At least one member job is required")
+
+    for i, member in enumerate(members, start=1):
+        path = (member.get('path') or '').strip()
+        if not path:
+            errors.append(f"Member {i} path cannot be empty")
+        elif Path(path).suffix.lower() not in MEMBER_EXTENSIONS:
+            errors.append(
+                f"Member {i} path '{path}' must be one of: "
+                f"{', '.join(MEMBER_EXTENSIONS)}")
+
+        role = (member.get('role') or ROLE_INFER).strip().lower()
+        if role not in ROLES:
+            errors.append(
+                f"Member {i} role '{role}' is invalid (expected: {', '.join(ROLES)})")
+
+    destination = config.get('destination', {})
+    if not (destination.get('name') or '').strip():
+        errors.append("Destination name cannot be empty - the composition "
+                      "resolves its shared mirror from it")
+
+    seen = set()
+    for i, setting in enumerate(destination.get('deploySettings', []), start=1):
+        name = (setting.get('name') or '').strip()
+        if not name:
+            errors.append(f"Inline destination definition {i} name cannot be empty")
+            continue
+        if name in seen:
+            errors.append(f"Duplicate inline destination definition '{name}'")
+        seen.add(name)
+        if (setting.get('action') or '').strip().lower() == ACTION_WEBDAV:
+            errors.append(
+                f"Inline destination definition '{name}' uses the WebDAV "
+                "('http') action; WebDAV definitions embed credentials and "
+                "cannot be stored in job files")
+
+    errors.extend(_validate_spec_nodes(
+        config.get('mergeSettings', {}).get('spec', [])))
+
+    return errors
+
+
+def _validate_spec_nodes(nodes: list, path: str = 'spec') -> list[str]:
+    """Validate a site-TOC spec tree (<TOC> containers and <Group> leaves)."""
+    errors = []
+
+    for i, node in enumerate(nodes, start=1):
+        label = f"{path}[{i}]"
+        kind = node.get('kind', 'group')
+        if kind not in ('group', 'container'):
+            errors.append(f"{label} kind '{kind}' is invalid (expected group or container)")
+        if not (node.get('name') or '').strip():
+            errors.append(f"{label} name cannot be empty")
+        if kind == 'container':
+            errors.extend(_validate_spec_nodes(node.get('children', []), f"{label}.children"))
+
+    return errors
+
+
+def _append_spec_nodes(parent: Element, nodes: list) -> None:
+    """Emit <TOC>/<Group> spec nodes under a parent element."""
+    for node in nodes:
+        name = node.get('name', '')
+        title = node.get('title', '')
+
+        if node.get('kind', 'group') == 'container':
+            toc = SubElement(parent, TOC_ELEMENT)
+            toc.set('name', name)
+            # A container's title falls back to its name on load, so an equal
+            # title round-trips through omission.
+            if title and title != name:
+                toc.set('title', title)
+            _append_spec_nodes(toc, node.get('children', []))
+        else:
+            group = SubElement(parent, GROUP_ELEMENT)
+            group.set('name', name)
+            if title:
+                group.set('title', title)
+
+
+def generate_composition_xml(config: dict) -> str:
+    """Generate composition job (.wacj) XML from configuration.
+
+    Mirrors CompositionJobWriter: attributes carrying the reader's default
+    (role infer, build false, discover false) are omitted, so a generated file
+    stays as lean as a hand-authored one.
+    """
+    composition = Element(COMPOSITION_ROOT)
+    composition.set('name', config.get('name', 'untitled'))
+    composition.set('version', '1.0')
+
+    members = config.get('members', [])
+    if members:
+        jobs = SubElement(composition, JOBS_ELEMENT)
+        if config.get('outputTarget'):
+            jobs.set('target', config['outputTarget'])
+
+        for member_config in members:
+            member = SubElement(jobs, JOB_ELEMENT)
+            member.set('path', member_config.get('path', ''))
+
+            role = (member_config.get('role') or ROLE_INFER).strip().lower()
+            if role != ROLE_INFER:
+                member.set('role', role)
+
+            # build defaults to false: a hand-authored member is federated
+            # (built by its own job) unless it opts in.
+            if member_config.get('build'):
+                member.set('build', 'true')
+
+            if member_config.get('target'):
+                member.set('target', member_config['target'])
+
+    # Discovery mode is expressed by the ABSENCE of MergeSettings; an empty
+    # element is spec mode with an empty spec.
+    merge_config = config.get('mergeSettings')
+    if merge_config is not None:
+        merge = SubElement(composition, MERGE_SETTINGS_ELEMENT)
+        if merge_config.get('title'):
+            merge.set('title', merge_config['title'])
+        if merge_config.get('discover'):
+            merge.set('discover', 'true')
+        _append_spec_nodes(merge, merge_config.get('spec', []))
+
+    destination_config = config.get('destination', {})
+    deploy_settings = destination_config.get('deploySettings', [])
+    if destination_config.get('name') or deploy_settings:
+        destination = SubElement(composition, DESTINATION_ELEMENT)
+        destination.set('name', destination_config.get('name', ''))
+
+        if deploy_settings:
+            settings = SubElement(destination, DEPLOY_SETTINGS_ELEMENT)
+            for setting_config in deploy_settings:
+                setting = SubElement(settings, DEPLOY_SETTING_ELEMENT)
+                setting.set(DEPLOY_SETTING_NAME_ATTR, setting_config.get('name', ''))
+                setting.set(DEPLOY_ACTION_ATTR, setting_config.get('action', ''))
+                configuration = setting_config.get('configuration', {})
+                if configuration:
+                    config_elem = SubElement(setting, DEPLOY_CONFIGURATION_ELEMENT)
+                    for key, value in configuration.items():
+                        config_elem.set(key, str(value))
+
+    return pretty_xml(composition)
+
+
+def generate_composition_template() -> dict:
+    """Generate a composition job config template."""
+    return {
+        'kind': 'composition',
+        'name': 'my-composition',
+        # Composition-wide output target pushed down to every member; leave
+        # empty to auto-detect each member's single compose-capable target.
+        'outputTarget': 'WebWorks Reverb 2.0',
+        'members': [
+            {'path': 'shell.waj', 'role': 'shell', 'build': False, 'target': ''},
+            {'path': 'parcel-a.waj', 'role': 'parcel', 'build': False, 'target': ''}
+        ],
+        # Omit "mergeSettings" entirely for discovery mode (the parcel set is
+        # discovered from the mirror); set "discover": true for hybrid mode.
+        'mergeSettings': {
+            'title': '',
+            'discover': False,
+            'spec': [
+                {'kind': 'container', 'name': 'Guides', 'title': 'Guides', 'children': [
+                    {'kind': 'group', 'name': 'Parcel A', 'title': 'Parcel A'}
+                ]}
+            ]
+        },
+        'destination': {
+            'name': 'ProductionMirror',
+            # Optional inline definition; without it the name must resolve
+            # from the --deploysettings overlay or deploy.prefs.
+            'deploySettings': []
+        }
+    }
+
+
+def print_composition_summary(config: dict) -> None:
+    """Print a human-readable summary of a composition configuration."""
+    print(f"\n{'='*60}")
+    print(f"Composition: {config['name']} (version 1.0)")
+    print(f"Output target: {config.get('outputTarget') or '(auto-detect per member)'}")
+    print('='*60)
+
+    members = config.get('members', [])
+    built = sum(1 for m in members if m.get('build'))
+    print(f"\nMembers ({len(members)} total, {built} built by this composition):")
+    for member in members:
+        status = "[BUILD]" if member.get('build') else "[READ]"
+        target = member.get('target') or config.get('outputTarget') or '(auto-detect)'
+        print(f"  {status} {member.get('path', '')} "
+              f"[role: {member.get('role', ROLE_INFER)}] -> {target}")
+
+    merge = config.get('mergeSettings')
+    if merge is None:
+        print("\nSite TOC: (none - discovery mode)")
+    else:
+        mode = 'hybrid' if merge.get('discover') else 'spec'
+        print(f"\nSite TOC ({mode} mode): {len(merge.get('spec', []))} top-level nodes")
+
+    destination = config.get('destination', {})
+    print(f"\nDestination: {destination.get('name', '')}")
+    for setting in destination.get('deploySettings', []):
+        print(f"  Inline definition: {setting.get('name', '')} [{setting.get('action', '')}]")
+
+    print('\n' + '='*60)
 
 
 def interactive_collect_groups() -> list[dict]:
@@ -606,7 +849,8 @@ def ensure_utf8() -> None:
 def main() -> int:
     ensure_utf8()
     parser = argparse.ArgumentParser(
-        description='Create AutoMap job files (.waj) interactively or from configuration.',
+        description='Create AutoMap job (.waj) and composition job (.wacj) '
+                    'files interactively or from configuration.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exit Codes:
@@ -625,6 +869,10 @@ Examples:
 
     # Generate config template
     %(prog)s --template --stationery path/to/stationery.wxsp > template.json
+
+    # Composition job (.wacj): template, then generate
+    %(prog)s --template --composition > composition-config.json
+    %(prog)s --config composition-config.json --output composition.wacj
 """
     )
 
@@ -633,9 +881,12 @@ Examples:
     parser.add_argument('-c', '--config', metavar='FILE',
                         help='Path to job configuration JSON file')
     parser.add_argument('-o', '--output', metavar='FILE',
-                        help='Output path for job file (default: <name>.waj)')
+                        help='Output path for job file (default: <name>.waj / <name>.wacj)')
     parser.add_argument('-t', '--template', action='store_true',
                         help='Generate a config template from Stationery (output to stdout)')
+    parser.add_argument('--composition', action='store_true',
+                        help='Operate on a composition job (.wacj); with '
+                             '--template emits a composition config template')
     parser.add_argument('--no-preview', action='store_true',
                         help='Skip XML preview (config mode only)')
     parser.add_argument('-y', '--yes', action='store_true',
@@ -645,6 +896,12 @@ Examples:
 
     # Template mode
     if args.template:
+        # A composition references member jobs, not a Stationery, so its
+        # template needs no --stationery.
+        if args.composition:
+            print(json.dumps(generate_composition_template(), indent=2))
+            return EXIT_SUCCESS
+
         if not args.stationery:
             log_error("--stationery is required with --template")
             return EXIT_ARG_ERROR
@@ -665,24 +922,34 @@ Examples:
             return EXIT_FILE_ERROR
 
         try:
-            with open(config_path, encoding='utf-8') as f:
+            # utf-8-sig also decodes plain UTF-8; Windows editors and
+            # PowerShell 5.1's Set-Content write a BOM that json.load rejects.
+            with open(config_path, encoding='utf-8-sig') as f:
                 config = json.load(f)
         except json.JSONDecodeError as e:
             log_error(f"Invalid JSON in config file: {e}")
             return EXIT_FILE_ERROR
 
+        # Composition job configs describe member jobs instead of a Stationery
+        # and its targets, so they validate and generate through their own path.
+        composition = args.composition or is_composition_config(config)
+
         # Validate config
-        errors = validate_config(config)
+        errors = (validate_composition_config(config) if composition
+                  else validate_config(config))
         if errors:
             for error in errors:
                 log_error(error)
             return EXIT_VALIDATION_ERROR
 
         # Generate XML
-        xml_content = generate_job_xml(config)
+        xml_content = (generate_composition_xml(config) if composition
+                       else generate_job_xml(config))
 
         # Preview unless skipped
         if not args.no_preview and not args.yes:
+            if composition:
+                print_composition_summary(config)
             print(f"\n{CYAN}Generated XML:{NC}\n")
             print(xml_content)
             print()
@@ -691,7 +958,9 @@ Examples:
                 return EXIT_CANCELLED
 
         # Determine output path
-        output_path = args.output if args.output else f"{config.get('name', 'job')}.waj"
+        default_extension = COMPOSITION_EXTENSION if composition else '.waj'
+        output_path = (args.output if args.output
+                       else f"{config.get('name', 'job')}{default_extension}")
 
         # Validate output path to prevent directory traversal
         try:
@@ -776,6 +1045,11 @@ Examples:
         return EXIT_SUCCESS
 
     # No valid mode specified
+    if args.composition:
+        log_error("--composition requires --config or --template "
+                  "(there is no interactive composition mode)")
+        return EXIT_ARG_ERROR
+
     parser.print_help()
     return EXIT_ARG_ERROR
 

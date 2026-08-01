@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shell member of composition.wacj: chrome only (no <Files>), so its build
+  produces the empty #parcels shell the composition splices parcels into. It
+  deploys the shell layer to the composition's shared destination, so the
+  composition can read its output without rebuilding it.
+-->
+<Job name="shell" version="1.0">
+  <Project path="..\..\sample.wxsp" />
+  <Targets>
+    <Target name="WebWorks Reverb 2.0"
+            format="WebWorks Reverb 2.0"
+            formatType="Application"
+            build="True"
+            destination="ProductionMirror"
+            deployScope="shell"
+            cleanOutput="False" />
+  </Targets>
+</Job>
