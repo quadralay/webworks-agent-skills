@@ -2,7 +2,8 @@
 """
 parse-job.py
 
-Parse AutoMap job files (.waj) to extract configuration information.
+Parse AutoMap job files (.waj) and composition job files (.wacj) to extract
+configuration information.
 
 Usage:
     python parse-job.py [OPTIONS] <job-file>
@@ -12,6 +13,8 @@ Features:
     - Extract Stationery reference path
     - List all document groups and documents
     - List all targets with configuration
+    - Composition jobs (.wacj): members, roles, output target selection,
+      site-TOC spec (MergeSettings) and the shared destination
     - JSON output option for programmatic use
     - Export config for use with create-job.py
 
@@ -31,6 +34,15 @@ import defusedxml.ElementTree as ET
 from xml.etree.ElementTree import Element  # For type hints only
 from pathlib import Path
 from typing import Optional
+
+# The .wacj grammar lives beside this script in lib/wacj.py so every AutoMap
+# tool shares one definition of the composition element vocabulary.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lib.wacj import (  # noqa: E402
+    COMPOSITION_EXTENSION, COMPOSITION_ROOT, JOB_EXTENSION, JOB_ROOT,
+    MODE_AUTOMATIC, MODE_CUSTOM_INCLUDE_NEW, TARGET_SOURCE_AUTO,
+    extract_composition_info, is_composition_path, iter_spec,
+)
 
 # Exit codes
 EXIT_SUCCESS = 0
@@ -65,9 +77,34 @@ def validate_job_file(job_file: str) -> bool:
         log_error(f"Job file not found: {job_file}")
         return False
 
-    if path.suffix.lower() != '.waj':
+    if path.suffix.lower() not in (JOB_EXTENSION, COMPOSITION_EXTENSION):
         log_error(f"Invalid job file extension: {job_file}")
-        log_error("Expected: .waj")
+        log_error(f"Expected: {JOB_EXTENSION} or {COMPOSITION_EXTENSION}")
+        return False
+
+    return True
+
+
+def check_root_matches_extension(root: Element, job_file: str) -> bool:
+    """Confirm the root element matches the file extension.
+
+    AutoMap dispatches on the root element (<Job> vs <CompositionJob>), so a
+    mismatch is worth naming rather than parsing the wrong grammar.
+    """
+    composition_path = is_composition_path(job_file)
+
+    if composition_path and root.tag != COMPOSITION_ROOT:
+        log_error(f"Expected <{COMPOSITION_ROOT}> in a {COMPOSITION_EXTENSION} "
+                  f"file, found <{root.tag}>")
+        return False
+
+    if not composition_path and root.tag != JOB_ROOT:
+        if root.tag == COMPOSITION_ROOT:
+            log_error(f"This is a composition job (<{COMPOSITION_ROOT}>) in a "
+                      f"{JOB_EXTENSION} file; rename it to {COMPOSITION_EXTENSION}")
+        else:
+            log_error(f"Expected <{JOB_ROOT}> in a {JOB_EXTENSION} file, "
+                      f"found <{root.tag}>")
         return False
 
     return True
@@ -92,6 +129,9 @@ def extract_job_info(root: Element, job_path: str) -> dict:
 
     # Basic job info
     job_info = {
+        # Discriminates a publishing job from a composition job (.wacj) for
+        # consumers that accept either shape.
+        'kind': 'job',
         'name': root.get('name', 'Unknown'),
         'version': root.get('version', '1.0'),
         'stationery': '',
@@ -227,6 +267,74 @@ def output_human_readable(job_info: dict) -> None:
     print()
 
 
+def output_composition_human(info: dict) -> None:
+    """Output composition job (.wacj) information in human-readable format."""
+    version = info['version'] or '1.0'
+    print(f"\n{GREEN}Composition Job:{NC} {info['name'] or '(unnamed)'} (version {version})")
+
+    mode_note = {
+        MODE_AUTOMATIC: 'compose every parcel found at the destination',
+        MODE_CUSTOM_INCLUDE_NEW: 'declared placements plus newly published parcels',
+    }.get(info['mode'], 'compose exactly the declared placements')
+    print(f"{BLUE}Mode:{NC} {info['mode']} ({mode_note})")
+
+    output_target = info['outputTarget'] or '(auto-detect per member)'
+    print(f"{BLUE}Output target:{NC} {output_target}")
+
+    # Members
+    members = info['members']
+    built = sum(1 for m in members if m['build'])
+    print(f"\n{CYAN}Members ({len(members)} total, {built} built by this composition):{NC}")
+
+    for member in members:
+        status = f"{GREEN}[BUILD]{NC}" if member['build'] else f"{YELLOW}[READ]{NC}"
+        exists = f"{GREEN}exists{NC}" if member['exists'] else f"{YELLOW}not found{NC}"
+        print(f"\n  {status} {member['path'] or '(no path)'} [{exists}]")
+        print(f"         Role: {member['role']}"
+              + ("" if member['roleRecognized']
+                 else f" (declared \"{member['roleDeclared']}\", unrecognized)"))
+        if member['targetSource'] == TARGET_SOURCE_AUTO:
+            print(f"         Target: (auto-detect)")
+        else:
+            print(f"         Target: {member['effectiveTarget']} ({member['targetSource']})")
+
+    # Site TOC spec
+    merge = info['mergeSettings']
+    print(f"\n{CYAN}Site TOC (MergeSettings):{NC}")
+    if not merge['present']:
+        print("  (none - Automatic: compose every parcel found at the destination)")
+    else:
+        if merge['title']:
+            print(f"  Title: {merge['title']} (accepted for grammar parity; not used by composition)")
+        if merge['discover']:
+            print("  Discover: True (also include newly published parcels not listed above)")
+        if not merge['spec']:
+            print("  (empty spec)")
+        for depth, node in iter_spec(merge['spec']):
+            indent = '  ' + ('  ' * (depth + 1))
+            if node['kind'] == 'container':
+                print(f"{indent}{node['name'] or '(unnamed)'}/")
+            else:
+                title = f" ({node['title']})" if node['title'] else ''
+                print(f"{indent}- {node['name'] or '(unnamed)'}{title}")
+
+    # Destination
+    destination = info['destination']
+    print(f"\n{CYAN}Destination:{NC}")
+    if not destination['declared']:
+        print(f"  {YELLOW}(none declared){NC}")
+    else:
+        legacy = ' (legacy <DeployTarget> spelling)' if destination['legacySpelling'] else ''
+        print(f"  {destination['name'] or '(unnamed)'}{legacy}")
+        for setting in destination['deploySettings']:
+            action = setting['action'] or '(no action)'
+            print(f"    Inline definition: {setting['name'] or '(unnamed)'} [{action}]")
+            for key, value in setting['configuration'].items():
+                print(f"      {key}: {value}")
+
+    print()
+
+
 def output_json(job_info: dict) -> None:
     """Output job information in JSON format."""
     print(json.dumps(job_info, indent=2))
@@ -241,6 +349,39 @@ def output_config(job_info: dict) -> None:
         'groups': job_info['groups'],
         'targets': job_info['targets']
     }
+    print(json.dumps(config, indent=2))
+
+
+def output_composition_config(info: dict) -> None:
+    """Output a composition in create-job.py compatible config format."""
+    config = {
+        'kind': 'composition',
+        'name': info['name'],
+        'outputTarget': info['outputTarget'],
+        'members': [
+            {
+                'path': member['path'],
+                'role': member['role'],
+                'build': member['build'],
+                'target': member['target'],
+            }
+            for member in info['members']
+        ],
+        'destination': {
+            'name': info['destination']['name'],
+            'deploySettings': info['destination']['deploySettings'],
+        },
+    }
+
+    # MergeSettings is omitted entirely in Automatic mode - its absence is the
+    # mode, so a round-trip must not invent an empty element.
+    if info['mergeSettings']['present']:
+        config['mergeSettings'] = {
+            'title': info['mergeSettings']['title'],
+            'discover': info['mergeSettings']['discover'],
+            'spec': info['mergeSettings']['spec'],
+        }
+
     print(json.dumps(config, indent=2))
 
 
@@ -263,7 +404,7 @@ def ensure_utf8() -> None:
 def main() -> int:
     ensure_utf8()
     parser = argparse.ArgumentParser(
-        description='Parse AutoMap job files (.waj) to extract configuration.',
+        description='Parse AutoMap job (.waj) and composition job (.wacj) files.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exit Codes:
@@ -275,6 +416,9 @@ Exit Codes:
 Examples:
     # Show job configuration
     %(prog)s job.waj
+
+    # Show composition members, site TOC spec and destination
+    %(prog)s composition.wacj
 
     # JSON output
     %(prog)s --json job.waj
@@ -288,7 +432,7 @@ Examples:
     )
 
     parser.add_argument('job_file', metavar='job-file',
-                        help='Path to .waj job file')
+                        help='Path to .waj job file or .wacj composition job file')
     parser.add_argument('-j', '--json', action='store_true',
                         help='Output in JSON format (includes metadata)')
     parser.add_argument('-c', '--config', action='store_true',
@@ -308,6 +452,27 @@ Examples:
     root = parse_job_xml(args.job_file)
     if root is None:
         return EXIT_PARSE_ERROR
+
+    if not check_root_matches_extension(root, args.job_file):
+        return EXIT_PARSE_ERROR
+
+    # Composition job (.wacj): a distinct artifact that references .waj/.wep
+    # members, so it carries a different grammar than a publishing job.
+    if is_composition_path(args.job_file):
+        composition = extract_composition_info(root, args.job_file)
+
+        log_verbose(f"Composition name: {composition['name']}", args.verbose)
+        log_verbose(f"Found {len(composition['members'])} members", args.verbose)
+        log_verbose(f"Composition mode: {composition['mode']}", args.verbose)
+
+        if args.config:
+            output_composition_config(composition)
+        elif args.json:
+            output_json(composition)
+        else:
+            output_composition_human(composition)
+
+        return EXIT_SUCCESS
 
     # Extract job info
     job_info = extract_job_info(root, args.job_file)

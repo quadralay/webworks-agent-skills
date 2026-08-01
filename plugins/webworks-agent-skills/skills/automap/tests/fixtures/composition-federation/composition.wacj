@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Realistic composition job (.wacj) fixture: a shell member plus two parcel
+  members composed into one federated Reverb mirror.
+
+  Exercises the whole shipped grammar:
+    Jobs/@target          composition-wide output target pushed down to members
+    Job/@path|@role|@build|@target
+                          shell.waj is read (federated, built by its own job),
+                          parcel-a.waj is rebuilt by this composition
+                          (derivative), parcel-b.wep overrides the output
+                          target name ("names may vary, formats may not")
+    MergeSettings         Custom mode: a <TOC> container plus a top-level <Group>
+    Destination           the shared mirror, with an inline definition so the
+                          job is a whole artifact under version control
+-->
+<CompositionJob name="Product Docs" version="1.0">
+  <Jobs target="WebWorks Reverb 2.0">
+    <Job path="shell.waj" role="shell" />
+    <Job path="parcel-a.waj" role="parcel" build="true" />
+    <Job path="parcel-b.wep" role="parcel" target="Online Docs" />
+  </Jobs>
+
+  <MergeSettings>
+    <TOC name="Guides" title="Guides">
+      <Group name="Parcel A" title="Parcel A" />
+    </TOC>
+    <Group name="Parcel B" title="Parcel B" />
+  </MergeSettings>
+
+  <Destination name="ProductionMirror">
+    <DeploySettings>
+      <DeploySetting Name="ProductionMirror" Action="file">
+        <Configuration Value="C:\mirrors\product-docs" />
+      </DeploySetting>
+    </DeploySettings>
+  </Destination>
+</CompositionJob>

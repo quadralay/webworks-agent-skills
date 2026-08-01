@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="urn:WebWorks-Publish-Project" Version="1.1.2.0"
+         ProjectID="Kq7ZmR2wXbA" RuntimeVersion="2026.1" FormatVersion="{Current}">
+  <!--
+    Direct-project parcel member of composition.wacj: a full Designer project
+    that owns its own groups, referenced by the .wacj without a .waj wrapper.
+    Its output target is named "Online Docs" while its format is the same
+    WebWorks Reverb 2.0 every member composes through - the .wacj names it with
+    Job/@target ("names may vary, formats may not").
+  -->
+  <Formats>
+    <Format TargetName="Online Docs" Name="WebWorks Reverb 2.0" Type="Application" TargetID="Rn4TgQbVe_M">
+      <OutputDirectory>Output\Online Docs</OutputDirectory>
+    </Format>
+  </Formats>
+  <Groups>
+    <Group Name="Parcel B" Type="normal" Included="true" GroupID="Zt8HpLcNdK4" />
+  </Groups>
+</Project>

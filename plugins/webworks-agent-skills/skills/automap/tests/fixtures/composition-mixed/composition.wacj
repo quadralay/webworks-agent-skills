@@ -1,0 +1,7 @@
+<CompositionJob name="Product Docs" version="1.0">
+  <Jobs target="WebWorks Reverb 2.0">
+    <Job path="shell.waj" role="shell"/>
+    <Job path="api-guide.waj" role="member"/>
+  </Jobs>
+  <Destination name="ProductionMirror"/>
+</CompositionJob>

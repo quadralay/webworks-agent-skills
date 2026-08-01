@@ -20,6 +20,7 @@ diff from a known-good build — exactly how the real breakages arise.
 | Self-closed **void** elements (`<meta/>`, `<link/>`) | `self-closed-element` must not flag void elements |
 | A remote `https://cdn.jsdelivr.net/...` `<script src>` | `reference-integrity` must skip remote refs |
 | Local `scripts/*.js` + `css/base.css` with `?v=` cache-busters | `reference-integrity` happy path (query stripped before the on-disk check) |
+| `splash.html` with an **empty** `<nav id="splash_groups">` + a `scripts/page.js` that looks that id up | `splash-groups-container` happy path. The container is empty by design (the grid is built at runtime), and the check is gated on the build's own `page.js` — removing `page.js` is how the suite proves pre-2026.1 output is never flagged |
 
 ## Run
 
@@ -29,5 +30,6 @@ python ../../verify-lint-output.py
 
 The verifier injects each defect (self-closed `<script/>`, whole-parcel GroupID
 mismatch, `<li>`/anchor GroupID desync, missing deploy-unit file, missing content
-directory, missing local asset, missing `index.html`) into a throwaway copy — the
-committed `good/` tree is never modified.
+directory, missing local asset, renamed splash Groups Grid container, missing
+`index.html`) into a throwaway copy — the committed `good/` tree is never
+modified.

@@ -75,13 +75,30 @@ ePublisher resolves files through a 4-level hierarchy (highest to lowest priorit
 
 A **Stationery** (`.wxsp`) is a standalone, distributable project that bundles its format configuration *and* `<format>.base` snapshots, so its transforms resolve from those bundled snapshots. AutoMap jobs (`.waj`) traditionally reference a `.wxsp` and stage a fresh project from it on each build.
 
-A Designer `.wep` carries **no** `<format>.base` snapshots, so its transforms resolve from the Designer installation (resolver level 4) instead. Because of that, AutoMap can use a `.wep` *directly* as a stationery via `useAsStationery="True"` on the job's `<Project>` element (ePublisher 2026.1+), skipping the manual "Save As Stationery" step. (Express `.wrp` projects, by contrast, *do* carry their own `.base` snapshots — see `references/file-resolver-guide.md`.) The synchronization engine is extension-agnostic: it can stage and synchronize against a `.wxsp`, `.wep`, or `.wrp` origin.
+A Designer `.wep` carries **no** `<format>.base` snapshots, so its transforms resolve from the Designer installation (resolver level 4) instead. Because of that, AutoMap can use a `.wep` *directly* as a stationery via `useAsStationery="True"` on the job's `<Project>` element (ePublisher 2026.1+), skipping the manual "Save As Stationery" step. The synchronization engine is extension-agnostic: it can stage and synchronize against a `.wxsp`, `.wep`, or `.wrp` origin.
 
-**For job-file usage of `useAsStationery`, see the automap skill's `references/job-file-guide.md`.**
+Whether a project carries `.base` snapshots follows the **origin it was staged from**, not its own extension: a `.wrp` staged from a `.wxsp` bundles them, a `.wrp` staged from a `.wep` does not. See `references/file-resolver-guide.md`.
+
+Opening a standalone `.wxsp` is not a project-open operation. As of 2026.1, double-clicking one, passing it on the command line, or selecting it in **File > Open** starts the New Project from Stationery flow with that Stationery pre-selected, in both Designer and Express.
+
+**For job-file usage of `useAsStationery`, see the automap skill's `references/job-file-guide.md`. For `<Origin>` and synchronization semantics, see `references/project-parsing-guide.md`.**
+
+### Designer and Express Project Types (2026.1)
+
+`.wep` and `.wrp` share one file format. The difference is **origin, not product**: a `.wep` holds a design of its own, while a `.wrp` carries an `<Origin>` and imports its design from there.
+
+As of ePublisher 2026.1 the products no longer partition the project types. Designer opens, builds, synchronizes, and deploys `.wrp` projects, presenting the Express experience in that window — Document Manager, the synchronization prompt, no Style Designer, no Preview — and listing `.wep` and `.wrp` together under one **ePublisher Project Files** entry in its Open dialog. Designer also gains:
+
+- **File > New Project from Stationery...** — creates a `.wrp` from a `.wxsp` *or* a `.wep`. It is a separate command because Designer's **New Project** creates a Stationery *design* project.
+- **File > Save as Express Project...** — creates a `.wrp` linked back to the current `.wep`, giving a master/satellite arrangement (one design seat, any number of linked projects that pick up changes through the synchronization prompt).
+
+Design authoring stays exclusive to Designer: Style Designer, the Preview window, Stationery design projects, Save as Stationery, and Save as Express Project.
+
+Do not assert the pre-2026.1 split — "`.wrp` can only be opened in Express", "Designer cannot create a project from Stationery", "only Express synchronizes" are all false as of 2026.1, and all true before it. Check the version before recommending any of this; see `references/version-compatibility.md`.
 
 ### Deploy Destinations and Deploy Scope (new in 2026.1)
 
-Output destinations (Target Settings **Deploy to** / Edit > **Deploy Destinations**) are machine-global named definitions shared across projects. As of ePublisher 2026.1: destinations can be **Folder** or **Amazon S3** (bucket/region/named credential profile/CloudFront distribution — no stored secrets; dry run supported); each target also declares a **Deploy** scope — Everything (complete site), Groups (content only), or Shell (site files only) — which powers federated parcel composition in WebWorks Reverb 2.0 (the field is disabled for formats without the capability). Deployments never delete outside their own scope slice, and Clean remains AutoMap-only. For the federation workflow, `.wacj` composition jobs, and inline destination definitions, see the automap skill's `references/composition-jobs.md`; for version gating, `references/version-compatibility.md`.
+Output destinations (Target Settings **Deploy to** / Edit > **Deploy Destinations**) are named definitions stored per user, per machine (`deploy.prefs`) and shared across projects and across Designer, Express, and AutoMap. As of ePublisher 2026.1: destinations can be **Folder** or **Amazon S3** (bucket/region/named credential profile/CloudFront distribution — no stored secrets; dry run supported); each target also declares a **Deploy** scope — Everything (complete site), Groups (content only), or Shell (site files only) — which powers federated parcel composition in WebWorks Reverb 2.0 (the field is disabled for formats without the capability). Deployments never delete outside their own scope slice, and Clean remains AutoMap-only. For the federation workflow, `.wacj` composition jobs, and inline destination definitions, see the automap skill's `references/composition-jobs.md`; for version gating, `references/version-compatibility.md`.
 
 ### Project File Format
 
@@ -168,7 +185,7 @@ Returns JSON with versionRoot path, component directories, and availability flag
 - `format-traits-guide.md` - Trait types, reading/writing in project files, accessing in XSL, global vs per-target scope, Golden Test recipe, Diffable HTML Output recipe
 - `FormatTraitInfoStrings.resx` - Complete UI display name to internal name mapping (English)
 - `product-foundations.md` - Cross-cutting product knowledge (architecture, platform constraints, debugging)
-- `project-parsing-guide.md` - Detailed project file structure
+- `project-parsing-guide.md` - Detailed project file structure, `<Origin>` and synchronization semantics, Save as Express Project
 - `publish-pipeline-guide.md` - Pipeline architecture (`format.wwfmt`), stage execution, `files.info` tracking, data flow
 - `user-interaction-patterns.md` - Disambiguating user intent (query vs. creation)
 - `version-compatibility.md` - Supported versions and breaking changes
@@ -218,7 +235,7 @@ For platform-level gotchas (.wez files, XSLT 1.0 constraint, UI name mapping), s
 **Solutions:**
 1. Verify file is a valid .wep/.wrp/.wxsp file
 2. Check if project was created in a compatible ePublisher version
-3. Open project in ePublisher Administrator to verify structure
+3. Open the project in ePublisher Designer or Express to verify structure — as of 2026.1 Designer opens both `.wep` and `.wrp`
 
 ### "Project file not found"
 
@@ -235,7 +252,7 @@ For platform-level gotchas (.wez files, XSLT 1.0 constraint, UI name mapping), s
 
 **Solutions:**
 1. Use .wep (WebWorks ePublisher Project)
-2. Use .wrp (WebWorks ePublisher Report Project)
+2. Use .wrp (WebWorks ePublisher Express Project)
 3. Use .wxsp (WebWorks ePublisher Stationery Project)
 
 </troubleshooting>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Deliberately malformed composition job: every defect here is one a hand
+  edit produces, and validate-job.py must name it rather than let AutoMap
+  fail minutes into a run.
+
+    Job with no @path            -> FAIL (the reader throws on load)
+    role="member"                -> WARN (unrecognized; loads as "infer")
+    build="yes"                  -> WARN (not a boolean; loads as False)
+    MergeSettings @title         -> WARN (accepted for grammar parity, unused)
+    <Parcel> under MergeSettings -> WARN (ignored; expected <TOC>/<Group>)
+    duplicate <Group name>       -> WARN (the compose treats them as one)
+    <Group> with no @name        -> WARN
+    <DeployTarget>               -> WARN (pre-release spelling of <Destination>)
+    inline Action="http"         -> FAIL (WebDAV definitions embed credentials)
+-->
+<CompositionJob name="Broken Composition" version="1.0">
+  <Jobs target="WebWorks Reverb 2.0">
+    <Job role="shell" />
+    <Job path="api-guide.waj" role="member" build="yes" />
+  </Jobs>
+
+  <MergeSettings title="Product Documentation">
+    <Group name="API Guide" />
+    <Group name="API Guide" />
+    <Group />
+    <Parcel name="Not part of the grammar" />
+  </MergeSettings>
+
+  <DeployTarget name="LegacyMirror">
+    <DeploySettings>
+      <DeploySetting Name="LegacyMirror" Action="http">
+        <Configuration Value="http://docs.example.com/webdav" />
+      </DeploySetting>
+    </DeploySettings>
+  </DeployTarget>
+</CompositionJob>

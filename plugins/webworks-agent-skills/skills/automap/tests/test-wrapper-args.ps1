@@ -117,6 +117,19 @@ $r = Invoke-Wrapper @('-ExePath', $stub, '--', '-t', 'Target A', '-d', (Join-Pat
 Assert 'deploy intent: no -n injected' (-not ($r.StubArgs -match '(^| )-n( |$)')) $r.StubArgs
 Assert 'deploy intent: --skip-reports still injected' ($r.StubArgs -match '--skip-reports') $r.StubArgs
 
+# --destination redirects the deploy; -n would suppress the deploy asked for.
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '-t', 'Target A', '--destination', 'ProductionMirror', $project)
+Assert 'deploy intent (--destination): no -n injected' (-not ($r.StubArgs -match '(^| )-n( |$)')) $r.StubArgs
+Assert 'deploy intent (--destination): --skip-reports still injected' ($r.StubArgs -match '--skip-reports') $r.StubArgs
+
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '-t', 'Target A', '--destination=ProductionMirror', $project)
+Assert 'deploy intent (--destination=): no -n injected' (-not ($r.StubArgs -match '(^| )-n( |$)')) $r.StubArgs
+
+# --dryrun rehearses the deploy; -n would leave nothing to rehearse.
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '-t', 'Target A', '--dryrun', $project)
+Assert 'deploy intent (--dryrun): no -n injected' (-not ($r.StubArgs -match '(^| )-n( |$)')) $r.StubArgs
+Assert 'deploy intent (--dryrun): --skip-reports still injected' ($r.StubArgs -match '--skip-reports') $r.StubArgs
+
 # 4. -NoDefaults: verbatim pass-through, no injection, no target requirement.
 $r = Invoke-Wrapper @('-ExePath', $stub, '-NoDefaults', '--', $project)
 Assert '-NoDefaults: exit 0' ($r.ExitCode -eq 0) $r.Output
@@ -177,8 +190,8 @@ Assert 'wacj -NoDefaults: no info line' (-not ($r.Output -match '\[INFO\] Compos
 $compositionLog = Join-Path $work 'Sample Composition-log.txt'
 Set-Content -LiteralPath $compositionLog -Encoding Ascii -Value @'
 Composition job 'Sample Composition' started.
-[Warning] parcel 'Extra' has no descriptor; omitted.
-[Error] Destination 'Mirror' is not defined in deploy.prefs, the --deploysettings overlay, or inline in the composition job.
+[WARN] parcel 'Extra' has no descriptor; omitted.
+[ERROR] Destination 'Mirror' is not defined in deploy.prefs, the --deploysettings overlay, or inline in the composition job.
 '@
 $r = Invoke-Wrapper @('-ExePath', $stub, '--', $composition)
 Assert 'wacj log scan: counts reported' ($r.Output -match '\[ERROR\] 1 warning\(s\), 1 error\(s\) in Sample Composition-log\.txt') $r.Output

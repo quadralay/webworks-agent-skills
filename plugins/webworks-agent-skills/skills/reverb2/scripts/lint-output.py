@@ -29,9 +29,9 @@ Checks
    `toc:<GID>`, `data:<GID>`, `breadcrumbs:<GID>`, and `page:<GID>:first/last`
    inside it. If the parcel's own GroupID (its `<body id="id:<GID>">` and those
    divs) disagrees with the manifest's — which happens when output is assembled
-   from multiple builds that each minted their own GroupIDs, e.g. the
-   Reverb-on-S3 deploy-set model — every lookup returns null, the parcel never
-   attaches, and the spinner hangs silently.
+   from multiple builds that each minted their own GroupIDs, e.g. federated
+   parcel composition or any hand-rolled multi-build assembly — every lookup
+   returns null, the parcel never attaches, and the spinner hangs silently.
 
 3. parcel-deploy-unit  (error)
    Each manifest parcel `<Name>` is published as a deploy unit: `<Name>.html`
@@ -47,6 +47,17 @@ Checks
    Local `scripts/` and `css/` assets referenced by `index.html`
    (`<script src>`, `<link href>`) exist on disk. Remote (`http(s)://`,
    protocol-relative `//`) and `data:` references are skipped.
+
+5. splash-groups-container  (warn)
+   The 2026.1 splash page is a Groups Grid built at runtime: `Splash.asp`
+   ships an empty `<nav id="splash_groups">` and `page.js` fills it from card
+   data the Connect frame posts over. If the container is absent the grid
+   never renders and nothing reports it — the usual cause is a pre-2026.1
+   `Splash.asp` override carried through an upgrade. Like the chunk set, the
+   expectation is read from the build itself: the check runs only when this
+   build's own `scripts/page.js` looks up `splash_groups`, so pre-2026.1
+   output is never flagged. Warn, not error: a deliberate `Splash.asp`
+   redesign that drops the grid is legitimate.
 
 The check set is extensible — new known-breakage checks get added here as they
 are discovered.
@@ -138,6 +149,11 @@ CHUNK_SUFFIXES = ('_ix.html', '_lx.js', '_sx.js')
 # Root-level shell HTML pages scanned for self-closed elements in addition to
 # index.html and the per-parcel pages. Only those that exist are scanned.
 SHELL_HTML_FILES = ('index.html', 'search.html', 'splash.html', 'not-found.html')
+
+# The splash page and the id of its runtime-filled Groups Grid container
+# (Splash.asp: <nav id="splash_groups" class="ww_skin_splash_groups">).
+SPLASH_PAGE = 'splash.html'
+SPLASH_GROUPS_ID = 'splash_groups'
 
 # Finding severities.
 SEVERITY_ERROR = 'error'
@@ -629,9 +645,10 @@ def _check_parcel_groupid(
 
     if gid_manifest not in parcel_gids:
         # The manifest GroupID appears on none of the parcel's landmarks — the
-        # whole parcel was built under a different GroupID (the classic deploy-set
-        # mismatch). connect.js binds toc:/data:/page: by the manifest GroupID,
-        # so every getElementById returns null and the parcel never attaches.
+        # whole parcel was built under a different GroupID (the classic
+        # multi-build assembly mismatch). connect.js binds toc:/data:/page: by
+        # the manifest GroupID, so every getElementById returns null and the
+        # parcel never attaches.
         observed = sorted(parcel_gids)
         observed_str = observed[0] if len(observed) == 1 else str(observed)
         findings.append(Finding(
@@ -655,6 +672,63 @@ def _check_parcel_groupid(
                 f"will not bind",
                 file=href_path,
             ))
+
+
+def build_renders_splash_groups(output_dir: Path) -> bool:
+    """Whether this build's own page.js renders the splash Groups Grid.
+
+    Same "ask the build, don't assume the version" rule as
+    expected_chunk_suffixes: `page.js` looks the container up by id
+    (`getElementById('splash_groups')`), so its presence there is the build's
+    own statement that it expects the container. Pre-2026.1 output has no such
+    lookup and is therefore never flagged. A missing/unreadable page.js means
+    "cannot tell" — the check is skipped.
+    """
+    page_js = output_dir / 'scripts' / 'page.js'
+    try:
+        text = page_js.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        return False
+    return f"'{SPLASH_GROUPS_ID}'" in text or f'"{SPLASH_GROUPS_ID}"' in text
+
+
+def check_splash_groups(output_dir: Path, findings: list[Finding]) -> None:
+    """Warn when a Groups-Grid build's splash page has no grid container.
+
+    The grid is built at runtime into `<nav id="splash_groups">`; without that
+    element `Page.SplashGroupsRender` returns early and the splash renders
+    empty, with no console error. Almost always a pre-2026.1 `Splash.asp`
+    override carried forward through an upgrade.
+    """
+    splash_path = output_dir / SPLASH_PAGE
+    if not splash_path.is_file():
+        return
+    if not build_renders_splash_groups(output_dir):
+        debug_log('page.js does not render the splash Groups Grid; check skipped')
+        return
+
+    try:
+        text = _read_text(splash_path)
+    except OSError as e:
+        findings.append(Finding(
+            'splash-groups-container', SEVERITY_WARN,
+            f"could not read file: {e}", file=SPLASH_PAGE,
+        ))
+        return
+
+    if any(id_value == SPLASH_GROUPS_ID for _, id_value in collect_element_ids(text)):
+        return
+
+    findings.append(Finding(
+        'splash-groups-container', SEVERITY_WARN,
+        f"this build's page.js renders the splash Groups Grid into "
+        f"id='{SPLASH_GROUPS_ID}', but {SPLASH_PAGE} has no such element - the "
+        f"grid never renders and the splash comes up empty, with no console "
+        f"error. Usual cause: a pre-2026.1 Splash.asp override carried through "
+        f"an upgrade (EPUB2907). Intentional if the project deliberately "
+        f"replaced the splash design",
+        file=SPLASH_PAGE,
+    ))
 
 
 def check_reference_integrity(
@@ -716,6 +790,7 @@ def lint(output_dir: Path) -> list[Finding]:
     check_self_closed(output_dir, html_files, findings)
     check_manifest_and_parcels(output_dir, entries, chunk_suffixes, findings)
     check_reference_integrity(output_dir, index_text, findings)
+    check_splash_groups(output_dir, findings)
     return findings
 
 

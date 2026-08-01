@@ -384,6 +384,13 @@ Keep the `{WWDefaultRule}` row even when every named heading is enumerated — i
 
 The prototype rule is necessary but not sufficient: it covers styles that have **no** explicit `split-priority`, and the per-rule overrides cover styles that **do**. Together they guarantee the value across the target.
 
+**Doing this in the UI (2026.1).** Style Designer's style list supports multi-select — Ctrl-click and Shift-click within a style category — and an edit made on the **Properties**, **Options**, **Target Properties**, or **Target Options** tab applies to every selected style. The per-rule half of the pattern above becomes one edit instead of one per heading. Two behaviors matter when reading the grid:
+
+- Values that disagree across the selection display **blank**, not the first style's value. A blank cell means "these styles differ here", not "unset".
+- `[Prototype]` (`{WWDefaultRule}`) is dropped from a *multiple* selection — editing it applies to every style in the category, which is never what a bulk edit means. Set the prototype in its own single selection first, then multi-select the downstream styles that already declare the same Option.
+
+Before 2026.1 the list is single-select only, so each style must be edited separately.
+
 ---
 
 **Version**: 1.0.0

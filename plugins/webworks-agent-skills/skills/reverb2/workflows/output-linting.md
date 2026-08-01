@@ -19,9 +19,12 @@ cheap *static* counterpart to the browser test (intake item 1), which is the
 *runtime* confirmation.
 
 Reach for it especially when output is **assembled from more than one build** —
-the Reverb-on-S3 "deploy set" model, a manifest splice, a hand-edit, or any
+federated parcel composition, a manifest splice, a hand-edit, or any
 pretty-printer/formatter run over the HTML. Those are exactly the situations
-that produce the breakages below.
+that produce the breakages below. (When the assembly *is* a composed mirror,
+read `references/federation-architecture.md` § "Linting a composed mirror"
+first — mixed GroupIDs and mixed generation hashes across parcels are correct
+there, not defects.)
 
 ## Step 1: Point It at the Output Directory
 
@@ -45,9 +48,10 @@ Flags:
 | Check | Severity | Breakage | Fix |
 |-------|----------|----------|-----|
 | `self-closed-element` | error | A non-void element written in XML self-closing form (`<script/>`, `<iframe/>`, `<div/>`, `<span/>`, `<ul/>`, …). In `text/html` the `/` is ignored, so the element parses as *open* and swallows the rest of the document. The first page never renders and there is **no** console error. (Trac #2792.) | Re-emit the element with a real close tag (`<div></div>`). Usually caused by an XML/XHTML formatter run over the output — stop pretty-printing the HTML, or use an HTML-aware formatter. Void elements (`<meta/>`, `<link/>`, `<br/>`, …) and `<svg>`/`<math>` foreign content are exempt. |
-| `manifest-parcel-groupid` | error | A parcel's own GroupID disagrees with what the `#parcels` manifest binds. `connect.js` reads `id.split(':')[1]` from each anchor `<a id="<ctx>:<GID>" href="<Name>.html">`, fetches `<Name>.html`, and looks up `toc:<GID>`/`data:<GID>`/`page:<GID>:first` inside it. On a mismatch every lookup returns null, the parcel never attaches, and the spinner hangs. | Rebuild the parcel and the manifest entry from the **same** GroupID, or rewrite the manifest anchor's GroupID to match the parcel (this is what a correct deploy-set assembler does — splice by GroupID). The linter also flags a `<li id="group:<GID>">`-vs-anchor desync within the manifest itself. |
+| `manifest-parcel-groupid` | error | A parcel's own GroupID disagrees with what the `#parcels` manifest binds. `connect.js` reads `id.split(':')[1]` from each anchor `<a id="<ctx>:<GID>" href="<Name>.html">`, fetches `<Name>.html`, and looks up `toc:<GID>`/`data:<GID>`/`page:<GID>:first` inside it. On a mismatch every lookup returns null, the parcel never attaches, and the spinner hangs. | Rebuild the parcel and the manifest entry from the **same** GroupID, or rewrite the manifest anchor's GroupID to match the parcel (this is what a correct assembler does — splice by GroupID; federated parcel composition splices each parcel's own manifest fragment byte-for-byte, which is why it never produces this). The linter also flags a `<li id="group:<GID>">`-vs-anchor desync within the manifest itself. |
 | `parcel-deploy-unit` | error | A manifest parcel `<Name>` is missing a deploy-unit member. | Deploy the whole unit together: `<Name>.html` (the manifest href) and the `<Name>/` content directory are always required; the runtime chunks `<Name>_ix.html`/`<Name>_lx.js`/`<Name>_sx.js` are required when the build's `scripts/connect.js` fetches them (older builds omit `_lx.js`, search-off builds omit `_sx.js`). A parcel is **not** a single self-contained folder. |
 | `reference-integrity` | warn | A local `scripts/`/`css/` asset referenced by `index.html` is missing on disk. | Deploy the referenced asset, or fix the reference. Remote (`http(s)://`, `//`) and `data:` references are not checked. |
+| `splash-groups-container` | warn | `splash.html` has no `id="splash_groups"` element, but this build's `scripts/page.js` renders the Groups Grid into it. `Page.SplashGroupsRender` returns early, so the splash comes up empty with no console error. (ePublisher 2026.1, EPUB2907.) | Usually a **pre-2026.1 `Splash.asp` override carried through an upgrade** — re-base it on the current `Splash.asp`, or add the `<nav id="splash_groups" class="ww_skin_splash_groups">` container back. Ignore it if the project deliberately replaced the splash design. The check is skipped entirely when `page.js` has no `splash_groups` lookup, so pre-2026.1 output is never flagged. |
 
 The self-closed scan covers `index.html`, the root shell pages (`search.html`,
 `splash.html`, `not-found.html`), and each parcel's `<Name>.html` and
@@ -126,7 +130,7 @@ New known-breakage checks are added to `scripts/lint-output.py` as they are
 discovered — write a `check_*` function that appends `Finding` objects, call it
 from `lint()`, and add a fixture-mutation scenario to
 `tests/verify-lint-output.py`. The GroupID-consistency check, for example, came
-straight out of a real Reverb-on-S3 deploy-set assembly bug.
+straight out of a real multi-build assembly bug in a Reverb site hosted on S3.
 </process>
 
 <success_criteria>

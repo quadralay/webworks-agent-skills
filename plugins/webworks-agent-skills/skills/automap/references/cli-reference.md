@@ -46,7 +46,7 @@ Unless `-NoDefaults` is given, the wrapper injects these **native** flags and re
 
 | Injected flag | Skipped when | Purpose |
 |---------------|--------------|---------|
-| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled: `-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope` | Prevents accidental deployment during development |
+| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled: `-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope`, `--destination`, `--dryrun` | Prevents accidental deployment during development |
 | `--skip-reports` | already present | Faster builds *(2025.1+; use `-NoDefaults` with older versions)* |
 
 **Explicit-target requirement:** unless `-NoDefaults` or `-AllTargets` is given, the arguments must include `-t` or `--target`. Otherwise the wrapper exits 2 and lists the file's available targets (for `.waj`, annotating which are `build="True"` enabled). This prevents a job file's full enabled set — or a project's every target — from building by accident.
@@ -122,13 +122,26 @@ All options below belong after the `--` separator and are forwarded to `WebWorks
 - **Impact**: Output copied to specified path instead of project default. Signals deploy intent — the wrapper will not inject `-n`.
 - **Note**: Must have write permissions to deployment path
 
+**`--destination=<name>`** *(2026.1+)*
+- **Purpose**: Deploy **every built target in the run** to the named destination instead of each target's own. The name resolves through the same precedence a declared destination does — inline definitions (job file, then `--deploysettings` overlay), then `deploy.prefs`.
+- **Use When**: Redirecting a whole run to one destination without editing the job (CI promotion, a staging mirror); it is also the mechanism a composition uses to make `build="true"` members deploy to the *composition's* destination.
+- **Impact**: Signals deploy intent — the wrapper will not inject `-n`. **Ignored when `-d`/`--deployfolder` is given** (the folder override wins; `--destination` only substitutes a *name*).
+- **Log**: `Destination override (--destination): deploying target "<target>" to "<name>".` — emitted only when the name differs from the target's own. The resolution itself logs `Destination '<name>' resolved from <source>.`
+- **Example**: `-t "WebWorks Reverb 2.0" --destination="StagingMirror" project.wep`
+
 **`--deployscope <everything|groups|shell>`** *(2026.1+)*
 - **Purpose**: Override the deploy scope declared on the target
 - **Use When**: Layer-scoped deployments (e.g., publishing only group parcels, or only the shell)
+- **Note**: Applies to **target builds only**. On a `.wacj` it is parsed and has no effect — member builds receive a scope derived from each member's `role`. See composition-jobs.md.
 
 **`--deploysettings <file>`** *(2026.1+)*
 - **Purpose**: XML file of inline destination definitions (deploy.prefs entry schema, file/s3 actions only) overlaying deploy.prefs by name
 - **Use When**: CI environments where deploy.prefs is not configured on the machine
+
+**`--dryrun`** *(2026.1+)*
+- **Purpose**: Force every deployment in this run dry
+- **Impact**: An S3 destination prints its would-be DELETE / PUT / INVALIDATE sets and makes no AWS call; a transport with no dry-run support skips deployment with an explicit log line. A `.wacj` against a non-S3 destination skips the in-place compose. Signals deploy intent — the wrapper will not inject `-n`.
+- **Note**: There is deliberately **no opposite switch** — a destination declared dry cannot be forced live from the CLI.
 
 ### Staging Folder (Job Files)
 
@@ -158,6 +171,16 @@ When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary 
 - **Use When**: CI/CD builds, agentic workflows, or iterative development where reports not needed
 - **Impact**: Faster builds, reduced file system output
 - **Trade-off**: No build reports generated (errors and warnings still recorded in `generate.log`)
+- **Combines with the job file**: a `.waj` can store the same intent as the **Skip reports** build option (`<Options skipReports="True"/>`). The two are ORed — *either* source skips reports. The switch never turns a job's stored option back on.
+
+### Console Output
+
+**`-q, --quiet`** *(2026.1+)*
+- **Purpose**: Suppress the generation engine's step-by-step progress messages in the console and the job log
+- **Use When**: Scheduled or CI runs where only milestones, warnings, and errors matter
+- **Impact**: Warnings, errors, and the CLI's own milestone messages still print. The per-target `generate.log` is a separate sink and **always keeps full detail**. A quiet run announces itself once: `Suppressing build progress messages (requested via --quiet or the job's build options)`.
+- **Combines with the job file**: a `.waj` can store the same intent as the **Verbose logging** build option (`<Options verboseLogging="False"/>`). The two are ANDed — *either* source quiets the run, so a job that leaves Verbose logging selected can still be run quietly from a script. See [job-file-guide.md](./job-file-guide.md#build-options-skip-reports--verbose-logging).
+- **Relation to the wrapper**: `-q` is a *native* switch that changes what AutoMap emits; the wrapper's stdout suppression (see [Output Behavior](#output-behavior)) discards AutoMap's stdout at the wrapper boundary regardless. Under the wrapper the two overlap, and `-q` adds nothing an agent can observe — pass it when the *job log* (or a `-NoDefaults`/direct run's console) should be quiet, not to quiet the wrapper.
 
 ### Notification
 
@@ -185,6 +208,8 @@ The wrapper suppresses AutoMap's streaming stdout (banner, per-pipeline progress
 ```
 
 There is no verbose/streaming wrapper mode. To investigate a reported count or failure, **read `generate.log`** (below). To watch live progress interactively — a human need — run `WebWorks.Automap.exe` directly.
+
+This suppression is a wrapper behavior and is **not** the native `-q`/`--quiet` switch: the wrapper discards stdout it receives, while `-q` stops AutoMap from producing the progress stream in the first place (and therefore also trims the job log). Under the wrapper they overlap; see [`-q, --quiet`](#console-output) for when the native switch still earns its place.
 
 ## Example Commands
 
@@ -273,6 +298,8 @@ grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"
 - **Job files** (`.waj`): the log is under the staging folder — `<stagingDir>/<JobName>/Logs/<target>/generate.log` (see [Staging Folder (Job Files)](#staging-folder-job-files)).
 
 The patterns below are the tokens used in `generate.log` and AutoMap's console output.
+
+> **Markers are localized.** `[WARN]` / `[ERROR]` are the *English-install* spellings. The same resources drive every log in the product, so a German install writes `[WARNUNG]` / `[FEHLER]`, a French one `[AVERTISSEMENT]` / `[ERREUR]`, and a Japanese one the kanji equivalents. The wrapper's post-build scan matches the English tokens only, so on a non-English install its per-target counts read 0 even when the log is full of marked lines. On such a machine, grep for the console's own tokens, or fall back to the process exit code. (2026.1 extended the same markers from `generate.log` to the job and composition logs.)
 
 ### Error Patterns
 
@@ -430,6 +457,4 @@ The only script-relevant cases are flags that interact with the wrapper's defaul
 
 ---
 
-**Version**: 3.5.0
-**Last Updated**: 2026-07-11
-**Target**: ePublisher 2024.1+ AutoMap CLI (--skip-reports requires 2025.1+, --version requires 2025.1 build 4652+)
+**Target**: ePublisher AutoMap CLI, 2024.1 through 2026.1. Version-gated options are marked inline: `--skip-reports` requires 2025.1+, `--version` requires 2025.1 build 4652+, and `--deployscope` / `--deploysettings` / `--destination` / `--dryrun` / `-q` require 2026.1+. The plugin version that ships this document is in `.claude-plugin/plugin.json`.

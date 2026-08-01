@@ -2,7 +2,8 @@
 """
 list-job-targets.py
 
-List targets from AutoMap job files (.waj) with build status and configuration.
+List targets from AutoMap job files (.waj) with build status and configuration,
+or member jobs and their selected output target from a composition job (.wacj).
 
 Usage:
     python list-job-targets.py [OPTIONS] <job-file>
@@ -11,6 +12,8 @@ Features:
     - List all targets with build status
     - Filter by enabled/disabled status
     - Show detailed configuration
+    - Composition jobs (.wacj): list members with their role, build flag and
+      the output target each one composes through
     - JSON output option
 
 Exit Codes:
@@ -29,6 +32,14 @@ import defusedxml.ElementTree as ET
 from xml.etree.ElementTree import Element  # For type hints only
 from pathlib import Path
 from typing import Optional
+
+# The .wacj grammar lives beside this script in lib/wacj.py so every AutoMap
+# tool shares one definition of the composition element vocabulary.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lib.wacj import (  # noqa: E402
+    COMPOSITION_EXTENSION, COMPOSITION_ROOT, JOB_EXTENSION,
+    TARGET_SOURCE_AUTO, extract_composition_info, is_composition_path,
+)
 
 # Exit codes
 EXIT_SUCCESS = 0
@@ -57,8 +68,9 @@ def validate_job_file(job_file: str) -> bool:
         log_error(f"Job file not found: {job_file}")
         return False
 
-    if path.suffix.lower() != '.waj':
+    if path.suffix.lower() not in (JOB_EXTENSION, COMPOSITION_EXTENSION):
         log_error(f"Invalid job file extension: {job_file}")
+        log_error(f"Expected: {JOB_EXTENSION} or {COMPOSITION_EXTENSION}")
         return False
 
     return True
@@ -236,6 +248,48 @@ def output_json(targets: list[dict]) -> None:
     print(json.dumps(targets, indent=2))
 
 
+def member_target_label(member: dict) -> str:
+    """The output target a member composes through, with its selection source."""
+    if member['targetSource'] == TARGET_SOURCE_AUTO:
+        return "(auto-detect)"
+    return f"{member['effectiveTarget']} ({member['targetSource']})"
+
+
+def output_members_simple(members: list[dict]) -> None:
+    """Output member paths with build status and selected target."""
+    for member in members:
+        status = "[BUILD]" if member['build'] else "[READ]"
+        print(f"{status} {member['path']} -> {member_target_label(member)}")
+
+
+def output_members(info: dict, members: list[dict], detailed: bool = False) -> None:
+    """Output composition members in a table (optionally with full detail)."""
+    print(f"\n{CYAN}Composition:{NC} {info['name'] or '(unnamed)'}")
+    print(f"{BLUE}Output target:{NC} {info['outputTarget'] or '(auto-detect per member)'}")
+    print(f"{BLUE}Destination:{NC} {info['destination']['name'] or '(none declared)'}")
+
+    built = sum(1 for m in members if m['build'])
+    print(f"\n{CYAN}Members ({len(members)} total, {built} built by this composition):{NC}\n")
+
+    for member in members:
+        if member['build']:
+            status = f"{GREEN}[BUILD]{NC}"
+        else:
+            status = f"{YELLOW}[READ]{NC}"
+
+        print(f"  {status} {member['path'] or '(no path)'}")
+        print(f"          Target: {member_target_label(member)}")
+        print(f"          Role: {member['role']}")
+
+        if detailed:
+            print(f"          Exists: {'Yes' if member['exists'] else 'No'}")
+            print(f"          Resolved: {member['pathResolved'] or '(none)'}")
+            if not member['roleRecognized']:
+                print(f"          Declared role: {member['roleDeclared']} (unrecognized)")
+
+        print()
+
+
 def ensure_utf8() -> None:
     """Make this tool Unicode-safe regardless of the caller's environment.
 
@@ -255,7 +309,8 @@ def ensure_utf8() -> None:
 def main() -> int:
     ensure_utf8()
     parser = argparse.ArgumentParser(
-        description='List targets from AutoMap job files (.waj).',
+        description='List targets from AutoMap job files (.waj), or members '
+                    'from a composition job (.wacj).',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exit Codes:
@@ -267,6 +322,9 @@ Exit Codes:
 Examples:
     # List all targets
     %(prog)s job.waj
+
+    # List composition members and the target each composes through
+    %(prog)s composition.wacj
 
     # Show only enabled targets
     %(prog)s --enabled job.waj
@@ -286,11 +344,13 @@ Examples:
     )
 
     parser.add_argument('job_file', metavar='job-file',
-                        help='Path to .waj job file')
+                        help='Path to .waj job file or .wacj composition job file')
     parser.add_argument('-e', '--enabled', action='store_true',
-                        help='Show only enabled targets (build="True")')
+                        help='Show only enabled targets, or members the '
+                             'composition builds (build="True")')
     parser.add_argument('-d', '--disabled', action='store_true',
-                        help='Show only disabled targets (build="False")')
+                        help='Show only disabled targets, or members the '
+                             'composition only reads (build="False")')
     parser.add_argument('--detailed', action='store_true',
                         help='Show detailed configuration for each target')
     parser.add_argument('-s', '--simple', action='store_true',
@@ -307,6 +367,45 @@ Examples:
     # Parse XML
     root = parse_job_xml(args.job_file)
     if root is None:
+        return EXIT_FILE_ERROR
+
+    # Composition job (.wacj): the unit is a member job and the output target
+    # it composes through, not a build target of this file.
+    if is_composition_path(args.job_file):
+        if root.tag != COMPOSITION_ROOT:
+            log_error(f"Expected <{COMPOSITION_ROOT}> in a {COMPOSITION_EXTENSION} "
+                      f"file, found <{root.tag}>")
+            return EXIT_FILE_ERROR
+
+        info = extract_composition_info(root, args.job_file)
+        members = info['members']
+
+        if not members:
+            log_error("No member jobs found in composition job file")
+            return EXIT_NO_TARGETS
+
+        # For a member, "enabled" means the composition (re)builds it.
+        if args.enabled:
+            members = [m for m in members if m['build']]
+        elif args.disabled:
+            members = [m for m in members if not m['build']]
+
+        if not members:
+            print("No members match the filter criteria")
+            return EXIT_SUCCESS
+
+        if args.json:
+            output_json(members)
+        elif args.simple:
+            output_members_simple(members)
+        else:
+            output_members(info, members, detailed=args.detailed)
+
+        return EXIT_SUCCESS
+
+    if root.tag == COMPOSITION_ROOT:
+        log_error(f"This is a composition job (<{COMPOSITION_ROOT}>) in a "
+                  f"{JOB_EXTENSION} file; rename it to {COMPOSITION_EXTENSION}")
         return EXIT_FILE_ERROR
 
     # Get job info

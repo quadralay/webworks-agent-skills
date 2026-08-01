@@ -38,7 +38,7 @@ Job files inherit format configuration from a **job origin** referenced by `<Pro
 
 **For job origin modes and job file details, see:** references/job-file-guide.md
 
-**Composition Jobs (new in 2026.1):** a `.wacj` (run by the same `WebWorks.Automap.exe`) assembles independently built and deployed Reverb 2.0 parcels into one site under a shared shell — recompose takes seconds, no content rebuild. Related 2026.1 machinery: per-target **deploy scope** (`--deployscope`), **inline destination definitions** plus the `--deploysettings` overlay, **Amazon S3 + CloudFront** destinations, and the global `--dryrun` switch. **Grammar, precedence, S3 behavior, and failure modes:** references/composition-jobs.md
+**Composition Jobs (new in 2026.1):** a `.wacj` (run by the same `WebWorks.Automap.exe`) assembles independently built and deployed Reverb 2.0 parcels into one site under a shared shell — recompose takes seconds, no content rebuild. Each member's `build` flag picks the archetype: **federated** (`build="false"`, the member's own job publishes it) or **derivative** (`build="true"`, the composition builds it and forwards `--destination` so it deploys to the *composition's* destination). Related 2026.1 machinery: per-target **deploy scope** (`--deployscope`), **inline destination definitions** plus the `--deploysettings` overlay, **Amazon S3 + CloudFront** destinations, and the global `--dryrun` switch. **Grammar, output-target selection, precedence, S3 behavior, and failure modes:** references/composition-jobs.md
 </overview>
 
 <usage>
@@ -127,7 +127,7 @@ Unless `-NoDefaults` is given, the wrapper injects these **native AutoMap flags*
 
 | Injected flag | Skipped when | Purpose |
 |---------------|--------------|---------|
-| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled (`-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope`) | Prevent accidental deployment |
+| `-n` (nodeploy) | `-n`/`--nodeploy` already present, or deploy intent signaled (`-d`/`--deployfolder`, `-l`/`--cleandeploy`, `--deploysettings`, `--deployscope`, `--destination`, `--dryrun`) | Prevent accidental deployment |
 | `--skip-reports` | already present | Faster builds *(2025.1+ — use `-NoDefaults` with older versions)* |
 
 And one requirement: **an explicit `-t`/`--target` must be present**, so a job file's full `build="True"` set (or a project's every target) never builds by accident. Waive it with `-AllTargets` (defaults still apply) or `-NoDefaults` (verbatim native behavior). On violation the wrapper exits 2 and lists the file's targets.
@@ -219,6 +219,8 @@ python scripts/list-job-targets.py job.waj
 python scripts/list-job-targets.py --enabled job.waj
 ```
 
+All four tools accept `.wacj` composition jobs as well as `.waj` (2026.1+): parse/validate/list dispatch on the root element (`<Job>` vs `<CompositionJob>`), `validate-job.py --check-members` is the composition preflight, and `create-job.py --template --composition` emits a composition config template. See references/composition-jobs.md's Tooling section.
+
 ### Stationery Relationship
 
 Job files reference their origin via `<Project path="..."/>`:
@@ -226,6 +228,10 @@ Job files reference their origin via `<Project path="..."/>`:
 - All format settings inherited from the origin (Stationery `.wxsp`, or a `.wep`/`.wrp` project)
 - Targets can override conditions, variables, settings
 - A `.wep`/`.wrp` origin builds **in place** (its own documents, the job's `<Files>` ignored) unless `useAsStationery="True"` stages it as a **stationery** (job documents injected) — see the three job-origin modes in references/job-file-guide.md
+
+### Job-Stored Build Options (2026.1+)
+
+A `.waj` can carry `<Options skipReports="True" verboseLogging="False"/>`. These **combine with** the equivalent CLI switches rather than being overridden by them: either `skipReports` or `--skip-reports` skips reports; either clearing `verboseLogging` or passing `-q` quiets the run. A scheduled task passes no flags, so the stored options are what it honors. The wrapper's unconditional `--skip-reports` injection is therefore harmless but also uninformative about what the job declares — use `-NoDefaults` when a run must match the job exactly. See references/job-file-guide.md.
 </job_files>
 
 <cli_reference>
@@ -262,6 +268,8 @@ All native flags pass through unchanged — in any form the AutoMap CLI itself a
 | `-d, --deployfolder <path>` | Deploy to a specific folder (suppresses the `-n` default) |
 | `-l, --cleandeploy` | Clean deploy location first (suppresses the `-n` default) |
 | `-s, --stagingdir <dir>` | Staging directory for job-file (`.waj`) builds; output lands at `<dir>/<JobName>/Output/<target>/` |
+| `--destination=<name>` | Deploy every built target to the named destination instead of its own. Ignored when `-d` is given. Suppresses the `-n` default. *(2026.1+)* |
+| `-q, --quiet` | Suppress the engine's progress messages in the console and job log; warnings and errors still print. Combines with a job's **Verbose logging** option. *(2026.1+)* |
 
 **For the complete native CLI reference with examples, see:** references/cli-reference.md
 </cli_reference>
@@ -275,10 +283,10 @@ All native flags pass through unchanged — in any form the AutoMap CLI itself a
 | `Find-AutomapInstallation.ps1` | Find AutoMap installation (registry, then filesystem) |
 | `Invoke-Automap.ps1` | Execute builds (the execution interface) |
 | `parse-stationery.py` | Extract formats/settings from Stationery |
-| `create-job.py` | Create job files interactively or from config |
-| `parse-job.py` | Parse existing job files |
-| `validate-job.py` | Validate job files before building |
-| `list-job-targets.py` | List targets with build status |
+| `create-job.py` | Create job files (`.waj` and `.wacj`) interactively or from config |
+| `parse-job.py` | Parse existing job files (`.waj` and `.wacj`) |
+| `validate-job.py` | Validate job files before building (`--check-members` for compositions) |
+| `list-job-targets.py` | List targets with build status (members for a `.wacj`) |
 
 Both PowerShell scripts run on Windows PowerShell 5.1 (preinstalled on Windows) and later; `powershell -ExecutionPolicy Bypass -File` works under the default `Restricted` policy without changing user state.
 </scripts>
@@ -288,9 +296,10 @@ Both PowerShell scripts run on Windows PowerShell 5.1 (preinstalled on Windows) 
 ## Reference Files
 
 - `cli-reference.md` - Complete CLI options and syntax
-- `cli-vs-administrator.md` - When to use CLI vs GUI
+- `cli-vs-administrator.md` - When to use CLI vs GUI; Administrator capabilities (destinations, preview, scheduling)
+- `composition-jobs.md` - `.wacj` composition jobs, federated vs. derivative members, destinations, dry run
 - `installation-detection.md` - Installation paths and detection logic
-- `job-file-guide.md` - Job file structure and Stationery inheritance
+- `job-file-guide.md` - Job file structure, origin modes, build options, Stationery inheritance
 </references>
 
 <requirements>
@@ -333,6 +342,10 @@ After a successful build (exit 0), the wrapper scans each target's `generate.log
 - Job files (`.waj`): scans under the staging folder — `<stagingDir>/<JobName>/Logs/<target>/generate.log` — using the `-s`/`--stagingdir` value from the arguments, or the default staging folder (`%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging`). An `[INFO]` line announces the staging location when counts are found there.
 - Targets with non-zero counts get a one-line summary (`[WARNING]` on stdout when only warnings, `[ERROR]` on stderr when any errors). Clean targets emit nothing.
 - Exit codes are unchanged — the scan is observational. A successful build that records warnings still exits 0.
+
+**Caveat — the scan matches English markers only.** `[WARN]`/`[ERROR]` are localized: a German install writes `[WARNUNG]`/`[FEHLER]`, French `[AVERTISSEMENT]`/`[ERREUR]`, Japanese the kanji equivalents. The scan's patterns are hard-coded English, so on a non-English install it reports 0/0 for logs that are full of marked lines. **Do not read a zero count on such a machine as a clean build** — check the exit code, or grep the log for the console's own tokens.
+
+For a `.wacj`, the scanned `<job name>-log.txt` also contains **relayed member-build lines** that keep their markers. Those belong to the member's own ledger, so the wrapper's count is deliberately looser than the composition's own closing tally — see references/composition-jobs.md.
 
 ```text
 [SUCCESS] Build completed in 43s
@@ -457,7 +470,7 @@ powershell -ExecutionPolicy Bypass -File "$WRAPPER" -ExePath "C:\dev\WebWorks.Au
 **Solutions:**
 1. Read `generate.log` for the specific error lines — `grep -nE '\[ERROR\]|\[WARN\]' "<project-or-staging>/Logs/<target>/generate.log"`. AutoMap's stderr also passes through the wrapper, so genuine errors surface inline (see [Post-Build Log Scan](#post-build-log-scan)).
 2. Verify source documents exist and are accessible
-3. Open project in ePublisher Administrator to check for issues
+3. Open project in ePublisher Designer (`.wep`) or Express (`.wrp`) to check for issues
 4. Try a clean build (`-c`)
 
 ### "No target specified" (exit 2)

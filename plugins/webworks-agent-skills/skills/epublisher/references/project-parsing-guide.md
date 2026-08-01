@@ -5,6 +5,7 @@ Comprehensive guide to parsing ePublisher project files (`.wep`, `.wrp`, `.wxsp`
 ## Table of Contents
 
 - [Project File Structure](#project-file-structure)
+- [Origin and Synchronization](#origin-and-synchronization)
 - [Parsing Targets and Formats](#parsing-targets-and-formats)
 - [Managing Source Documents](#managing-source-documents)
 - [Common Parsing Operations](#common-parsing-operations)
@@ -18,9 +19,13 @@ ePublisher project files are XML documents with this high-level structure:
 <?xml version="1.0" encoding="utf-8"?>
 <Project Version="1.1.2.0"
          ProjectID="..."
+         ChangeID="..."
          RuntimeVersion="2024.1"
          FormatVersion="{Current}"
          xmlns="urn:WebWorks-Publish-Project">
+  <Origin>
+    <!-- Only in a project linked to a Stationery or to another project -->
+  </Origin>
   <Formats>
     <!-- Target and format configurations -->
   </Formats>
@@ -36,7 +41,88 @@ ePublisher project files are XML documents with this high-level structure:
 </Project>
 ```
 
+`<Origin>` is serialized first, ahead of `<Formats>` — see [Origin and Synchronization](#origin-and-synchronization).
+
+Saving as Stationery strips `ChangeID`, `<Origin>`, and `<Groups>` (along with the `ProjectID` and the project settings). That strip is what makes a design project usable as a stationery.
+
 For per-style trait configuration inside `<GlobalConfiguration>` or `<FormatConfiguration>`, including the `{WWDefaultRule}` prototype literal and the global-vs-per-target scope distinction, see [`format-traits-guide.md`](./format-traits-guide.md).
+
+## Origin and Synchronization
+
+A project created from a Stationery — or, as of ePublisher 2026.1, from another project — records where it came from in an `<Origin>` element. A design project authored directly in Designer has no `<Origin>`. The distinction between the two project types is **origin, not product**: `.wep` and `.wrp` use the same file format, and as of 2026.1 Designer opens both.
+
+### The `<Origin>` element
+
+```xml
+<Origin>
+  <Path Checksum="9f2a1c4e7b8d05364af1e2b9c7d84a05"
+        LastModified="2026-07-14T18:22:31Z">..\Stationery\Corporate.wxsp</Path>
+</Origin>
+```
+
+| Part | Meaning |
+|------|---------|
+| `<Path>` text | Path to the origin file, persisted relative to the project file. Absolute paths are accepted; a root-relative path (`\Stationery\Corporate.wxsp`) resolves against the project's own drive. |
+| `Checksum` | MD5 of the origin file as it stood when the project was last created from or synchronized with it |
+| `LastModified` | UTC last-write time of the origin at that same moment |
+
+The origin may be a `.wxsp`, a `.wep`, or a `.wrp`. The element shape and the comparison below are identical in all three cases.
+
+### When the synchronization prompt appears
+
+A linked project is treated as out of date when any of these is true:
+
+1. No origin is recorded
+2. The recorded origin file no longer exists
+3. The origin's last-write time is more than four hours away from the recorded `LastModified`, **or** its MD5 no longer matches `Checksum` (both must agree for the project to count as current)
+4. The origin's `stationery.manifest` differs from the copy cached in the project directory
+
+The check runs when a `.wrp` window opens — in Express, and in Designer as of 2026.1 — and before an AutoMap build. `.wep` design-project windows never run it: synchronization is a property of the project, not of the product it is opened in.
+
+Synchronizing copies from the origin: output formats, output targets and their settings, styles, conditions, variables, and cross-reference definitions. It **overwrites** target-setting customizations made locally in the linked project.
+
+**Not synchronized** — these are local to the project and survive every synchronization:
+
+- Merge Settings
+- Document Manager contents (groups and source documents)
+- Preferences
+
+Manual synchronization is **File > Synchronize with Stationery**. Its browse dialog accepts a `.wep` or `.wrp` as well as a `.wxsp`, so a linked project can be repointed at a different origin.
+
+### Choosing an origin type
+
+| Origin | `.base` snapshots in the linked project | Trade-off |
+|--------|------------------------------------------|-----------|
+| `.wxsp` Stationery | Yes | Self-contained. Building never needs the origin, and the project tolerates a differing installed format library. Use when the design must be *distributed* — to another site, a customer, or anyone who will not have the design project on hand. |
+| `.wep` / `.wrp` project | No | The origin must stay reachable to synchronize, and transforms resolve from the installation (resolver level 4), so origin and linked project need compatible installed format libraries. In exchange the linked project tracks the live design instead of a redistributed snapshot. |
+
+See `file-resolver-guide.md` for the resolver levels themselves.
+
+### Save as Express Project
+
+**File > Save as Express Project...** (Designer, 2026.1) creates a `.wrp` whose `<Origin>` points at the current `.wep`, without publishing Stationery. Designer saves the design project first, so an unsaved edit is not read as a change to synchronize the first time the new project opens. The new project gets its own directory: `<location>\<name>\<name>.wrp`.
+
+The command sits directly below **Save as Stationery** and applies to design projects only — it is disabled (not hidden) in an Express project window, including a `.wrp` hosted in Designer.
+
+This produces a master/satellite topology: one seat owns the master `.wep` and is the only seat that needs Style Designer; every other seat works in a linked satellite `.wrp` with its own source documents and output, picking up design changes through the ordinary synchronization prompt. Satellites can be opened in either product. There is no reverse sync — satellite changes never flow back.
+
+The satellite receives the design: output formats, output targets and their settings, styles, conditions, variables, cross-reference definitions, and the user, output-format, and format-target override files. It does not receive the design project's identity, so it is a project in its own right rather than a copy.
+
+**Include source documents, groups, and Merge Settings** (checkbox, cleared by default):
+
+| State | Result |
+|-------|--------|
+| Cleared (default) | Hollow shell — the satellite starts with no groups or documents, and the recipient adds their own |
+| Selected | Groups, documents, and Merge Settings are carried over |
+
+When it is selected:
+
+- **Group identities are preserved**, so Merge Settings that place those groups keep resolving in the satellite.
+- **Documents get fresh identities.** Do not expect `DocumentID` values to match between master and satellite.
+- **Document paths are re-relativized** to the satellite's directory — documents are copied holding the master's resolved absolute paths, then persisted relative to the new project location.
+- **Deprecated document-level style overrides are never carried**, in either state. Designer reports when it dropped some.
+
+Because the origin is a live project rather than a published artifact, satellites synchronize against whatever state was last *saved*. Keep the master on a shared path and treat saves as releases; **Save as Stationery** remains the formal publish gate.
 
 ## Parsing Targets and Formats
 
@@ -677,6 +763,6 @@ $ bash scripts/manage-sources.sh --validate project.wep
 
 ---
 
-**Version**: 1.0.0
-**Last Updated**: 2026-06-12
-**Target**: ePublisher 2024.1+ project files
+**Version**: 1.1.0
+**Last Updated**: 2026-08-01
+**Target**: ePublisher 2024.1+ project files (Origin and Synchronization covers 2026.1 behavior)
