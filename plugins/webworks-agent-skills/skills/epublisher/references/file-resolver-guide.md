@@ -10,17 +10,38 @@ An ePublisher project follows this standard organization:
 
 ```
 your-project/
-├── your-project.wep          # Project file (.wep=Designer, .wrp=Express, .wxsp=Stationery)
+├── your-project.wep          # Project file — .wep, .wrp, or .wxsp (see below)
 ├── Source/                   # Source documents (optional, can reside anywhere)
 │   └── docs/
 ├── Targets/                  # Target-specific overrides
 │   └── [TargetName]/
 ├── Formats/                  # Format-level overrides
 │   ├── WebWorks Reverb 2.0/
-│   └── WebWorks Reverb 2.0.base/  # .wrp and .wxsp projects only
+│   └── WebWorks Reverb 2.0.base/  # only when the project was staged from a .wxsp origin
 └── Output/                   # Generated output
     └── [TargetName]/
 ```
+
+### Project File Extensions
+
+The extension records which product **authors** the project, not which product can open it:
+
+| Extension | Authored by | Opened by |
+|-----------|-------------|-----------|
+| `.wep` | ePublisher Designer | Designer |
+| `.wrp` | ePublisher Express | Express; Designer as of 2026.1 |
+| `.wxsp` | Save as Stationery, from either product | Neither opens it as a project — see below |
+
+As of ePublisher 2026.1, Designer opens, builds, synchronizes, and deploys `.wrp` projects. Designer's **Open** dialog lists `.wep` and `.wrp` together under a single **ePublisher Project Files** entry, and a `.wrp` opened there keeps the Express experience for that window: Document Manager, the stationery synchronization prompt, no Style Designer and no Preview window. A `.wrp` therefore does **not** imply that Express is installed or required. What stays exclusive to Designer is the design work itself — Style Designer, the Preview window, Stationery design projects, **Save as Stationery**, and **Save as Express Project**.
+
+Designer also creates `.wrp` projects directly:
+
+- **File > New Project from Stationery...** — builds a `.wrp` from a `.wxsp` *or* a `.wep`. In Designer this is a separate command because **New Project** there creates a Stationery *design* project.
+- **File > Save as Express Project...** — creates a `.wrp` linked back to the current `.wep`. See "Origin and Synchronization" in `project-parsing-guide.md`.
+
+Also as of 2026.1, opening a standalone Stationery (`.wxsp`) by double-click, command line, or **File > Open** starts the New Project from Stationery flow with that Stationery pre-selected, in both products. Stationery has template semantics, not project semantics — there is no "open a `.wxsp` as a project" operation.
+
+**Do not use the extension to predict `.base` presence.** Whether a project carries Level 3 `.base` snapshots depends on the origin it was staged from, not on its own extension — see Level 3 below.
 
 ## The Four-Level Override Hierarchy
 
@@ -70,7 +91,7 @@ C:\projects\my-proj\Formats\WebWorks Reverb 2.0\Pages\sass\_colors.scss
 - Shared branding or styling across multiple outputs
 - Common functionality needed by all targets
 
-### Level 3: Packaged Installation Defaults (Isolates Project from installation changes when using ePublisher Express)
+### Level 3: Packaged Installation Defaults (Isolates the Project from Installation Changes)
 
 **Location:** `[Project]\Formats\[FormatName].base\[format-structure]\`
 
@@ -87,7 +108,14 @@ C:\projects\my-proj\Formats\WebWorks Reverb 2.0.base\Pages\Connect.asp
 C:\projects\my-proj\Formats\WebWorks Reverb 2.0.base\Pages\sass\_colors.scss
 ```
 
-**Note — using a `.wep` as a stationery:** A Designer `.wep` project carries **no** `.base` snapshots, so it has no Level 3 and resolves straight from the Designer installation (Level 4). That is exactly what makes a `.wep` usable directly as a stationery by an AutoMap job (`<Project ... useAsStationery="True">`, ePublisher 2026.1+). A standalone Stationery (`.wxsp`) — and an Express `.wrp` — instead bundle `.base` at this level. See the automap skill's `references/job-file-guide.md`.
+**Note — `.base` presence follows the origin, not the file extension.** Level 3 exists only when the project was staged from an origin that itself carried `.base` snapshots:
+
+| Origin the project was staged from | Level 3 present | Consequence |
+|------------------------------------|-----------------|-------------|
+| Standalone Stationery (`.wxsp`) | Yes | Self-contained — resolves without reaching the origin, and tolerates a differing installed format library |
+| A live `.wep`/`.wrp` used as stationery | No | Resolves straight from the installation (Level 4) — the origin and a compatible installed format library must stay reachable |
+
+A Designer `.wep` carries no `.base` snapshots of its own. That is exactly what makes it usable directly as a stationery by an AutoMap job (`<Project ... useAsStationery="True">`, ePublisher 2026.1+) and by Designer's **Save as Express Project...**. So an Express `.wrp` created from a `.wxsp` does bundle `.base`, while a `.wrp` created from a `.wep` origin does not — the extension alone does not tell you. See "Origin and Synchronization" in `project-parsing-guide.md` and the automap skill's `references/job-file-guide.md`.
 
 ### Level 4: Installation Defaults (Lowest Priority / Fallback)
 
@@ -117,7 +145,7 @@ When ePublisher needs a file (e.g., `Pages\Connect.asp`), it searches in this or
 
 1. Check target-specific location: `Targets\[TargetName]\Pages\Connect.asp`
 2. If not found, check format-level: `Formats\[FormatName]\Pages\Connect.asp`
-3. If not found, check format-base-level (Express project): `Formats\[FormatName].base\Pages\Connect.asp`
+3. If not found, check format-base-level (only when the project carries `.base` snapshots): `Formats\[FormatName].base\Pages\Connect.asp`
 4. If still not found, use installation default: `[Install]\Formats\[FormatName]\Pages\Connect.asp`
 
 **The first file found wins** - ePublisher stops searching once a match is found.
