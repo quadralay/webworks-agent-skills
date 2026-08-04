@@ -333,6 +333,8 @@ When the `.resx` lookup is insufficient (e.g., you need to know the default valu
 
 This file is sourced from the ePublisher product source code at `dev/source/windows/dotnet/WebWorks/Publish/Core/Resources/FormatTraitInfoStrings.resx`. Update it when a new ePublisher version is released. The format is backward compatible — new entries are added but existing entries are not renamed or removed.
 
+This provenance pointer is a maintainer note, not a citation pattern to copy: it records where the vendored `.resx` copy in this directory comes from, for whoever refreshes it at release time. Product source paths are not available to skill readers, so reader-facing guidance elsewhere in these skills must cite only artifacts readers can open — installed format `.fti`/`.xsl` files, project files, and this skill's vendored copies — and state engine behavior on its own, without pointing into product source.
+
 **Note:** Settings and Options have a direct one-to-one mapping between their `.resx` UI display name and their internal `.fti` name. Properties do not — the UI organizes Properties into a hierarchical tree (e.g., `text-indent` appears under **Text > Flow > Indent**), so there is no single UI label that matches the internal name. Property internal names follow the standard CSS property naming model, so they can usually be extrapolated from the CSS property name (e.g., `font-size`, `margin-left`, `text-indent`, `color`).
 
 ## Golden Test Project
