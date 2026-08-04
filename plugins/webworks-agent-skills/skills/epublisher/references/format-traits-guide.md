@@ -136,6 +136,38 @@ Trait values can be configured at two scopes inside a `.wep`. Both scopes use th
 - **`<GlobalConfiguration>`** carries traits that apply to every target in the project. Use this for project-wide defaults — an Option on the Paragraph prototype here cascades into every target's build.
 - **`<FormatConfiguration TargetID="…">`** carries per-target overrides. The `TargetID` must match the `TargetID` on a `<Format>` element in `<Formats>`. Values placed here only apply to that one target and override anything inherited from `<GlobalConfiguration>`.
 
+> **A per-target rule must also be declared in `<GlobalConfiguration>`.** At build
+> time the engine builds its rule catalog from `<GlobalConfiguration>` only, then
+> looks up each rule's name in the target's `<FormatConfiguration>` collection for
+> override values (product source: `Core/Engine/Extension/Project.cs`,
+> `InitializeProjectRuleCollection`). A `<Rule>` that exists only inside
+> `<FormatConfiguration>` is never registered — `GetContextRule` silently falls
+> back to the category's default rule, the trait has no effect, and nothing is
+> reported in the build log. Designer-authored projects never hit this: the GUI
+> maintains the global catalog from document scans and writes Target
+> Properties/Target Options values as overrides. Hand-authored or script-edited
+> project files can. When adding a per-target rule by hand, also declare it
+> globally — an empty declaration is sufficient:
+>
+> ```xml
+> <GlobalConfiguration ChangeID="">
+>   <Rules Type="Graphic" Default="{WWDefaultRule}" ChangeID="">
+>     <Rule Key="ScaledImage" />                 <!-- declaration: registers the rule -->
+>   </Rules>
+> </GlobalConfiguration>
+> <FormatConfigurations>
+>   <FormatConfiguration TargetID="rvbDsgn001" ChangeID="">
+>     <Rules Type="Graphic" ChangeID="">
+>       <Rule Key="ScaledImage">
+>         <Options>
+>           <Option Name="scale" Value="20" Source="Explicit" />  <!-- per-target values -->
+>         </Options>
+>       </Rule>
+>     </Rules>
+>   </FormatConfiguration>
+> </FormatConfigurations>
+> ```
+
 `<FormatConfiguration>` holds more than just `<Rules>`. Its children:
 
 - `<Rules>` — per-target style rule overrides (Options and Properties), grouped by category.
