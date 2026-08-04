@@ -136,6 +136,37 @@ Trait values can be configured at two scopes inside a `.wep`. Both scopes use th
 - **`<GlobalConfiguration>`** carries traits that apply to every target in the project. Use this for project-wide defaults — an Option on the Paragraph prototype here cascades into every target's build.
 - **`<FormatConfiguration TargetID="…">`** carries per-target overrides. The `TargetID` must match the `TargetID` on a `<Format>` element in `<Formats>`. Values placed here only apply to that one target and override anything inherited from `<GlobalConfiguration>`.
 
+> **A per-target rule must also be declared in `<GlobalConfiguration>`.** At build
+> time the engine builds its rule catalog from `<GlobalConfiguration>` only, then
+> looks up each rule's name in the target's `<FormatConfiguration>` collection for
+> override values. A `<Rule>` that exists only inside
+> `<FormatConfiguration>` is never registered — `GetContextRule` silently falls
+> back to the category's default rule, the trait has no effect, and nothing is
+> reported in the build log. Designer-authored projects never hit this: the GUI
+> maintains the global catalog from document scans and writes Target
+> Properties/Target Options values as overrides. Hand-authored or script-edited
+> project files can. When adding a per-target rule by hand, also declare it
+> globally — an empty declaration is sufficient:
+>
+> ```xml
+> <GlobalConfiguration ChangeID="">
+>   <Rules Type="Graphic" Default="{WWDefaultRule}" ChangeID="">
+>     <Rule Key="ScaledImage" />                 <!-- declaration: registers the rule -->
+>   </Rules>
+> </GlobalConfiguration>
+> <FormatConfigurations>
+>   <FormatConfiguration TargetID="rvbDsgn001" ChangeID="">
+>     <Rules Type="Graphic" ChangeID="">
+>       <Rule Key="ScaledImage">
+>         <Options>
+>           <Option Name="scale" Value="20" Source="Explicit" />  <!-- per-target values -->
+>         </Options>
+>       </Rule>
+>     </Rules>
+>   </FormatConfiguration>
+> </FormatConfigurations>
+> ```
+
 `<FormatConfiguration>` holds more than just `<Rules>`. Its children:
 
 - `<Rules>` — per-target style rule overrides (Options and Properties), grouped by category.
@@ -301,6 +332,8 @@ When the `.resx` lookup is insufficient (e.g., you need to know the default valu
 ### Updating .resx Files
 
 This file is sourced from the ePublisher product source code at `dev/source/windows/dotnet/WebWorks/Publish/Core/Resources/FormatTraitInfoStrings.resx`. Update it when a new ePublisher version is released. The format is backward compatible — new entries are added but existing entries are not renamed or removed.
+
+This provenance pointer is a maintainer note, not a citation pattern to copy: it records where the vendored `.resx` copy in this directory comes from, for whoever refreshes it at release time. Product source paths are not available to skill readers, so reader-facing guidance elsewhere in these skills must cite only artifacts readers can open — installed format `.fti`/`.xsl` files, project files, and this skill's vendored copies — and state engine behavior on its own, without pointing into product source.
 
 **Note:** Settings and Options have a direct one-to-one mapping between their `.resx` UI display name and their internal `.fti` name. Properties do not — the UI organizes Properties into a hierarchical tree (e.g., `text-indent` appears under **Text > Flow > Indent**), so there is no single UI label that matches the internal name. Property internal names follow the standard CSS property naming model, so they can usually be extrapolated from the CSS property name (e.g., `font-size`, `margin-left`, `text-indent`, `color`).
 
