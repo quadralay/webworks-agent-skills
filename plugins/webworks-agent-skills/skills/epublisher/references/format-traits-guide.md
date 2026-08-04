@@ -139,8 +139,7 @@ Trait values can be configured at two scopes inside a `.wep`. Both scopes use th
 > **A per-target rule must also be declared in `<GlobalConfiguration>`.** At build
 > time the engine builds its rule catalog from `<GlobalConfiguration>` only, then
 > looks up each rule's name in the target's `<FormatConfiguration>` collection for
-> override values (product source: `Core/Engine/Extension/Project.cs`,
-> `InitializeProjectRuleCollection`). A `<Rule>` that exists only inside
+> override values. A `<Rule>` that exists only inside
 > `<FormatConfiguration>` is never registered — `GetContextRule` silently falls
 > back to the category's default rule, the trait has no effect, and nothing is
 > reported in the build log. Designer-authored projects never hit this: the GUI
