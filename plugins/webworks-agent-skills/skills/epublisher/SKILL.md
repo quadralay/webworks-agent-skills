@@ -35,6 +35,7 @@ This skill provides foundational knowledge used by other skills in this plugin:
 | **markdown-integration** | When source documents are Markdown++; covers variable resolution, style mapping to Stationery, and per-target conditions |
 | **automap** | After understanding project structure, use automap to execute builds |
 | **reverb2** | After building Reverb output, use reverb2 skill to test and customize |
+| **pdf-xslfo** | When working with a PDF - XSL-FO target: FOP compile debugging, documented solved cases, override guidance |
 
 **External:**
 

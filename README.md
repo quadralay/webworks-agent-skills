@@ -28,6 +28,7 @@ All skills activate automatically based on your project context.
 | **markdown-integration** | ePublisher integration patterns for Markdown++ sources (variable resolution, style mapping to Stationery, per-target conditions) |
 | **automap** | Automated publishing with AutoMap CLI |
 | **reverb2** | Reverb 2.0 output testing, CSH analysis, SCSS theming |
+| **pdf-xslfo** | PDF - XSL-FO output knowledge — Apache FOP compile debugging and documented solutions from real cases (image scaling/quality, repeating table captions, silently missing PDFs) |
 | **customization-audit** | Audit advanced customizations (overrides) on upgrade — drift detection, fork-point discovery, and removal of retired/orphan/cruft/redundant overrides |
 | **claude-md-audit** | Audit and shrink `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` to behaviorally-focused entries the agent can't self-discover |
 | **humanizer** | Remove signs of AI-generated writing from text — [vendored from blader/humanizer](plugins/humanizer/README.md) with planned divergence for agent-readable input |
@@ -77,6 +78,7 @@ Claude: Backs up to CLAUDE.md.bak, then reduces to entries that prevent
 | markdown-integration | Windows | ePublisher 2024.1+ (paired with `quadralay/markdown-plus-plus` for format syntax) |
 | automap | Windows | ePublisher + AutoMap |
 | reverb2 | Windows | ePublisher + browser |
+| pdf-xslfo | Windows | ePublisher with a PDF - XSL-FO target |
 | customization-audit | Windows | ePublisher 2024.1+ (multiple installed versions enable 3-way) |
 | claude-md-audit | Any | Claude Code |
 | humanizer | Any | Claude Code or Claude Desktop |

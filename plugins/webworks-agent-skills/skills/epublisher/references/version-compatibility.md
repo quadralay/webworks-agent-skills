@@ -26,6 +26,7 @@
 - Designer **File > Save as Express Project...** — creates a `.wrp` linked to the current `.wep` via `<Origin>`, for a master/satellite arrangement; the "Include source documents, groups, and Merge Settings" option is off by default
 - Opening a standalone `.wxsp` (double-click, command line, File > Open) starts New Project from Stationery with it pre-selected, in both products. Earlier versions raise an unhandled error
 - Style Designer supports multi-select (Ctrl/Shift-click) for bulk style edits; values disagreeing across the selection display blank, and `[Prototype]` is excluded from a multiple selection
+- PDF - XSL-FO compiles with Apache FOP 2.11 (2022.1–2025.1 use FOP 2.8), and a FOP failure or missing output PDF is now a build error — earlier versions report success while the PDF is silently absent, with the full stderr transcript (including routine INFO lines) logged as Warnings; see the pdf-xslfo skill's `references/fop-engine.md`
 - See the automap skill's `references/composition-jobs.md` before recommending any of the AutoMap and deploy items, and this skill's `project-parsing-guide.md` ("Origin and Synchronization") for the Designer/Express items — never suggest them to users on 2025.1 or earlier
 
 ### ePublisher 2024.1

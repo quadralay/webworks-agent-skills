@@ -91,6 +91,7 @@ powershell -ExecutionPolicy Bypass -File scripts/Invoke-Automap.ps1 -- project.w
 | **epublisher** | Use first to understand project structure, target names, and product foundations; see `../epublisher/references/product-foundations.md` for cross-cutting product knowledge |
 | **markdown-integration** | Use when the project's source documents are Markdown++; covers helper-adapter behavior, variable/condition layering, and silent fallbacks that the AutoMap build does not flag |
 | **reverb2** | Use after building Reverb output to test and customize |
+| **pdf-xslfo** | Use when a build's PDF - XSL-FO target fails in the FOP compile stage or its PDF output needs page-layout customization |
 
 **External:**
 
