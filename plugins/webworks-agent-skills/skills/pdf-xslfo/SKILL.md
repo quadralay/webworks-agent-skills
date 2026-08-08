@@ -66,7 +66,7 @@ Real solved cases, with mechanics and caveats, in `references/solved-cases.md`:
 
 | Case | Essence |
 |------|---------|
-| Raster image scaling/quality (EPUB2923) | Scale option resamples the bitmap (blurry); 2026.1+ dimension properties scale at render time keeping full resolution; a percentage Content Width is relative to the image's intrinsic size |
+| Raster image scaling/quality (EPUB2923) | Scale % option resamples the bitmap (blurry); 2026.1+ dimension properties scale at render time keeping full resolution; a percentage Content Width is relative to the image's intrinsic size |
 | Repeating table captions | FOP repeats only `fo:table-header` content; emit the caption as its first all-column row (FOP does not implement `fo:table-and-caption`) |
 | PDF missing, build green (EPUB2926) | Pre-2026.1 FOP failures are not surfaced; diagnose from generate.log, guard overrides against emitting empty FO cells |
 
@@ -112,7 +112,7 @@ XSLT 1.0 only — never XSLT 2.0 in overrides.
 Usually an override emitting structurally incomplete FO for an edge case (classic: an empty `fo:table-cell` from an empty source paragraph — solved-cases § Case 3). Reproduce against the stitched `.fo`, fix the emitting template, never the `.fo` itself.
 
 ### Blurry images
-The Scale option resamples bitmaps. See solved-cases § Case 1 for the render-time alternative (2026.1+) and the 2025.1 paths.
+The Scale % option resamples bitmaps. See solved-cases § Case 1 for the render-time alternative (2026.1+) and the 2025.1 paths.
 
 ### Wrong fonts / missing glyphs
 FOP resolves fonts through `Helpers/apache-fop-<version>.xconf`, not the OS alone. `references/fop-engine.md` § Fonts.

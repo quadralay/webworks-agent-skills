@@ -15,14 +15,14 @@ lossy one worked for raster images. The `Frame-Markup-External-Graphic`
 template in `Transforms/content.xsl` strips all dimension properties for
 raster images and always emits the DPI-normalized viewport — so the Graphic
 style dimension properties in Style Designer silently did nothing, and the
-only working knob was the **Scale** option, which *resamples the bitmap at
+only working knob was the **Scale %** option, which *resamples the bitmap at
 generation time*: a 600x400 image scaled to 20% ships as a 120x80 bitmap
 (96 DPI effective on the page).
 
 **Solution (2026.1+, EPUB2923):** use Graphic style **dimension properties**
-instead of Scale — the FO engine scales at render time and the
+instead of Scale % — the FO engine scales at render time and the
 full-resolution original stays embedded (~5x the linear resolution of the
-Scale result at the same layout size):
+Scale % result at the same layout size):
 
 - **Content Width / Content Height** (Advanced group): a percentage is
   relative to the image's **own intrinsic size** — per XSL-FO semantics,
@@ -33,19 +33,19 @@ Scale result at the same layout size):
 
 **Caveats:**
 
-- Use **one mechanism per style**, not both — Scale resamples first and
+- Use **one mechanism per style**, not both — Scale % resamples first and
   defeats the quality benefit.
 - Explicit dimensions are honored verbatim: an oversized Width can overflow
   the page; sizes larger than natural upscale.
 - Vector (SVG) images have their own sizing path and are unaffected.
 - Companion quality tip: set the Graphic style **Format** option to `png`
-  (and File Extension to `.png`) so regenerated screenshots/line art avoid
-  JPEG artifacts.
+  (and **Output file extension** to `.png`) so regenerated screenshots/line
+  art avoid JPEG artifacts.
 - **Per-image scaling from Markdown++:** assign a dedicated graphic style
   inline — `<!--style:SmallLogo-->` before the image — and set the property
   on that style (markdown-integration skill for the wiring).
 - **2025.1 and earlier:** dimension properties on raster images are ignored;
-  the paths are the Scale option or a support-delivered project-level
+  the paths are the Scale % option or a support-delivered project-level
   override of `content.xsl` annotated with EPUB2923.
 
 **References:** Trac EPUB2923 (r36058, ships 2026.1); how-to spec in
