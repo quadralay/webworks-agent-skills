@@ -11,6 +11,13 @@ output** — what to expect when inspecting, linting, or browser-testing a
 composed mirror. For the build/deploy/compose workflow, grammar, and CLI, see
 the automap skill's `references/composition-jobs.md`.
 
+> **Register note:** this reference speaks the developer register ("mirror",
+> "descriptor", "harvest") for precision about output internals. User-facing
+> text — help topics, customer messages, doc edits — uses the 2026.1 user
+> register instead: *shared destination*, *deployed record*, "read the
+> deployed output". See the epublisher skill's `product-foundations.md`
+> § Naming and Terminology for the full map.
+
 ## Composition artifacts in build output
 
 Every Reverb 2.0 build (2026.1+) emits composition descriptors alongside its
