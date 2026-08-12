@@ -26,6 +26,13 @@ The lifecycle has three independent steps:
 Reverb 2.0 only: the format declares the composition capabilities in
 `format.wwfmt`; other formats always deploy everything.
 
+> **Register note:** this reference speaks the developer register ("mirror",
+> "descriptor", "harvest") for precision about mechanism. Since 2026.1 the
+> product's own logs and dialogs — and any user-facing text you author — use
+> the user register instead: *shared destination*, *deployed record*, "read
+> the deployed output". See the epublisher skill's `product-foundations.md`
+> § Naming and Terminology for the full map.
+
 ## Grammar
 
 A `.wacj` is a distinct artifact that *references* jobs — like `.sln` vs

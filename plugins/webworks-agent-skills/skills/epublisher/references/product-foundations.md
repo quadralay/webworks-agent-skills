@@ -44,6 +44,18 @@ Files are resolved through a 4-level priority chain (highest first):
 
 - **Internal names differ from UI display names**: Settings in `.fti` files and project files (`.wep/.wrp/.wxsp/.waj`) use internal names. The UI display name mapping is in the product source code, not in format files.
 - **Use the product's terminology**: "Targets" not "configurations," "Stationery" not "templates," "Groups" not "collections."
+- **Two registers exist since 2026.1 — write user-facing text in the user register.** Skill references use the developer register where it is precise about mechanism ("mirror", "harvest", "descriptor"). Anything user-facing that you author or edit — help topics, customer deliverables, UI or log wording — must use the pinned user-register terms instead:
+
+  | Developer register (internal) | User register (user-facing) |
+  |---|---|
+  | deploy target, deployment target | deploy destination |
+  | mirror | shared destination; "the deployed output at the destination" |
+  | descriptor, composition descriptor | deployed record |
+  | harvest | "read the deployed output" |
+  | orchestration (job model) | composition |
+  | Mimic | launcher |
+
+  Canonical glossaries: the ePublisher dev repo's `docs/reference/glossary.md` (product vocabulary, pinned per release) and `quadralay/markdown-plus-plus` `GLOSSARY.md` (Markdown++ vocabulary — a *comment tag* contains *commands*; combine commands with `;` in one tag, never as stacked tags).
 - **`.wez` files are installer artifacts**: They look like format sources but are zip archives used only for packaging. Always work with the extracted `Formats/<format name>/` directory.
 
 ## Trusted Sources
