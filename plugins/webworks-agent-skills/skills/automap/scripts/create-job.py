@@ -50,7 +50,7 @@ from xml.dom import minidom
 # tool shares one definition of the composition element vocabulary.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.wacj import (  # noqa: E402
-    ACTION_WEBDAV, COMPOSITION_EXTENSION, COMPOSITION_ROOT,
+    ACTION_FOLDER, ACTION_S3, COMPOSITION_EXTENSION, COMPOSITION_ROOT,
     DEPLOY_ACTION_ATTR, DEPLOY_CONFIGURATION_ELEMENT, DEPLOY_SETTING_ELEMENT,
     DEPLOY_SETTING_NAME_ATTR, DEPLOY_SETTINGS_ELEMENT, DESTINATION_ELEMENT,
     GROUP_ELEMENT, JOB_ELEMENT, JOBS_ELEMENT, MEMBER_EXTENSIONS,
@@ -387,11 +387,12 @@ def validate_composition_config(config: dict) -> list[str]:
         if name in seen:
             errors.append(f"Duplicate inline destination definition '{name}'")
         seen.add(name)
-        if (setting.get('action') or '').strip().lower() == ACTION_WEBDAV:
+        action = (setting.get('action') or '').strip()
+        if action not in (ACTION_FOLDER, ACTION_S3):
             errors.append(
-                f"Inline destination definition '{name}' uses the WebDAV "
-                "('http') action; WebDAV definitions embed credentials and "
-                "cannot be stored in job files")
+                f"Inline destination definition '{name}' uses the action "
+                f"'{action}'. Only folder ('file') and Amazon S3 ('s3') "
+                "definitions may be embedded in job files")
 
     errors.extend(_validate_spec_nodes(
         config.get('mergeSettings', {}).get('spec', [])))

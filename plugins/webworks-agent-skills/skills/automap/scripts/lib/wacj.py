@@ -78,11 +78,11 @@ DEPLOY_CONFIGURATION_ELEMENT = 'Configuration'
 DEPLOY_SETTING_NAME_ATTR = 'Name'
 DEPLOY_ACTION_ATTR = 'Action'
 
-# Deployment actions. WebDAV definitions embed credentials and are rejected
-# inline (InlineDeploySettings.EnforcePolicy); anything else is a custom action.
+# Deployment actions. Only secret-free transports may be defined inline
+# (InlineDeploySettings.EnforcePolicy): folder and Amazon S3. Any other
+# action is rejected at parse time.
 ACTION_FOLDER = 'file'
 ACTION_S3 = 's3'
-ACTION_WEBDAV = 'http'
 
 # Composition modes implied by <MergeSettings> (CompositionJob.Mode), named as
 # the Administrator's Merge Settings area names them:
