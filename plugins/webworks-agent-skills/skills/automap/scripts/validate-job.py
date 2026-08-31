@@ -39,8 +39,9 @@ from typing import Optional
 # tool shares one definition of the composition element vocabulary.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.wacj import (  # noqa: E402
-    ACTION_WEBDAV, COMPOSITION_EXTENSION, COMPOSITION_ROOT, JOB_EXTENSION,
-    JOB_ROOT, MEMBER_EXTENSIONS, MERGE_SETTINGS_ELEMENT, MODE_AUTOMATIC,
+    ACTION_FOLDER, ACTION_S3, COMPOSITION_EXTENSION, COMPOSITION_ROOT,
+    JOB_EXTENSION, JOB_ROOT, MEMBER_EXTENSIONS, MERGE_SETTINGS_ELEMENT,
+    MODE_AUTOMATIC,
     ROLE_SHELL, TARGET_SOURCE_AUTO, TARGET_SOURCE_COMPOSITION,
     TARGET_SOURCE_MEMBER, extract_composition_info, is_composition_path,
     iter_spec, spec_group_names, unknown_spec_children,
@@ -593,16 +594,12 @@ def validate_composition_destination(info: dict) -> ValidationResult:
             return result.fail_check(f"Duplicate inline destination definition '{name}'")
         seen[name] = True
 
-        if setting['action'] == ACTION_WEBDAV:
+        action = (setting['action'] or '').strip()
+        if action not in (ACTION_FOLDER, ACTION_S3):
             return result.fail_check(
-                f"Inline destination definition '{name}' uses the WebDAV "
-                "('http') action; WebDAV definitions embed credentials and "
-                "cannot be stored in job files - define it in deploy.prefs")
-
-        if not setting['action']:
-            result.add_warning(
-                f"Inline destination definition '{name}' has no Action "
-                "attribute (it loads as a custom action)")
+                f"Inline destination definition '{name}' uses the action "
+                f"'{action}'. Only folder ('file') and Amazon S3 ('s3') "
+                "definitions may be embedded in job files")
 
     if destination['deploySettings'] and destination['name'] not in seen:
         result.add_warning(

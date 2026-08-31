@@ -12,7 +12,7 @@
     duplicate <Group name>       -> WARN (the compose treats them as one)
     <Group> with no @name        -> WARN
     <DeployTarget>               -> WARN (pre-release spelling of <Destination>)
-    inline Action="http"         -> FAIL (WebDAV definitions embed credentials)
+    inline Action="http"         -> FAIL (disallowed action; only file/s3 inline)
 -->
 <CompositionJob name="Broken Composition" version="1.0">
   <Jobs target="WebWorks Reverb 2.0">
@@ -30,7 +30,7 @@
   <DeployTarget name="LegacyMirror">
     <DeploySettings>
       <DeploySetting Name="LegacyMirror" Action="http">
-        <Configuration Value="http://docs.example.com/webdav" />
+        <Configuration Value="http://docs.example.com/help" />
       </DeploySetting>
     </DeploySettings>
   </DeployTarget>

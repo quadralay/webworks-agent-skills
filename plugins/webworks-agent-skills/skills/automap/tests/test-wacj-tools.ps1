@@ -144,7 +144,7 @@ Assert-Contains 'validate-job warns on the unused MergeSettings title' 'not used
 Assert-Contains 'validate-job warns on an ignored element' '<Parcel> under <MergeSettings> is ignored' $result.Output
 Assert-Contains 'validate-job warns on duplicate groups' 'declared more than once' $result.Output
 Assert-Contains 'validate-job warns on the legacy spelling' 'pre-release spelling' $result.Output
-Assert-Contains 'validate-job rejects an inline WebDAV definition' "WebDAV ('http') action" $result.Output
+Assert-Contains 'validate-job rejects a disallowed inline action' "Only folder ('file') and Amazon S3 ('s3') definitions" $result.Output
 
 # No <MergeSettings> at all is Automatic mode, not an omission.
 $result = Invoke-Tool -Tool 'parse-job.py' -Arguments @('--json', (Join-Path $invalid 'no-destination.wacj'))
