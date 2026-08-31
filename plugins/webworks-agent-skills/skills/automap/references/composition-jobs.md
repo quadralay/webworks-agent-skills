@@ -369,12 +369,11 @@ entry schema — references stay by name:
   inline definitions to member builds automatically (they are separate
   processes), so name-only member jobs run on unseeded machines.
 - **Security guardrail:** only secret-free transports may be inline — Folder
-  (`Action="file"`) and Amazon S3 (`Action="s3"`). WebDAV (`Action="http"`)
-  **embeds encrypted credentials and is rejected at parse time**, as are custom
-  actions. The rejection happens at job load, *before any build starts*, so a
-  job that tries it never partially runs. Those transports stay in
-  `deploy.prefs`, where the credentials are machine-local state rather than
-  version-controlled content.
+  (`Action="file"`) and Amazon S3 (`Action="s3"`). **Any other action is
+  rejected at parse time**, at job load, *before any build starts*, so a job
+  that tries it never partially runs. Other transports stay in `deploy.prefs`,
+  where any credentials are machine-local state rather than version-controlled
+  content.
 
 ## Amazon S3 + CloudFront destinations
 
@@ -501,7 +500,8 @@ the editor saves. Keep commentary outside the file if it matters.
 - `The mirror has no shell composition descriptor (wwcomposition-shell.xml)`
   — the shell was never deployed to that mirror (or the path points at an
   empty directory); rebuild and redeploy the shell.
-- An inline WebDAV definition fails at job load, before any build starts.
+- An inline definition with a disallowed action fails at job load, before any
+  build starts.
 
 **Ordered before any member build** (so a doomed run costs seconds, not
 minutes): member file existence → [output target
@@ -524,7 +524,7 @@ The skill's Python tools understand `.wacj` as well as `.waj`:
 - `python scripts/validate-job.py composition.wacj` — grammar preflight:
   member `path`/`role`/`build`, MergeSettings mode and spec, `<Destination>`
   (missing name fails; the pre-release `<DeployTarget>` spelling warns; an
-  inline `Action="http"` WebDAV definition fails). Add `--check-members` to
+  inline definition with a disallowed action fails). Add `--check-members` to
   check member files exist and to cross-check each `.waj` member's declared
   targets and destination against the composition's.
 - `python scripts/list-job-targets.py composition.wacj` — one line per member

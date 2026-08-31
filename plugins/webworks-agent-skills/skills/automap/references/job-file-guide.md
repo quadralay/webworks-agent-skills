@@ -596,8 +596,8 @@ publishes with `deployScope`:
 - The job can carry the **definition** of its named destinations inline in a
   `<DeploySettings>` element (a direct child of `<Job>`, exact deploy.prefs
   entry schema), so a version-controlled job runs on machines with no seeded
-  deploy preferences. Folder and Amazon S3 definitions only; WebDAV is
-  rejected (embeds credentials). Precedence per name: job inline >
+  deploy preferences. Folder and Amazon S3 definitions only; any other
+  action is rejected at parse time. Precedence per name: job inline >
   `--deploysettings` overlay file > deploy.prefs.
 
 **For the full federation workflow (.wacj composition jobs, S3 + CloudFront
