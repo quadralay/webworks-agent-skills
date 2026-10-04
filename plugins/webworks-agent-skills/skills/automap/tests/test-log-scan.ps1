@@ -136,6 +136,64 @@ Test-CompositionFixture 'composition-localized' `
     (Join-Path $fixtures 'composition-localized\composition.wacj') `
     (Join-Path $fixtures 'composition-localized\expected-default.txt')
 
+# -IncludeClean reports a clean log as an [INFO] line, so the output names
+# every log the build wrote (#164).
+$actual = (@(Get-GenerateLogSummaries -BaseDir (Join-Path $fixtures 'multi-target') -IncludeClean) |
+    ForEach-Object { $_.Text }) -join "`n"
+Assert-Summary 'multi-target-include-clean' (Join-Path $fixtures 'multi-target\expected-include-clean.txt') $actual
+
+# -Since skips logs last written before the build started: another target's
+# generate.log from an earlier build must not be counted (#164). The fixture
+# is copied to a temp folder so its timestamps can be set.
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("automap-logscan-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $tempRoot | Out-Null
+try {
+    $staleCopy = Join-Path $tempRoot 'multi-target'
+    Copy-Item -LiteralPath (Join-Path $fixtures 'multi-target') -Destination $staleCopy -Recurse
+    $buildStart = (Get-Date).AddMinutes(-1)
+    foreach ($name in 'PDF', 'Reverb2') {
+        (Get-Item -LiteralPath (Join-Path $staleCopy "Logs\$name\generate.log")).LastWriteTime = (Get-Date).AddDays(-2)
+    }
+    (Get-Item -LiteralPath (Join-Path $staleCopy 'Logs\Clean\generate.log')).LastWriteTime = Get-Date
+    $actual = (@(Get-GenerateLogSummaries -BaseDir $staleCopy -Since $buildStart -IncludeClean) |
+        ForEach-Object { $_.Text }) -join "`n"
+    if ($actual -ceq '[INFO] 0 warning(s), 0 error(s) in Logs/Clean/generate.log') { $script:Pass++; Write-Output 'PASS: stale-logs-skipped' }
+    else { $script:Fail++; Write-Output "FAIL: stale-logs-skipped`n--- actual ---`n$actual" }
+
+    # Same check for the composition log beside a .wacj.
+    $compCopy = Join-Path $tempRoot 'composition-warning'
+    Copy-Item -LiteralPath (Join-Path $fixtures 'composition-warning') -Destination $compCopy -Recurse
+    (Get-Item -LiteralPath (Join-Path $compCopy 'Product Docs-log.txt')).LastWriteTime = (Get-Date).AddDays(-2)
+    $stale = Get-CompositionLogSummary -Path (Join-Path $compCopy 'composition.wacj') -Since $buildStart
+    if ($null -eq $stale) { $script:Pass++; Write-Output 'PASS: stale-composition-log-skipped' }
+    else { $script:Fail++; Write-Output "FAIL: stale-composition-log-skipped`n--- actual ---`n$($stale.Text)" }
+
+    # The CLI reports the staging folder it used; a job in a named workspace
+    # stages there, not in the default folder (#164).
+    $reported = @(Get-ReportedStagingRoots -Lines @(
+            'Some progress line',
+            "Staging folder of the 'Release 2026.1' workspace: D:\Builds\2026.1\Staging",
+            'Staging folder (--stagingdir): C:\automap\staging',
+            'Staging folder: C:\Users\me\Documents\WebWorks ePublisher AutoMap\Staging',
+            "Staging folder of the 'Release 2026.1' workspace: D:\Builds\2026.1\Staging"))
+    $expectedRoots = 'D:\Builds\2026.1\Staging|C:\automap\staging|C:\Users\me\Documents\WebWorks ePublisher AutoMap\Staging'
+    if (($reported -join '|') -ceq $expectedRoots) { $script:Pass++; Write-Output 'PASS: reported-staging-roots' }
+    else { $script:Fail++; Write-Output "FAIL: reported-staging-roots`n--- actual ---`n$($reported -join '|')" }
+
+    # Get-LogScanBases prefers the reported folder over the default.
+    $workspaceStaging = Join-Path $tempRoot 'WorkspaceStaging'
+    New-Item -ItemType Directory -Path (Join-Path $workspaceStaging 'Trial Job\Logs') -Force | Out-Null
+    $jobFile = Join-Path $tempRoot 'trial.waj'
+    Set-Content -LiteralPath $jobFile -Value '<?xml version="1.0" encoding="utf-8"?><Job name="Trial Job" version="1.0"></Job>' -Encoding UTF8
+    $bases = @(Get-LogScanBases -ProjectFiles @($jobFile) -PassthroughArgs @($jobFile) -ReportedStagingRoots @($workspaceStaging))
+    $expectedBase = Join-Path $workspaceStaging 'Trial Job'
+    if (($bases.Count -eq 1) -and ($bases[0].Dir -eq $expectedBase) -and $bases[0].Announce) { $script:Pass++; Write-Output 'PASS: scan-base-uses-reported-staging' }
+    else { $script:Fail++; Write-Output "FAIL: scan-base-uses-reported-staging`n--- actual ---`n$(($bases | ForEach-Object { $_.Dir }) -join ', ')" }
+}
+finally {
+    Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 Write-Output ''
 Write-Output "Results: $($script:Pass) passed, $($script:Fail) failed"
 

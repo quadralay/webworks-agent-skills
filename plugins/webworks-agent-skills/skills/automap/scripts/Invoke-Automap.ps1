@@ -206,33 +206,60 @@ function Get-LogMarkerCount {
     }
 }
 
-# Scans Logs/<Target>/generate.log under a base directory and returns one
-# summary object per target that has warnings or errors:
+# Builds one summary object from a log's marker counts:
 #   @{ Text = '[WARNING] 3 warning(s), 0 error(s) in Logs/T/generate.log'; IsError = $false }
+# A clean log yields an [INFO] line when -IncludeClean is set, else $null.
+function New-LogSummary {
+    param(
+        [pscustomobject]$Counts,
+        [string]$DisplayPath,
+        [switch]$IncludeClean
+    )
+
+    $warnCount = $Counts.Warn
+    $errorCount = $Counts.Error
+    if (($warnCount -eq 0) -and ($errorCount -eq 0) -and (-not $IncludeClean)) { return $null }
+
+    $isError = ($errorCount -gt 0)
+    $label = '[INFO]'
+    if ($isError) { $label = '[ERROR]' }
+    elseif ($warnCount -gt 0) { $label = '[WARNING]' }
+    return [pscustomobject]@{
+        Text    = "$label $warnCount warning(s), $errorCount error(s) in $DisplayPath"
+        IsError = $isError
+    }
+}
+
+# Scans Logs/<Target>/generate.log under a base directory and returns one
+# summary object per target that has warnings or errors (see New-LogSummary).
+#
+# -Since skips any log last written before the given time, so a build reports
+# only the logs it wrote: a project's other targets keep their generate.log
+# from earlier builds, and counting those reported warnings this build never
+# produced. -IncludeClean also reports logs with no warnings or errors, so the
+# output names every log the build wrote.
+#
 # Purely observational -- callers must not let scan results alter exit codes.
 function Get-GenerateLogSummaries {
-    param([string]$BaseDir)
+    param(
+        [string]$BaseDir,
+        [Nullable[datetime]]$Since = $null,
+        [switch]$IncludeClean
+    )
 
     $summaries = @()
     $logsRoot = Join-Path $BaseDir 'Logs'
     if (-not (Test-Path -LiteralPath $logsRoot -PathType Container)) { return $summaries }
 
     foreach ($logFile in Get-ChildItem -Path (Join-Path $logsRoot '*\generate.log') -ErrorAction SilentlyContinue | Sort-Object FullName) {
+        if (($null -ne $Since) -and ($logFile.LastWriteTime -lt $Since)) { continue }
         $counts = Get-LogMarkerCount -Path $logFile.FullName
         if (-not $counts) { continue }
-        $warnCount = $counts.Warn
-        $errorCount = $counts.Error
-        if (($warnCount -eq 0) -and ($errorCount -eq 0)) { continue }
 
         # Display path relative to the base directory, forward slashes.
         $relative = $logFile.FullName.Substring($BaseDir.TrimEnd('\', '/').Length).TrimStart('\', '/') -replace '\\', '/'
-        $isError = ($errorCount -gt 0)
-        $label = '[WARNING]'
-        if ($isError) { $label = '[ERROR]' }
-        $summaries += [pscustomobject]@{
-            Text    = "$label $warnCount warning(s), $errorCount error(s) in $relative"
-            IsError = $isError
-        }
+        $summary = New-LogSummary -Counts $counts -DisplayPath $relative -IncludeClean:$IncludeClean
+        if ($summary) { $summaries += $summary }
     }
     return $summaries
 }
@@ -240,9 +267,14 @@ function Get-GenerateLogSummaries {
 # A composition job writes a job-style log beside the .wacj file, named
 # <job name>-log.txt (job name attribute, falling back to the file's base
 # name). Returns a summary object like Get-GenerateLogSummaries, or $null
-# when the log is absent or clean. Purely observational.
+# when the log is absent, clean (unless -IncludeClean), or last written
+# before -Since. Purely observational.
 function Get-CompositionLogSummary {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        [Nullable[datetime]]$Since = $null,
+        [switch]$IncludeClean
+    )
 
     $fullPath = (Resolve-Path -LiteralPath $Path).Path
     $dir = Split-Path -Parent $fullPath
@@ -257,29 +289,46 @@ function Get-CompositionLogSummary {
 
     $logFile = Join-Path $dir "$jobName-log.txt"
     if (-not (Test-Path -LiteralPath $logFile -PathType Leaf)) { return $null }
+    if (($null -ne $Since) -and ((Get-Item -LiteralPath $logFile).LastWriteTime -lt $Since)) { return $null }
 
     $counts = Get-LogMarkerCount -Path $logFile
     if (-not $counts) { return $null }
-    $warnCount = $counts.Warn
-    $errorCount = $counts.Error
-    if (($warnCount -eq 0) -and ($errorCount -eq 0)) { return $null }
+    return New-LogSummary -Counts $counts -DisplayPath "$jobName-log.txt" -IncludeClean:$IncludeClean
+}
 
-    $isError = ($errorCount -gt 0)
-    $label = '[WARNING]'
-    if ($isError) { $label = '[ERROR]' }
-    return [pscustomobject]@{
-        Text    = "$label $warnCount warning(s), $errorCount error(s) in $jobName-log.txt"
-        IsError = $isError
+# The CLI logs the staging folder each job used, in one of three forms:
+#   Staging folder (--stagingdir): <dir>
+#   Staging folder of the '<name>' workspace: <dir>
+#   Staging folder: <dir>
+# A job in a named AutoMap workspace stages into that workspace's folder, and
+# the default folder is a preference, so the reported folder -- not a
+# hardcoded default -- is where the job's logs are. Returns the folders in
+# the order reported.
+function Get-ReportedStagingRoots {
+    param([string[]]$Lines)
+
+    $roots = @()
+    foreach ($line in @($Lines)) {
+        if ($null -eq $line) { continue }
+        $m = [regex]::Match([string]$line, "Staging folder(?: \(--stagingdir\)| of the '.*' workspace)?: (?<dir>.+?)\s*$")
+        if ($m.Success) {
+            $dir = $m.Groups['dir'].Value.Trim().Trim('"')
+            if ($dir -and ($roots -notcontains $dir)) { $roots += $dir }
+        }
     }
+    return $roots
 }
 
 # Determines the directories whose Logs/ should be scanned after a build.
 # Project files log beside the project; job files (.waj) log under the
-# staging folder at <staging>/<JobName>/Logs.
+# staging folder at <staging>/<JobName>/Logs. The staging folder is, in
+# order: one the CLI reported using (Get-ReportedStagingRoots), the
+# -s/--stagingdir argument, then the default folder.
 function Get-LogScanBases {
     param(
         [string[]]$ProjectFiles,
-        [string[]]$PassthroughArgs
+        [string[]]$PassthroughArgs,
+        [string[]]$ReportedStagingRoots = @()
     )
 
     # Staging directory from pass-through args: -s <dir>, --stagingdir <dir>,
@@ -301,8 +350,9 @@ function Get-LogScanBases {
         $fullPath = (Resolve-Path -LiteralPath $file).Path
 
         if ($file -match '\.waj$') {
-            $root = $stagingRoot
-            if (-not $root) { $root = $script:DefaultStagingRoot }
+            $roots = @($ReportedStagingRoots | Where-Object { $_ })
+            if ($stagingRoot) { $roots += $stagingRoot }
+            $roots += $script:DefaultStagingRoot
 
             $content = Get-Content -LiteralPath $fullPath -Raw -ErrorAction SilentlyContinue
             $jobName = $null
@@ -311,11 +361,16 @@ function Get-LogScanBases {
                 if ($jobMatch.Success) { $jobName = $jobMatch.Groups[1].Value }
             }
             if ($jobName) {
-                $jobDir = Join-Path $root $jobName
-                if (Test-Path -LiteralPath $jobDir -PathType Container) {
-                    $bases += [pscustomobject]@{ Dir = $jobDir; Announce = $true }
-                    continue
+                $found = $false
+                foreach ($root in $roots) {
+                    $jobDir = Join-Path $root $jobName
+                    if (Test-Path -LiteralPath $jobDir -PathType Container) {
+                        $bases += [pscustomobject]@{ Dir = $jobDir; Announce = $true }
+                        $found = $true
+                        break
+                    }
                 }
+                if ($found) { continue }
             }
         }
 
@@ -463,17 +518,31 @@ function Invoke-Main {
     if (-not $exePath) { exit 3 }
 
     # --- Execution ---------------------------------------------------------
-    # AutoMap's streaming stdout (banner, per-pipeline progress) is
-    # suppressed to keep output minimal; stderr passes through untouched.
+    # AutoMap's streaming stdout (banner, per-pipeline progress) is captured
+    # rather than shown, to keep output minimal; the log scan reads the
+    # staging folder the CLI reports from it. stderr passes through untouched.
+    # The CLI writes redirected output as UTF-8, so decode it as UTF-8.
+    # The start time is taken a minute early so a log is never mistaken for
+    # a stale one because of coarse timestamps (FAT/exFAT keep 2-second
+    # stamps) or a network share whose clock lags this machine's. The cost
+    # is that a log from a build that finished in the last minute still
+    # counts, which is far rarer than a lagging share.
+    $buildStart = (Get-Date).AddSeconds(-60)
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $buildExitCode = 1
+    $cliOutput = @()
+    $previousEncoding = [Console]::OutputEncoding
     try {
-        & $exePath @finalArgs > $null
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $cliOutput = @(& $exePath @finalArgs)
         $buildExitCode = $LASTEXITCODE
     }
     catch {
         Write-StderrLine "[ERROR] Failed to run AutoMap: $($_.Exception.Message)"
         exit 1
+    }
+    finally {
+        [Console]::OutputEncoding = $previousEncoding
     }
     $stopwatch.Stop()
     $duration = [int][math]::Round($stopwatch.Elapsed.TotalSeconds)
@@ -486,17 +555,20 @@ function Invoke-Main {
     Write-Output "[SUCCESS] Build completed in ${duration}s"
 
     # --- Post-build log scan (observational; never alters the exit code) ---
+    # Only logs written during this run are counted, and clean ones are
+    # reported too, so every line names a log this build wrote.
     try {
         foreach ($file in $compositionFiles) {
-            $summary = Get-CompositionLogSummary -Path $file
+            $summary = Get-CompositionLogSummary -Path $file -Since $buildStart -IncludeClean
             if ($summary) {
                 if ($summary.IsError) { Write-StderrLine $summary.Text }
                 else { Write-Output $summary.Text }
             }
         }
         $buildFiles = @($projectFiles | Where-Object { $_ -notmatch '\.wacj$' })
-        foreach ($base in Get-LogScanBases -ProjectFiles $buildFiles -PassthroughArgs $passthrough) {
-            $summaries = @(Get-GenerateLogSummaries -BaseDir $base.Dir)
+        $reportedRoots = @(Get-ReportedStagingRoots -Lines $cliOutput)
+        foreach ($base in Get-LogScanBases -ProjectFiles $buildFiles -PassthroughArgs $passthrough -ReportedStagingRoots $reportedRoots) {
+            $summaries = @(Get-GenerateLogSummaries -BaseDir $base.Dir -Since $buildStart -IncludeClean)
             if (($summaries.Count -gt 0) -and $base.Announce) {
                 Write-Output "[INFO] Logs under staging folder: $($base.Dir)"
             }
