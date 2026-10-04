@@ -153,7 +153,7 @@ When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary 
 **`-s <dir>`, `--stagingdir <dir>`**
 - **Purpose**: Override the staging directory for this build
 - **Use When**: Directing job-file output to a known location, or isolating builds
-- **Impact**: Staged project and output go under `<dir>/<JobName>/...`. The wrapper's post-build log scan follows this value.
+- **Impact**: Staged project and output go under `<dir>/<JobName>/...`. The CLI logs the folder it used (`Staging folder (--stagingdir): <dir>`), and the wrapper's post-build log scan reads it from there.
 - **Note**: See the job file guide's [Output Location](./job-file-guide.md#output-location-staging-folder).
 
 ### Project Maintenance
@@ -198,7 +198,7 @@ When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary 
 
 ## Output Behavior
 
-The wrapper suppresses AutoMap's streaming stdout (banner, per-pipeline progress) but **lets stderr pass through**, so genuine build errors surface inline. After a successful build (exit 0) it scans each `Logs/<target>/generate.log` and prints a per-target `N warning(s), M error(s)` summary (see [Post-Build Log Scan](../SKILL.md#post-build-log-scan)). This is optimized for AI-assisted workflows where progress output costs tokens without informing decisions.
+The wrapper captures AutoMap's streaming stdout (banner, per-pipeline progress) without showing it, but **lets stderr pass through**, so genuine build errors surface inline. After a successful build (exit 0) it scans each `Logs/<target>/generate.log` written during the build and prints a per-target `N warning(s), M error(s)` summary (see [Post-Build Log Scan](../SKILL.md#post-build-log-scan)). This is optimized for AI-assisted workflows where progress output costs tokens without informing decisions.
 
 **Default output:**
 ```
@@ -284,7 +284,7 @@ fi
 
 ## Output Monitoring
 
-**Errors do not require any flag.** The wrapper lets AutoMap's stderr pass through; after a successful build it scans each `generate.log` and prints per-target `[WARN]`/`[ERROR]` counts; a non-zero exit is reported directly.
+**Errors do not require any flag.** The wrapper lets AutoMap's stderr pass through; after a successful build it scans each `generate.log` the build wrote and prints per-target `[WARN]`/`[ERROR]` counts; a non-zero exit is reported directly.
 
 ### Reading `generate.log`
 

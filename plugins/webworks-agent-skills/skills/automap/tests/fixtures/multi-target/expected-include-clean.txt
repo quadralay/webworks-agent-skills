@@ -1,0 +1,3 @@
+[INFO] 0 warning(s), 0 error(s) in Logs/Clean/generate.log
+[ERROR] 0 warning(s), 1 error(s) in Logs/PDF/generate.log
+[WARNING] 2 warning(s), 0 error(s) in Logs/Reverb2/generate.log
