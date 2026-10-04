@@ -180,6 +180,7 @@ python audit-overrides.py reconcile --project "C:\proj\my.wep" --to-version 2025
 - **Computing drift for retired formats.** Not useful — recommend wholesale removal instead.
 - **Treating CRLF differences as changes.** Always normalize line endings before diffing/fingerprinting (the script does this); a raw diff of a CRLF override vs an LF baseline reads as 100% changed.
 - **Hesitating to remove noise.** Migration step 1 is a baseline commit/copy, so removals are recoverable. Be aggressive: retired formats, orphans, duplicates, and redundant overrides should go.
+- **Reading a stale `.base` as a customization.** After an update build within a release, a project staged from a `.wxsp` still resolves the Stationery's `.base` snapshot of the format files, which the update doesn't refresh. Differences between that snapshot and the installed format are expected drift, not customization. Recommend saving the Stationery again from its design project, then re-auditing.
 - **Flagging referenced custom source as cruft.** A custom `.js`/`.scss`/image referenced by an override is intentional source, never cruft — the reference set (including project FormatSettings) protects it.
 </common_mistakes>
 

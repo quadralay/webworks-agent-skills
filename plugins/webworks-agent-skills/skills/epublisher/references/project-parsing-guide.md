@@ -386,6 +386,15 @@ done
 - Auto-generated alphanumeric string
 - Example: `"abc123xyz"`, `"def456uvw"`
 
+**`IdentityPath`** (optional, AutoMap-staged projects only)
+- The document's path relative to the project's `IdentityRoot` (see below); hashed Reverb 2.0 Landmark IDs come from this path instead of `Path`
+- Absolute when the document shares no folder with the identity root other than the drive root
+- AutoMap writes it only in the projects it stages for Stationery-based jobs; Designer and Express projects don't carry it
+
+#### Project Element: `IdentityRoot` (optional)
+
+AutoMap sets `IdentityRoot` on the `<Project>` element of a project it stages for a Stationery-based job: the job file's folder, or the origin project's folder when the job uses a `.wep`/`.wrp` as its stationery (`useAsStationery="True"`). Each `<Document>` then records an `IdentityPath` relative to it, so Landmark IDs don't depend on the staging folder, the workspace, or the machine. Don't add either attribute by hand.
+
 #### Book Element
 
 **`Path`** (MOST IMPORTANT)

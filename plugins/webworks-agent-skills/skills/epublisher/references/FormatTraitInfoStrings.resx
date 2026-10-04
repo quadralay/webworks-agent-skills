@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!--
-    Microsoft ResX Schema
-
+  <!-- 
+    Microsoft ResX Schema 
+    
     Version 2.0
-
-    The primary goals of this format is to allow a simple XML format
-    that is mostly human readable. The generation and parsing of the
-    various data types are done through the TypeConverter classes
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
     associated with the data types.
-
+    
     Example:
-
+    
     ... ado.net/XML headers & schema ...
     <resheader name="resmimetype">text/microsoft-resx</resheader>
     <resheader name="version">2.0</resheader>
@@ -143,6 +143,9 @@
   </data>
   <data name="accessibility-image-map-alt-tags" xml:space="preserve">
     <value>Validate accessibility image map alternate tags</value>
+  </data>
+  <data name="accessibility-optimized-reader-mode" xml:space="preserve">
+    <value>Optimized reader mode</value>
   </data>
   <data name="accessibility-report" xml:space="preserve">
     <value>Generate accessibility report</value>
@@ -591,6 +594,9 @@
   <data name="connect-entry" xml:space="preserve">
     <value>Entry Filename</value>
   </data>
+  <data name="connect-groups-generate" xml:space="preserve">
+    <value>Generate Groups</value>
+  </data>
   <data name="connect-lightbox-large-images" xml:space="preserve">
     <value>Display large images in lightbox</value>
   </data>
@@ -716,6 +722,9 @@
   </data>
   <data name="dita-ignore-print-attribute" xml:space="preserve">
     <value>Ignore print attribute</value>
+  </data>
+  <data name="dita-use-source-ids" xml:space="preserve">
+    <value>Use source IDs for paragraph IDs</value>
   </data>
   <data name="dita-map" xml:space="preserve">
     <value>Map</value>
@@ -4059,6 +4068,9 @@
   <data name="report-links-possible-document-as-baggage-file" xml:space="preserve">
     <value>Documents treated as baggage files</value>
   </data>
+  <data name="report-links-runtime-anchor" xml:space="preserve">
+    <value>Runtime hash link</value>
+  </data>
   <data name="report-links-unresolved-to-anchor" xml:space="preserve">
     <value>Unresolved link within document</value>
   </data>
@@ -5409,17 +5421,35 @@
   <data name="generate-landmark-id" xml:space="preserve">
     <value>Generate Landmark ID</value>
   </data>
+  <data name="landmark-id-format" xml:space="preserve">
+    <value>Landmark ID Format</value>
+  </data>
+  <data name="landmark-id-format-hashed-16" xml:space="preserve">
+    <value>Hashed (16 char)</value>
+  </data>
+  <data name="landmark-id-format-hashed-8" xml:space="preserve">
+    <value>Hashed (8 char)</value>
+  </data>
+  <data name="landmark-id-format-source-id" xml:space="preserve">
+    <value>Source ID</value>
+  </data>
   <data name="reverb-2.0-ai" xml:space="preserve">
     <value>AI Features</value>
   </data>
   <data name="ai-assistant-knowledge-base-generate" xml:space="preserve">
     <value>Generate Knowledge Base</value>
   </data>
+  <data name="ai-assistant-knowledge-base-per-parcel" xml:space="preserve">
+    <value>Generate Knowledge Base Per Parcel</value>
+  </data>
   <data name="ai-assistant-generate" xml:space="preserve">
     <value>Generate Assistant</value>
   </data>
   <data name="ai-assistant-id" xml:space="preserve">
     <value>Assistant ID</value>
+  </data>
+  <data name="ai-assistant-hide-when-file-local" xml:space="preserve">
+    <value>Hide AI Tab when file local</value>
   </data>
   <data name="sitemap-generate" xml:space="preserve">
     <value>Generate Sitemap</value>
@@ -5438,5 +5468,17 @@
   </data>
   <data name="search-result-include-breadcrumbs" xml:space="preserve">
     <value>Include Breadcrumbs on Search Results</value>
+  </data>
+  <data name="menu-default-tab" xml:space="preserve">
+    <value>Default Tab</value>
+  </data>
+  <data name="menu-default-tab-assistant" xml:space="preserve">
+    <value>AI Assistant</value>
+  </data>
+  <data name="menu-default-tab-toc" xml:space="preserve">
+    <value>Table of Contents</value>
+  </data>
+  <data name="menu-default-tab-index" xml:space="preserve">
+    <value>Index</value>
   </data>
 </root>

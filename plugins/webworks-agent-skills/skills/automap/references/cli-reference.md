@@ -123,7 +123,7 @@ All options below belong after the `--` separator and are forwarded to `WebWorks
 - **Note**: Must have write permissions to deployment path
 
 **`--destination=<name>`** *(2026.1+)*
-- **Purpose**: Deploy **every built target in the run** to the named destination instead of each target's own. The name resolves through the same precedence a declared destination does — inline definitions (job file, then `--deploysettings` overlay), then `deploy.prefs`.
+- **Purpose**: Deploy **every built target in the run** to the named destination instead of each target's own. The name resolves through the same precedence a declared destination does: the job file's inline definitions, then a `--deploysettings` file, then the job's AutoMap workspace (`automap-workspace.xml`), then `deploy.prefs`.
 - **Use When**: Redirecting a whole run to one destination without editing the job (CI promotion, a staging mirror); it is also the mechanism a composition uses to make `build="true"` members deploy to the *composition's* destination.
 - **Impact**: Signals deploy intent — the wrapper will not inject `-n`. **Ignored when `-d`/`--deployfolder` is given** (the folder override wins; `--destination` only substitutes a *name*).
 - **Log**: `Destination override (--destination): deploying target "<target>" to "<name>".` — emitted only when the name differs from the target's own. The resolution itself logs `Destination '<name>' resolved from <source>.`
@@ -137,6 +137,7 @@ All options below belong after the `--` separator and are forwarded to `WebWorks
 **`--deploysettings <file>`** *(2026.1+)*
 - **Purpose**: XML file of inline destination definitions (deploy.prefs entry schema, file/s3 actions only) overlaying deploy.prefs by name
 - **Use When**: CI environments where deploy.prefs is not configured on the machine
+- **Precedence**: Names it defines win over destinations saved with the job's AutoMap workspace, which apply automatically without this option, and lose only to the job file's own inline definitions.
 
 **`--dryrun`** *(2026.1+)*
 - **Purpose**: Force every deployment in this run dry
@@ -147,7 +148,9 @@ All options below belong after the `--` separator and are forwarded to `WebWorks
 
 When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary Express project (`.wrp`) under the **Staging Folder** and builds there. The output lands at `<stagingDir>/<JobName>/Output/<target>/` — **not** next to the `.waj`. This is the most common reason "I can't find my output." (Project files — `.wep`/`.wrp` — build into their own Output folder.)
 
-- **Default Staging Folder**: `%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging` (an AutoMap preference).
+- **Default Staging Folder**: `%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging` (an AutoMap preference). Redirected Documents folders, such as OneDrive, move it.
+- **Workspace staging**: a job whose `.waj` is in the jobs folder of a named AutoMap workspace stages into **that workspace's** staging folder, whichever workspace the Administrator is showing.
+- **The CLI logs the folder it used**: `Staging folder of the '<name>' workspace: <dir>`, `Staging folder (--stagingdir): <dir>`, or `Staging folder: <dir>`. Read that line rather than assuming the default.
 - **Job/target naming**: `<JobName>` is the `<Job name="...">` attribute; `<target>` is the target's `name`.
 
 **`-s <dir>`, `--stagingdir <dir>`**

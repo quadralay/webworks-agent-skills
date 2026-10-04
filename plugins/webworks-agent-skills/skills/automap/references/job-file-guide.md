@@ -126,6 +126,16 @@ The picker for the first option is the tell: one field, one filter, three extens
 
 Modes 1 and 3 are identical from the staging point of view: AutoMap stages a temporary Express project (`.wrp`) under the **Staging Folder** and builds there — see [Output Location (Staging Folder)](#output-location-staging-folder). Only mode 2 builds in place, into the referenced project's own `Output/` folder.
 
+**Landmark IDs don't depend on where a job stages.** In modes 1 and 3, AutoMap records each staged document's path relative to an identity folder: the `.waj` folder in mode 1, the origin `.wep`/`.wrp` folder in mode 3. Hashed Reverb 2.0 Landmark IDs come from that path and the heading's alias or ID, so they don't change with `--stagingdir`, the workspace, or the machine. Mode 3 produces the same IDs as building the project in Designer, provided the job spells each document path with the same capitalization as the project. Mode 2 builds the project in place and is unaffected.
+
+A document on another drive, or one that shares only the drive root with the identity folder, keeps an absolute path, so its IDs change if it moves. AutoMap warns once per job:
+
+```text
+Landmark IDs for 3 document(s) include an absolute path because those documents are on another drive or share no folder with "C:\Jobs\Product Help" other than the drive root, for example "D:\Shared\intro.md". Their landmark IDs change if the documents move.
+```
+
+A `.wxsp` keeps the `.base` copy of the format files, including the landmark code, from when it was saved. After an ePublisher update, jobs based on it keep the older staging-dependent IDs until the Stationery is saved again from its design project.
+
 ### Designer project as stationery — CI without regenerating Stationery
 
 A job that uses a live Designer project as its stationery looks exactly like a Stationery-based job, except the `<Project>` reference points at a `.wep` and opts in with `useAsStationery="True"`:
@@ -408,6 +418,8 @@ When AutoMap builds a Stationery-based job file (`.waj`), it does **not** build 
 %USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging
 ```
 
+**Workspace staging folders.** The AutoMap Administrator organizes jobs into workspaces, each with a jobs folder, a staging folder, and destinations. A job whose `.waj` is in the jobs folder of a named workspace stages into that workspace's staging folder, whichever workspace the Administrator is showing, so same-named jobs in different workspaces never share `<stagingDir>/<JobName>/`. The order is `-s`/`--stagingdir`, then the job's workspace, then the default folder, and the CLI logs which it used: `Staging folder of the '<name>' workspace: <dir>`, `Staging folder (--stagingdir): <dir>`, or `Staging folder: <dir>`.
+
 **Override per run** with `-s` / `--stagingdir` (accepted by the AutoMap executable and exposed by the wrapper):
 
 | Option | Description |
@@ -598,7 +610,9 @@ publishes with `deployScope`:
   entry schema), so a version-controlled job runs on machines with no seeded
   deploy preferences. Folder and Amazon S3 definitions only; any other
   action is rejected at parse time. Precedence per name: job inline >
-  `--deploysettings` overlay file > deploy.prefs.
+  `--deploysettings` overlay file > the job's workspace settings
+  (`automap-workspace.xml`, the first one in the job file's folder or the
+  folders above it) > deploy.prefs.
 
 **For the full federation workflow (.wacj composition jobs, S3 + CloudFront
 destinations, dry run), see:** references/composition-jobs.md
@@ -823,7 +837,7 @@ A composition raises the same error, with the same remedy wording, for a member'
 
 **Issue**: Built a `.waj` but there's no `Output/` next to the job file.
 
-**Explanation**: Stationery-based job files build into the **Staging Folder**, not next to the `.waj`. Look in `<stagingDir>/<JobName>/Output/<TargetName>/` — by default `<My Documents>\WebWorks ePublisher AutoMap\Staging\<JobName>\Output\<TargetName>\`.
+**Explanation**: Stationery-based job files build into the **Staging Folder**, not next to the `.waj`. Look in `<stagingDir>/<JobName>/Output/<TargetName>/` — by default `<My Documents>\WebWorks ePublisher AutoMap\Staging\<JobName>\Output\<TargetName>\`, or under the staging folder of the job's AutoMap workspace. The job log's `Staging folder` line names the folder the run used.
 
 **Solutions**:
 1. Check the Staging Folder (see [Output Location (Staging Folder)](#output-location-staging-folder))

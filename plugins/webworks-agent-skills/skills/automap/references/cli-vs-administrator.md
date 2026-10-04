@@ -59,6 +59,7 @@ job kinds (`<Job>` vs `<CompositionJob>`).
 **Features:**
 - Create and configure AutoMap jobs (publishing and composition)
 - Schedule automated builds through the Windows Task Scheduler
+- Organize jobs into workspaces (**File > Workspace**), each with its own jobs folder, staging folder, and destinations
 - Manage the Jobs folder, staging folder, and file mappings
 - Configure build options visually
 - Test job configurations interactively
@@ -67,8 +68,20 @@ job kinds (`<Job>` vs `<CompositionJob>`).
 
 ### Administrator capabilities added in 2026.1
 
-Four additions change what "only the GUI can do" means. Know them before
+Five additions change what "only the GUI can do" means. Know them before
 telling a user something requires hand-editing a file.
+
+**Workspaces.** The Administrator shows one workspace at a time, chosen on
+**File > Workspace**; **Manage Workspaces...** adds, edits, and removes them. A
+workspace is a jobs folder, a staging folder, and destinations that every job
+in it can deploy to by name. The **Default** workspace is the Jobs and Staging
+folders in the preferences. Workspace destinations are saved in
+`automap-workspace.xml` in the jobs folder, so they travel with the jobs (for
+example in version control), and the CLI applies them on every run without a
+flag. The workspace list is machine-wide, shared by every user
+(`Workspaces.prefs` in `%ProgramData%\WebWorks\ePublisher AutoMap\<version>\`). Removing a
+workspace only takes it off the list; its folders, jobs, and scheduled tasks
+remain.
 
 **Composition jobs are first-class.** `File > New Job` offers a third intent —
 **Compose published parcels into a website (Composition Job)** — which creates
@@ -91,8 +104,9 @@ S3**; entries created for other transports remain editable there.
   win over a same-named local destination when the job runs. Folder and Amazon
   S3 only — no credentials are stored.
 - The target's **Deploy to** list labels where each name comes from:
-  `<name> (this job)` for a job-inline definition, `<name> (local)` for one from
-  this computer's `deploy.prefs`.
+  `<name> (this job)` for a job-inline definition, `<name> (workspace)` for one
+  saved with the job's workspace, `<name> (local)` for one from this computer's
+  `deploy.prefs`.
 - A name that resolves to **neither** is still listed, as
   `<name> (not defined on this computer)`. This is deliberate: hiding it would
   read as "this job has no destination" and would discard the name on the next
@@ -334,6 +348,22 @@ Consequences worth knowing:
   full task editor (Actions tab included) — fix it there. To diagnose which
   install actually ran, read the `Running WebWorks ePublisher AutoMap version …`
   line in the job log.
+- **Task names are shared across workspaces.** Same-named jobs in different
+  workspaces share one task name, `waj <job name>`. **Run** points the task at
+  the job being run (provided the task runs under the current Windows
+  account): silently when the task has no triggers, and only after a warning
+  naming both job files when it does. If the task is running the other job,
+  Run asks to try again when that run finishes. The jobs list notes a job
+  whose task runs another job file:
+  `The scheduled task 'waj <job name>' runs another job file: <path>`. A
+  recurring schedule for a job name can belong to only one workspace at a time.
+- **The Quantum Sync Trial jobs aren't the user's.** An interactive AutoMap
+  install seeds a shared **Quantum Sync Trial** evaluation workspace in
+  `C:\Users\Public\Documents\WebWorks ePublisher AutoMap\Quantum Sync Trial\` with
+  three jobs (`Quantum Sync Help`, `Quantum Sync Release Notes`, and
+  `Quantum Sync Site Shell`). Don't mistake
+  them for the user's jobs; **Preferences > General > Reset Evaluation
+  Materials** restores them.
 - **Build behavior belongs in the job, not the command line.** A scheduled task
   invokes the CLI with no flags, so the job's stored
   [build options](./job-file-guide.md#build-options-skip-reports--verbose-logging)
