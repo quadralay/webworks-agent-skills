@@ -310,7 +310,7 @@ Both PowerShell scripts run on Windows PowerShell 5.1 (preinstalled on Windows) 
 - WebWorks ePublisher 2024.1+ with AutoMap component (safe defaults assume 2025.1+; use `-NoDefaults` with 2024.1)
 - Windows operating system with Windows PowerShell 5.1+ (preinstalled)
 - Python 3.10+ (for job file scripts). On Windows, run them with the Python launcher (`py -3 scripts/validate-job.py job.waj`); on an older Python, each script exits with a message naming the version it found.
-- **Don't use a Python that ships with ePublisher.** The ePublisher source tree builds with Python 3.6. An installed ePublisher's `Helpers\python\python.exe` is a 32-bit product helper with no pip and no third-party packages, and side-by-side older installs still ship 3.6. Use a standard Python installation.
+- **Don't use the Python bundled with an ePublisher installation** (`Helpers\python\python.exe`). It's a helper for the product itself, not a general-purpose Python: it has no pip and no third-party packages, and older releases bundle a version earlier than 3.10. Use a standard Python installation.
 
 ### Python Dependencies
 
