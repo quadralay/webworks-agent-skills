@@ -96,6 +96,8 @@ Start new Python tools from [`templates/skill-python-tool.py`](templates/skill-p
 
 Rules 2 and 3 are per-call-site because UTF-8 mode cannot be enabled retroactively for a running interpreter — `ensure_utf8()` covers children and stdio only.
 
+The template also opens with a **Python 3.10+ guard**, placed right after the module docstring and before any other import. Keep it first: the tools use PEP 585/604 type hints, which raise a bare `TypeError` at import time on Python 3.9 and earlier, and an agent may find an older Python first, such as one bundled with another product (#163). Don't use syntax newer than 3.6 (such as `:=` or `match`) anywhere in a tool: Python compiles the whole file before running its first line, so new syntax anywhere fails before the guard can run. Newer runtime features (type hints, standard-library APIs) are safe below the guard.
+
 Verify before submitting a PR:
 
 ```bash

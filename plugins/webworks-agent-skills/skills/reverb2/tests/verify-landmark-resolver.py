@@ -14,12 +14,21 @@ machine tests) and as a subprocess (for CLI contract tests: exit codes,
 stdout JSON, error formatting). No network access is required.
 """
 
+import sys
+
+# Fail clearly on an old interpreter before any import or annotation that
+# needs a newer one (PEP 585 hints raise TypeError on 3.8, PEP 604 on 3.9).
+if sys.version_info < (3, 10):
+    sys.exit('This tool requires Python 3.10 or later; found Python '
+             + sys.version.split()[0]
+             + '. On Windows, run it with the Python launcher: py -3 '
+             + ' '.join(sys.argv))
+
 import importlib.util
 import json
 import os
 import socket
 import subprocess
-import sys
 import tempfile
 import urllib.error
 import urllib.request

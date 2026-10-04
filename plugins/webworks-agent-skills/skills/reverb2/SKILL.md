@@ -385,6 +385,12 @@ bash scripts/setup-dependencies.sh
 
 ## Dependencies
 
+### Python (for the analysis scripts)
+
+`lint-output.py`, `parse-url-maps.py`, `extract-scss-variables.py`, `resolve-landmarks.py`, and `generate-report.py` need **Python 3.10 or later**. On Windows, run them with the Python launcher so the newest installed Python is used: `py -3 scripts/lint-output.py <output-dir>`. On an older Python, each script exits with a message naming the version it found.
+
+- **Don't use the Python bundled with an ePublisher installation** (`Helpers\python\python.exe`). It's a helper for the product itself, not a general-purpose Python: it has no pip and no third-party packages, and older releases bundle a version earlier than 3.10. Use a standard Python installation.
+
 ### Node.js (for browser testing)
 
 ```bash
