@@ -5,7 +5,9 @@
 One-line description of what this tool does.
 
 Template notes (delete this docstring block when copying):
-    Start new skill Python tools from this file. It bakes in the UTF-8
+    Start new skill Python tools from this file. Keep the Python 3.10+
+    guard below the docstring first, before any other import (#163).
+    It also bakes in the UTF-8
     conventions from issue #118 so Unicode content — Japanese output paths,
     CJK landmark IDs like 概要, non-ASCII group names — survives stock
     Windows consoles (cp1252/cp932). The three rules, in one place:
@@ -32,10 +34,19 @@ Exit codes:
     2 - Parse failure or IO failure (file missing, malformed input).
 """
 
+import sys
+
+# Fail clearly on an old interpreter before any import or annotation that
+# needs a newer one (PEP 585 hints raise TypeError on 3.8, PEP 604 on 3.9).
+if sys.version_info < (3, 10):
+    sys.exit('This tool requires Python 3.10 or later; found Python '
+             + sys.version.split()[0]
+             + '. On Windows, run it with the Python launcher: py -3 '
+             + ' '.join(sys.argv))
+
 import argparse
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 # ANSI color codes (shared house style across skill tools)

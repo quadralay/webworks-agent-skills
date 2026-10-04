@@ -309,7 +309,8 @@ Both PowerShell scripts run on Windows PowerShell 5.1 (preinstalled on Windows) 
 
 - WebWorks ePublisher 2024.1+ with AutoMap component (safe defaults assume 2025.1+; use `-NoDefaults` with 2024.1)
 - Windows operating system with Windows PowerShell 5.1+ (preinstalled)
-- Python 3.10+ (for job file scripts)
+- Python 3.10+ (for job file scripts). On Windows, run them with the Python launcher (`py -3 scripts/validate-job.py job.waj`); on an older Python, each script exits with a message naming the version it found.
+- **Don't use the Python bundled with an ePublisher installation** (`Helpers\python\python.exe`). It's a helper for the product itself, not a general-purpose Python: it has no pip and no third-party packages, and older releases bundle a version earlier than 3.10. Use a standard Python installation.
 
 ### Python Dependencies
 
@@ -337,11 +338,12 @@ pip install -r scripts/requirements.txt
 
 ## Post-Build Log Scan
 
-After a successful build (exit 0), the wrapper scans each target's `generate.log` and reports `[WARN]` and `[ERROR]` counts per target.
+After a successful build (exit 0), the wrapper scans the `generate.log` of each target the build wrote and reports `[WARN]` and `[ERROR]` counts per target.
 
+- **Only this build's logs count.** A log last written before the build started is skipped. A project's other targets keep their `generate.log` from earlier builds, and those logs are never reported as this build's.
 - Project files (`.wep`, `.wrp`): scans `<project-dir>/Logs/<target>/generate.log`.
-- Job files (`.waj`): scans under the staging folder — `<stagingDir>/<JobName>/Logs/<target>/generate.log` — using the `-s`/`--stagingdir` value from the arguments, or the default staging folder (`%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging`). An `[INFO]` line announces the staging location when counts are found there.
-- Targets with non-zero counts get a one-line summary (`[WARNING]` on stdout when only warnings, `[ERROR]` on stderr when any errors). Clean targets emit nothing.
+- Job files (`.waj`): scans `<stagingDir>/<JobName>/Logs/<target>/generate.log` under the staging folder the job actually used. The CLI logs that folder (`Staging folder: <dir>`, `Staging folder (--stagingdir): <dir>`, or `Staging folder of the '<name>' workspace: <dir>`, since a job in a named AutoMap workspace stages into that workspace's folder), and the wrapper reads it from the CLI's output. If no such line is found, it falls back to the `-s`/`--stagingdir` value, then to the default folder (`%USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging`). An `[INFO]` line announces the staging location.
+- Every log the build wrote gets a one-line summary: `[INFO]` when clean, `[WARNING]` on stdout when it has only warnings, `[ERROR]` on stderr when it has any errors.
 - Exit codes are unchanged — the scan is observational. A successful build that records warnings still exits 0.
 
 **The scan matches the shipped localized markers.** `[WARN]`/`[ERROR]` are localized, and the scan covers every spelling ePublisher ships: German `[WARNUNG]`/`[FEHLER]`, French `[AVERTISSEMENT]`/`[ERREUR]`, Japanese `[警告]`/`[エラー]`. An install language with no translated resources falls back to the English markers, which the scan also matches, so counts are trustworthy on any install.
@@ -351,6 +353,7 @@ For a `.wacj`, the scanned `<job name>-log.txt` also contains **relayed member-b
 ```text
 [SUCCESS] Build completed in 43s
 [WARNING] 3 warning(s), 0 error(s) in Logs/Reverb2/generate.log
+[INFO] 0 warning(s), 0 error(s) in Logs/PDF/generate.log
 ```
 
 ### Investigating warnings and errors — read the log

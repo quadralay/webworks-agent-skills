@@ -14,11 +14,20 @@ The script returns JSON with derived component directories and availability flag
 for Formats, Adapters, and Helpers.
 """
 
+import sys
+
+# Fail clearly on an old interpreter before any import or annotation that
+# needs a newer one (PEP 585 hints raise TypeError on 3.8, PEP 604 on 3.9).
+if sys.version_info < (3, 10):
+    sys.exit('This tool requires Python 3.10 or later; found Python '
+             + sys.version.split()[0]
+             + '. On Windows, run it with the Python launcher: py -3 '
+             + ' '.join(sys.argv))
+
 import argparse
 import json
 import os
 import re
-import sys
 import defusedxml.ElementTree as ET
 from pathlib import Path
 from typing import Optional
