@@ -120,7 +120,7 @@ Recommended order for an upgrade: `enumerate` → `cleanup` (prune first) → `d
 
 ### audit-overrides.py
 
-Single entry point for all five subcommands. Python 3; reuses `epublisher` conventions (project parsing, version-root resolution).
+Single entry point for all five subcommands. Python 3.10+ (see Requirements); reuses `epublisher` conventions (project parsing, version-root resolution).
 
 Common options: `--project` (required), `--install-root` (default `C:\Program Files\WebWorks\ePublisher`), `--format text|json`.
 
@@ -132,6 +132,15 @@ Per-command options:
 
 JSON mode emits structured findings for every command — use it to drive reconciliation tooling or reports.
 </scripts>
+
+<requirements>
+
+## Requirements
+
+- **Python 3.10 or later** for the scripts in `scripts/`. On Windows, run them with the Python launcher so the newest installed Python is used: `py -3 scripts/audit-overrides.py audit --project <project.wep>`. On an older Python, each script exits with a message naming the version it found.
+- **Don't use a Python that ships with ePublisher.** The ePublisher source tree builds with Python 3.6. An installed ePublisher's `Helpers\python\python.exe` is a 32-bit product helper with no pip and no third-party packages, and side-by-side older installs still ship 3.6. Use a standard Python installation.
+
+</requirements>
 
 <references>
 

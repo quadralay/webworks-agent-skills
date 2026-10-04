@@ -178,6 +178,15 @@ python scripts/resolve-version-root.py [--project-file <project.wep>] [--version
 Returns JSON with versionRoot path, component directories, and availability flags.
 </scripts>
 
+<requirements>
+
+## Requirements
+
+- **Python 3.10 or later** for the scripts in `scripts/`. On Windows, run them with the Python launcher so the newest installed Python is used: `py -3 scripts/parse-targets.py <project-file>`. On an older Python, each script exits with a message naming the version it found.
+- **Don't use a Python that ships with ePublisher.** The ePublisher source tree builds with Python 3.6. An installed ePublisher's `Helpers\python\python.exe` is a 32-bit product helper with no pip and no third-party packages, and side-by-side older installs still ship 3.6. Use a standard Python installation.
+
+</requirements>
+
 <references>
 
 ## Reference Files
