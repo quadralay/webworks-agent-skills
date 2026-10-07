@@ -126,9 +126,11 @@ The picker for the first option is the tell: one field, one filter, three extens
 
 Modes 1 and 3 are identical from the staging point of view: AutoMap stages a temporary Express project (`.wrp`) under the **Staging Folder** and builds there — see [Output Location (Staging Folder)](#output-location-staging-folder). Only mode 2 builds in place, into the referenced project's own `Output/` folder.
 
-**Landmark IDs don't depend on where a job stages.** In modes 1 and 3, AutoMap records each staged document's path relative to an identity folder: the `.waj` folder in mode 1, the origin `.wep`/`.wrp` folder in mode 3. Hashed Reverb 2.0 Landmark IDs come from that path and the heading's alias or ID, so they don't change with `--stagingdir`, the workspace, or the machine. Mode 3 produces the same IDs as building the project in Designer, provided the job spells each document path with the same capitalization as the project. Mode 2 builds the project in place and is unaffected.
+**Landmark IDs don't depend on where a job stages.** What decides the path is whether the job uses its project as a stationery. In modes 1 and 3 the job lists the documents, so AutoMap records each staged document's path relative to the `.waj` folder, whether the stationery is a `.wxsp` (mode 1) or a project used as one (mode 3). Hashed Reverb 2.0 Landmark IDs come from that path and the heading's alias or ID, so they don't change with `--stagingdir`, the workspace, the machine, or where the stationery is. They do change when a document moves relative to the job file, including when the `.waj` moves to a different depth.
 
-A document on another drive, or one that shares only the drive root with the identity folder, keeps an absolute path, so its IDs change if it moves. AutoMap warns once per job:
+Mode 2 publishes a ready-to-use project in place. Its documents are the project's own, with paths relative to the project, so its IDs match a Designer build of that project. A mode 3 job matches Designer only when the `.waj` sits at the same depth relative to the documents as the project (for example, beside the `.wep`) and spells each path with the same capitalization.
+
+A document on another drive, or one that shares only the drive root with the job file's folder, keeps an absolute path, so its IDs change if it moves. AutoMap warns once per job:
 
 ```text
 Landmark IDs for 3 document(s) include an absolute path because those documents are on another drive or share no folder with "C:\Jobs\Product Help" other than the drive root, for example "D:\Shared\intro.md". Their landmark IDs change if the documents move.

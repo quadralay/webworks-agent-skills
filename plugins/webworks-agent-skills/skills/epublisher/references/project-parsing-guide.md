@@ -393,7 +393,7 @@ done
 
 #### Project Element: `IdentityRoot` (optional)
 
-AutoMap sets `IdentityRoot` on the `<Project>` element of a project it stages for a Stationery-based job: the job file's folder, or the origin project's folder when the job uses a `.wep`/`.wrp` as its stationery (`useAsStationery="True"`). Each `<Document>` then records an `IdentityPath` relative to it, so Landmark IDs don't depend on the staging folder, the workspace, or the machine. Don't add either attribute by hand.
+AutoMap sets `IdentityRoot` on the `<Project>` element of a project it stages for a Stationery-based job: the job file's folder, whether the stationery is a `.wxsp` or a `.wep`/`.wrp` used as one (`useAsStationery="True"`). Each `<Document>` then records an `IdentityPath` relative to it, so Landmark IDs don't depend on the staging folder, the workspace, the machine, or where the stationery is. A job that publishes a project in place stages nothing, so its documents keep the project's own `Path`. Don't add either attribute by hand.
 
 #### Book Element
 
