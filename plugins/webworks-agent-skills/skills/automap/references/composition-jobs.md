@@ -342,6 +342,11 @@ entry schema — references stay by name:
 </Destination>
 ```
 
+The AutoMap Administrator adds new destinations to the workspace, not to job
+files (see [cli-vs-administrator.md](./cli-vs-administrator.md)). It keeps a
+definition a file already carries, and offers **Move to Workspace**.
+Hand-authored definitions remain fully supported.
+
 - Precedence per name: **job file's own inline > `--deploysettings` overlay
   file > workspace settings > deploy.prefs.** An inline definition **wins outright** over a
   same-named `deploy.prefs` entry — it does not merge with it.
@@ -465,7 +470,7 @@ composition editor.
 | **Member Jobs** grid — Member (path), Role, Build | `<Job path role build>` |
 | read-only **Target** column | a member's `<Job target="...">`, when present |
 | **Output target:** combo | `<Jobs target="...">` |
-| **Deployment** — *Defined in this job* / *Deploy Destinations* | inline `<DeploySettings>` inside `<Destination>` / a name-only `<Destination>` |
+| **Deployment** — **Destination:** list (workspace destinations unlabeled, *(local)*, *(this job)*) and **Deploy Destinations...** | a name-only `<Destination>`. A definition the file already carries (`<DeploySettings>` inside `<Destination>`) is kept, and can be changed with **Edit...** or moved out with **Move to Workspace** |
 | **Merge Settings** — Automatic / Custom (+ include-new checkbox) | omitted `<MergeSettings>` / declared placements / `discover="true"` |
 
 - **Add...** is a dropdown, not a file dialog: it lists the publishing jobs in
@@ -497,8 +502,9 @@ paths against the `.wacj`'s own location.
 
 **Round-trip fidelity.** Opening and saving a hand-authored file preserves
 nested `<TOC>` containers, inline `<DeploySettings>`, and extra inline
-definitions beyond the referenced one. **XML comments are not preserved** once
-the editor saves. Keep commentary outside the file if it matters.
+definitions beyond the referenced one. XML comments survive too: the editor
+puts each one back beside the element it was written for, and a removed
+element's comments go with it.
 
 ## Failure behavior
 
