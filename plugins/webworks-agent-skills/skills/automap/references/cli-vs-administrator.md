@@ -89,22 +89,23 @@ a `.wacj` in the Jobs folder and opens a composition editor (members grid with
 role and Build, **Output target:** combo, destination, Merge Settings). Full
 detail: [composition-jobs.md](./composition-jobs.md#authoring-a-composition-in-the-automap-administrator).
 
-**Destinations are added to the workspace.** The **Edit** menu offers
-**Workspace Deploy Destinations...** first, then **Local Deploy
-Destinations...**. Neither needs a job open or a target selected.
+**Destinations are added to the workspace.** **Edit > Deploy Destinations...**
+(also a toolbar button, as in Designer and Express) opens one dialog with two
+tabs, **Workspace** (selected when it opens) and **Local**. It needs no job
+open or target selected. The **Deploy Destinations...** button beside an
+output target's **Deploy to** list, and in the composition editor, opens the
+same dialog for the job's workspace. OK saves both tabs; Cancel discards both.
 
-- **Workspace Deploy Destinations** edits the destinations saved in the active
-  workspace's `automap-workspace.xml`. Every job in the workspace can deploy to
-  them, on any computer and under any account that runs it. The **Deploy
-  Destinations...** button beside a target's **Deploy to** list, and in the
-  composition editor, opens the same dialog for the job's workspace. Folder and
-  Amazon S3 only; no credentials are stored.
-- **Local Deploy Destinations** edits this computer's `deploy.prefs`: one list
-  per Windows user, shared with Designer and Express (which reach it from their
-  own **Edit** menus and a toolbar button). A scheduled task that runs under
-  another account does not see it. **Copy to Workspace** copies a Folder or
-  Amazon S3 entry into the workspace and leaves `deploy.prefs` as it is.
-  Entries for other transports stay local.
+- The **Workspace** tab edits the destinations saved in the workspace's
+  `automap-workspace.xml`. Every job in the workspace can deploy to them, on
+  any computer and under any account that runs it. Folder and Amazon S3 only;
+  no credentials are stored.
+- The **Local** tab edits this computer's `deploy.prefs`: one list per Windows
+  user, shared with Designer and Express (which reach it from their own
+  **Edit** menus and a toolbar button). A scheduled task that runs under
+  another account does not see it. **Copy to Workspace** adds a copy of a
+  Folder or Amazon S3 entry to the Workspace tab, saved on OK, and leaves
+  `deploy.prefs` as it is. Entries for other transports stay local.
 - The Administrator no longer adds destinations to job files. A `.waj` or
   `.wacj` that already defines its own (`<DeploySettings>`) keeps them. The job
   editor's **Job Deploy Destinations** page (shown only then) and the
@@ -186,7 +187,7 @@ being overridden by them — see
 ✅ Configuring job settings and parameters
 ✅ Setting up build schedules
 ✅ Testing job configurations interactively
-✅ Defining deploy destinations (`Edit > Workspace Deploy Destinations...`; this computer's under `Edit > Local Deploy Destinations...`)
+✅ Defining deploy destinations (`Edit > Deploy Destinations...`: the Workspace tab; this computer's on the Local tab)
 ✅ Previewing deployed output in a browser
 ✅ Visual configuration of complex builds
 ✅ Learning AutoMap features
