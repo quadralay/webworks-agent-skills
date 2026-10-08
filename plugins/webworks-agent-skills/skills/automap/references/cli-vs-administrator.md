@@ -59,16 +59,29 @@ job kinds (`<Job>` vs `<CompositionJob>`).
 **Features:**
 - Create and configure AutoMap jobs (publishing and composition)
 - Schedule automated builds through the Windows Task Scheduler
+- Organize jobs into workspaces (**File > Workspace**), each with its own jobs folder, staging folder, and destinations
 - Manage the Jobs folder, staging folder, and file mappings
 - Configure build options visually
 - Test job configurations interactively
-- Define and edit deploy destinations
+- Define deploy destinations, saved with the workspace (this computer's local ones are one menu item away)
 - Preview deployed output in a browser
 
 ### Administrator capabilities added in 2026.1
 
-Four additions change what "only the GUI can do" means. Know them before
+Five additions change what "only the GUI can do" means. Know them before
 telling a user something requires hand-editing a file.
+
+**Workspaces.** The Administrator shows one workspace at a time, chosen on
+**File > Workspace**; **Manage Workspaces...** adds, edits, and removes them. A
+workspace is a jobs folder, a staging folder, and destinations that every job
+in it can deploy to by name. The **Default** workspace is the Jobs and Staging
+folders in the preferences. Workspace destinations are saved in
+`automap-workspace.xml` in the jobs folder, so they travel with the jobs (for
+example in version control), and the CLI applies them on every run without a
+flag. The workspace list is machine-wide, shared by every user
+(`Workspaces.prefs` in `%ProgramData%\WebWorks\ePublisher AutoMap\<version>\`). Removing a
+workspace only takes it off the list; its folders, jobs, and scheduled tasks
+remain.
 
 **Composition jobs are first-class.** `File > New Job` offers a third intent —
 **Compose published parcels into a website (Composition Job)** — which creates
@@ -76,24 +89,38 @@ a `.wacj` in the Jobs folder and opens a composition editor (members grid with
 role and Build, **Output target:** combo, destination, Merge Settings). Full
 detail: [composition-jobs.md](./composition-jobs.md#authoring-a-composition-in-the-automap-administrator).
 
-**Deploy Destinations moved to the Edit menu.** `Edit > Deploy Destinations...`
-opens the destination editor **without opening a job or selecting a target** —
-destinations are shared state, not job-owned, so they no longer hide behind a
-target's configuration page. Adding an entry offers **Folder** and **Amazon
-S3**; entries created for other transports remain editable there.
+**Destinations are added to the workspace.** **Edit > Deploy Destinations...**
+(also a toolbar button, as in Designer and Express) opens one dialog with two
+tabs, **Workspace** (selected when it opens) and **Local**. It needs no job
+open or target selected. The **Deploy Destinations...** button beside an
+output target's **Deploy to** list, and in the composition editor, opens the
+same dialog for the job's workspace. OK saves both tabs; Cancel discards both.
 
-- Designer and Express gained the same top-level access this release (their own
-  **Edit** menus, plus a **Deploy Destinations** toolbar button). All three
-  consoles read and write **one shared list, stored per Windows user** on the
-  machine (`deploy.prefs`).
-- Separately, a job can carry its own destination **definitions** on the job
-  editor's **Job Deploy Destinations** page. Those travel with the job file and
-  win over a same-named local destination when the job runs. Folder and Amazon
-  S3 only — no credentials are stored.
-- The target's **Deploy to** list labels where each name comes from:
-  `<name> (this job)` for a job-inline definition, `<name> (local)` for one from
-  this computer's `deploy.prefs`.
-- A name that resolves to **neither** is still listed, as
+- The **Workspace** tab edits the destinations saved in the workspace's
+  `automap-workspace.xml`. Every job in the workspace can deploy to them, on
+  any computer and under any account that runs it. Folder and Amazon S3 only;
+  no credentials are stored.
+- The **Local** tab edits this computer's `deploy.prefs`: one list per Windows
+  user, shared with Designer and Express (which reach it from their own
+  **Edit** menus and a toolbar button). A scheduled task that runs under
+  another account does not see it. **Copy to Workspace** adds a copy of a
+  Folder or Amazon S3 entry to the Workspace tab, saved on OK, and leaves
+  `deploy.prefs` as it is. Entries for other transports stay local.
+- The Administrator no longer adds destinations to job files. A `.waj` or
+  `.wacj` that already defines its own (`<DeploySettings>`) keeps them. The job
+  editor's **Job Deploy Destinations** page (shown only then) and the
+  composition editor offer Edit, Remove, and **Move to Workspace**. Job-file
+  definitions still win at run time, and the CLI supports hand-written ones
+  fully.
+- Saving workspace destinations updates the jobs that deploy to a renamed one
+  through that settings file (after checking that each can be written), and
+  warns about jobs that deploy to a removed one, saying what each will use
+  instead. Before the jobs folder's own settings file is first created while
+  one in a folder above applies, it asks, because the new file hides that one.
+- The target's **Deploy to** list shows workspace destinations without a label
+  and marks the others: `<name> (this job)` for a job-file definition,
+  `<name> (local)` for one from this computer's `deploy.prefs`.
+- A name that resolves to **none of them** is still listed, as
   `<name> (not defined on this computer)`. This is deliberate: hiding it would
   read as "this job has no destination" and would discard the name on the next
   save. **The name is preserved on save, and the label reports only what *this
@@ -160,7 +187,7 @@ being overridden by them — see
 ✅ Configuring job settings and parameters
 ✅ Setting up build schedules
 ✅ Testing job configurations interactively
-✅ Defining and editing deploy destinations (`Edit > Deploy Destinations...`)
+✅ Defining deploy destinations (`Edit > Deploy Destinations...`: the Workspace tab; this computer's on the Local tab)
 ✅ Previewing deployed output in a browser
 ✅ Visual configuration of complex builds
 ✅ Learning AutoMap features
@@ -334,6 +361,22 @@ Consequences worth knowing:
   full task editor (Actions tab included) — fix it there. To diagnose which
   install actually ran, read the `Running WebWorks ePublisher AutoMap version …`
   line in the job log.
+- **Task names are shared across workspaces.** Same-named jobs in different
+  workspaces share one task name, `waj <job name>`. **Run** points the task at
+  the job being run (provided the task runs under the current Windows
+  account): silently when the task has no triggers, and only after a warning
+  naming both job files when it does. If the task is running the other job,
+  Run asks to try again when that run finishes. The jobs list notes a job
+  whose task runs another job file:
+  `The scheduled task 'waj <job name>' runs another job file: <path>`. A
+  recurring schedule for a job name can belong to only one workspace at a time.
+- **The Quantum Sync Trial jobs aren't the user's.** An interactive AutoMap
+  install seeds a shared **Quantum Sync Trial** evaluation workspace in
+  `C:\Users\Public\Documents\WebWorks ePublisher AutoMap\Quantum Sync Trial\` with
+  three jobs (`Quantum Sync Help`, `Quantum Sync Release Notes`, and
+  `Quantum Sync Site Shell`). Don't mistake
+  them for the user's jobs; **Preferences > General > Reset Evaluation
+  Materials** restores them.
 - **Build behavior belongs in the job, not the command line.** A scheduled task
   invokes the CLI with no flags, so the job's stored
   [build options](./job-file-guide.md#build-options-skip-reports--verbose-logging)

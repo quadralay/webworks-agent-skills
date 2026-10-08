@@ -86,8 +86,9 @@ element):
   builds spelled this `<DeployTarget>`; that spelling is still read for one
   release and rewritten as `<Destination>` on save.) Resolution order:
   the composition job's own inline `<DeploySettings>` → a `--deploysettings`
-  overlay file → the machine's deploy preferences (`deploy.prefs`), with a
-  drift warning when an inline definition shadows a differing preference.
+  overlay file → the destinations of the job's AutoMap workspace
+  (`automap-workspace.xml`) → the machine's deploy preferences (`deploy.prefs`),
+  with a drift warning when an inline definition shadows a differing preference.
 
 ## Federated vs. derivative members
 
@@ -341,14 +342,29 @@ entry schema — references stay by name:
 </Destination>
 ```
 
+The AutoMap Administrator adds new destinations to the workspace, not to job
+files (see [cli-vs-administrator.md](./cli-vs-administrator.md)). It keeps a
+definition a file already carries, and offers **Move to Workspace**.
+Hand-authored definitions remain fully supported.
+
 - Precedence per name: **job file's own inline > `--deploysettings` overlay
-  file > deploy.prefs.** An inline definition **wins outright** over a
+  file > workspace settings > deploy.prefs.** An inline definition **wins outright** over a
   same-named `deploy.prefs` entry — it does not merge with it.
+- **Workspace settings.** The AutoMap Administrator saves a workspace's
+  destinations in `automap-workspace.xml` in the workspace's jobs folder, with
+  the same `<DeploySetting>` entries and no credentials. Every run of a `.waj` or
+  `.wacj` (scheduled, Run, or command line) uses the first `automap-workspace.xml`
+  in the job file's folder or the folders above it. The file's own entries come
+  first, then those of a deploy settings file it references
+  (`<DeploySettings file="...">`). An unreadable workspace settings file stops
+  the run with an error instead of deploying with destinations missing.
 - **Every resolution is logged**, so the winning source is never a guess:
 
   ```text
   Destination 'ProductionMirror' resolved from the composition job's inline definitions.
   Destination 'ProductionMirror' resolved from the --deploysettings file 'ci\destinations.xml'.
+  Destination 'ProductionMirror' resolved from the workspace settings file 'D:\Builds\Jobs\automap-workspace.xml'.
+  Destination 'ProductionMirror' resolved from the workspace deploy settings file 'D:\Shared\destinations.xml'.
   ```
 
   Silence on this line means the name came from `deploy.prefs`.
@@ -363,7 +379,7 @@ entry schema — references stay by name:
   Identical definitions are silent — the warning fires on *difference*, not on
   mere duplication.
 - **Unresolvable is an error**, before any member build:
-  `Destination 'ProductionMirror' is not defined in deploy.prefs, the --deploysettings overlay, or inline in the composition job.`
+  `Destination 'ProductionMirror' is not defined in deploy.prefs, the workspace settings, the --deploysettings overlay, or inline in the composition job.`
 - `--deploysettings=<file>` takes the same `<DeploySetting>` entries from an
   XML file — the CI seeding mechanism. A composition forwards its merged
   inline definitions to member builds automatically (they are separate
@@ -389,8 +405,8 @@ deploying machine.
   distribution is configured (root files exactly; directory contents collapse
   to one `<dir>/*` wildcard per top-level directory). Compose issues one
   invalidation for the recomposed chrome.
-- Composition against S3 is two-phase: descriptors + chrome sync down to a
-  local `.compose-staging\<name>\` mirror, compose runs locally, changed
+- Composition against S3 is two-phase: descriptors, chrome, and each parcel's
+  `sitemap-pages.xml` sync down to a local `.compose-staging\<name>\` mirror, compose runs locally, changed
   files upload, one invalidation is issued.
 - Per-parcel knowledge-base archives are excluded from S3 deploys by design
   (the Platform ingests them by upload from build output, never from S3).
@@ -454,7 +470,7 @@ composition editor.
 | **Member Jobs** grid — Member (path), Role, Build | `<Job path role build>` |
 | read-only **Target** column | a member's `<Job target="...">`, when present |
 | **Output target:** combo | `<Jobs target="...">` |
-| **Deployment** — *Defined in this job* / *Deploy Destinations* | inline `<DeploySettings>` inside `<Destination>` / a name-only `<Destination>` |
+| **Deployment** — **Destination:** list (workspace destinations unlabeled, *(local)*, *(this job)*) and **Deploy Destinations...** | a name-only `<Destination>`. A definition the file already carries (`<DeploySettings>` inside `<Destination>`) is kept, and can be changed with **Edit...** or moved out with **Move to Workspace** |
 | **Merge Settings** — Automatic / Custom (+ include-new checkbox) | omitted `<MergeSettings>` / declared placements / `discover="true"` |
 
 - **Add...** is a dropdown, not a file dialog: it lists the publishing jobs in
@@ -486,22 +502,36 @@ paths against the `.wacj`'s own location.
 
 **Round-trip fidelity.** Opening and saving a hand-authored file preserves
 nested `<TOC>` containers, inline `<DeploySettings>`, and extra inline
-definitions beyond the referenced one. **XML comments are not preserved** once
-the editor saves. Keep commentary outside the file if it matters.
+definitions beyond the referenced one. XML comments survive too: the editor
+puts each one back beside the element it was written for, and a removed
+element's comments go with it.
 
 ## Failure behavior
 
 - A failed deploy is an **error**: it reaches the per-target error count and
   the process exit status (2026.1; earlier versions logged a warning and
   exited 0).
-- `Destination '<name>' is not defined in deploy.prefs, the --deploysettings
-  overlay, or inline in the composition job.` — seed the name via inline definitions, an overlay file,
-  or deploy.prefs.
+- `Destination '<name>' is not defined in deploy.prefs, the workspace
+  settings, the --deploysettings overlay, or inline in the composition job.`
+  — seed the name via inline definitions, the workspace's destinations, an
+  overlay file, or deploy.prefs.
 - `The mirror has no shell composition descriptor (wwcomposition-shell.xml)`
   — the shell was never deployed to that mirror (or the path points at an
   empty directory); rebuild and redeploy the shell.
 - An inline definition with a disallowed action fails at job load, before any
   build starts.
+
+**Warnings that never fail the run:**
+
+- **Composed sitemap empty.** The composed root `sitemap.xml` is a sitemap index of absolute URLs under the shell's Sitemap Base URL. Without one, it lists nothing and the composition warns in one of two ways:
+
+  ```text
+  The shell member's Sitemap Base URL is not set, so the composed sitemap.xml lists no sitemaps. Set it in the shell member's output target (Target Settings > SEO > Sitemap Base URL), rebuild and redeploy the shell, then run this composition again.
+  The deployed shell record does not include the Sitemap Base URL, so the composed sitemap.xml lists no sitemaps. Rebuild and redeploy the shell member's output with the current version, then run this composition again.
+  ```
+
+  The fix for both is to rebuild and redeploy the shell, then recompose.
+- **Duplicate Landmark IDs.** For a folder destination, the composition warns when the same Landmark ID appears in more than one group; links to it open the page from whichever group loads last. That's expected when groups publish the same document; otherwise the documents share a path relative to their job or project and the same heading alias or ID. Up to 10 IDs are listed individually, followed by `<n> more landmark IDs appear in more than one group.`
 
 **Ordered before any member build** (so a doomed run costs seconds, not
 minutes): member file existence → [output target

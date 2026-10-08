@@ -117,6 +117,8 @@ C:\projects\my-proj\Formats\WebWorks Reverb 2.0.base\Pages\sass\_colors.scss
 
 A Designer `.wep` carries no `.base` snapshots of its own. That is exactly what makes it usable directly as a stationery by an AutoMap job (`<Project ... useAsStationery="True">`, ePublisher 2026.1+) and by Designer's **Save as Express Project...**. So an Express `.wrp` created from a `.wxsp` does bundle `.base`, while a `.wrp` created from a `.wep` origin does not — the extension alone does not tell you. See "Origin and Synchronization" in `project-parsing-guide.md` and the automap skill's `references/job-file-guide.md`.
 
+**Note — an update build doesn't refresh `.base` snapshots.** Installing a newer build within the same release updates Level 4 but leaves Level 3 alone. A project, AutoMap job, or Express project based on a `.wxsp` saved before the update keeps the older format files until the Stationery is saved again from its design project. In 2026.1, changes delivered this way include the WebWorks Reverb 2.0 AI Assistant, knowledge base, landmark, and composition changes, the Markdown++ output fixes, and link fixes in every output format. When output doesn't show a fix the update should have brought, check whether the project resolves the file from a `.base` snapshot.
+
 ### Level 4: Installation Defaults (Lowest Priority / Fallback)
 
 **Location:** `C:\Program Files\WebWorks\ePublisher\[version]\Formats\[FormatName]\[format-structure]\`
