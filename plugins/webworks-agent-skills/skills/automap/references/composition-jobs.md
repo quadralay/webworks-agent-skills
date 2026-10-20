@@ -111,13 +111,27 @@ the compose, in its own process, with these switches forwarded:
 | `--deployscope=` | derived from `role` (`shell` → `shell`, `parcel` → `groups`; `infer` → omitted) | a composition-driven federation cannot be mis-scoped |
 | `--deploysettings=` | a temp overlay of the CLI overlay + the composition's inline definitions | the member process resolves the destination name without `deploy.prefs` seeding |
 | `--dryrun` | present when the composition run is dry | the rehearsal reaches member builds too |
+| `--clean`, `--update`, `--skip-reports`, `--quiet`, `--nonotify`, `--stagingdir=` | each one given to the composition run, as `-c`, `-u`, `--skip-reports`, `-q`, `-f`, or `-s` | a member builds the way the run was asked to |
 
 Together these make the run **self-contained**: nothing about the member job's
 own destination or scope declarations can send its output somewhere the
 compose will not read. A `role="infer"` member is the exception — no scope
 override is forwarded, so the member project's own declared scope applies.
 
-Log line: `Building member job: <path> (deploys to this composition's destination '<name>').`
+The switches that choose what a member builds or where it deploys are not
+forwarded; [Which CLI options actually apply](#running) says why for each.
+`--stagingdir` matters only to a member that stages (a Stationery-based job);
+a member built in place ignores it, and the composition's own S3 compose copy
+stays in `<job folder>\.compose-staging\<name>\` either way.
+
+Log lines: when the run was given any of the forwarded run-wide switches (or
+`--dryrun`) and has a `build="true"` member, the composition names them once,
+before the first member build. With none given, the line is absent.
+
+```text
+Member builds receive these command-line options from this run: --clean, --skip-reports, --stagingdir=D:\Staging, --dryrun
+Building member job: <path> (deploys to this composition's destination '<name>').
+```
 
 **Federated mode has no such override**, so the composition cross-checks it up
 front and warns (it does not fail) when an *unbuilt* member's job would deploy
@@ -242,21 +256,27 @@ rebuild and redeploy the shell.
 - A job-style log is written beside the file: `<name>-log.txt` — same framing
   convention as a `.waj` log, so the two cannot drift.
 
-**Which CLI options actually apply.** A `.wacj` composes output that member
-jobs already built and deployed, so generation options have nothing to act on.
-They are **parsed and ignored**, not rejected:
+**Which CLI options actually apply.** A `.wacj` composes output that is
+already deployed, so the compose itself generates nothing. Run-wide switches
+pass to every `build="true"` member build instead; the switches that choose
+what a member builds or where it deploys do not, and the composition run
+accepts them silently, with no log line:
 
 | Option | On a `.wacj` |
 |--------|--------------|
 | `--dryrun` | applies — forces the run dry and is forwarded to member builds |
 | `--deploysettings` | applies — the overlay participates in `<Destination>` name resolution and is forwarded to member builds |
-| `-t` / `--target` | ignored; each member's target comes from [output target selection](#output-target-selection-determinant) |
-| `--deployscope` | ignored; each built member's scope is derived from its `role` and cannot be overridden from the CLI |
-| `-c`, `-n`, `-d`, `-l`, `--skip-reports` | ignored — no content is generated |
-| `-q` / `--quiet` | no effect: a composition log is not the generation engine's progress stream, and the switch is not forwarded to member builds |
+| `-c`, `-u`, `--skip-reports`, `-q` | forwarded to member builds; no effect on the compose or on the composition's own log |
+| `-s` / `--stagingdir` | forwarded to member builds; used by a member that stages (a Stationery-based job). The compose's S3 copy stays in `.compose-staging` |
+| `-f` / `--nonotify` | applies — no notification for the composition, and forwarded so no member build sends one either |
+| `-t` / `--target`, `--deployscope`, `--destination` | ignored; the composition passes each member its own: the selected [output target](#output-target-selection-determinant), the scope derived from its `role`, and the composition's `<Destination>` |
+| `-n`, `-j` | ignored, not forwarded: a member that skipped its deployment or its build would leave the compose reading output deployed earlier. Rehearse with `--dryrun` instead |
+| `-d` | ignored, not forwarded: it would send a member's output somewhere the composition does not read |
+| `-l` | ignored, not forwarded: cleaning the shared destination can remove what other members deployed. A member job's own **Clean deploy** option still applies |
 
-The wrapper knows this: it runs a `.wacj` with native semantics automatically
-(no injected flags, no target requirement).
+The wrapper runs a `.wacj` with native semantics automatically (no injected
+flags, no target requirement), so members receive exactly the run-wide
+switches you pass.
 
 **Expected log shape** (English install; markers are localized elsewhere):
 

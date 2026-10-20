@@ -27,6 +27,7 @@ Set-Content -LiteralPath $stub -Encoding Ascii -Value @'
 @echo off
 if not defined STUB_EXIT set STUB_EXIT=0
 echo %* > "%STUB_OUT%"
+if defined STUB_STDOUT echo %STUB_STDOUT%
 exit /b %STUB_EXIT%
 '@
 
@@ -198,11 +199,42 @@ Assert 'wacj log scan: counts reported' ($r.Output -match '\[ERROR\] 1 warning\(
 Assert 'wacj log scan: exit code unaffected' ($r.ExitCode -eq 0) $r.Output
 Remove-Item -LiteralPath $compositionLog -ErrorAction SilentlyContinue
 
+# 16. Workspace command: no project file needed, nothing injected, and the
+#     CLI's stdout (the command's result) is relayed.
+$env:STUB_STDOUT = "Docs`tD:\Docs\Jobs`tD:\Docs\Staging"
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '--listworkspaces')
+Assert 'workspace list: exit 0' ($r.ExitCode -eq 0) $r.Output
+Assert 'workspace list: forwarded verbatim, nothing injected' ($r.StubArgs -eq '--listworkspaces') $r.StubArgs
+Assert 'workspace list: stdout relayed' ($r.Output -match "Docs`tD:\\Docs\\Jobs`tD:\\Docs\\Staging") $r.Output
+Assert 'workspace list: no build lines' (-not ($r.Output -match '\[SUCCESS\]|\[INFO\]|No project or job file')) $r.Output
+Remove-Item Env:\STUB_STDOUT -ErrorAction SilentlyContinue
+
+# 17. --addworkspace with its folders, and --removeworkspace in the
+#     space-separated form, reach the CLI as given.
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '--addworkspace=Docs', '--workspacejobs=D:\Docs\Jobs', '--workspacestaging=D:\Docs\Staging')
+Assert 'workspace add: exit 0' ($r.ExitCode -eq 0) $r.Output
+Assert 'workspace add: forwarded verbatim' ($r.StubArgs -eq '--addworkspace=Docs --workspacejobs=D:\Docs\Jobs --workspacestaging=D:\Docs\Staging') $r.StubArgs
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '--removeworkspace', 'Docs')
+Assert 'workspace remove: forwarded verbatim' ($r.StubArgs -eq '--removeworkspace Docs') $r.StubArgs
+
+# 18. A companion option alone is still a workspace command: the CLI, not
+#     the wrapper, reports what is missing.
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '--workspacejobs=D:\Docs\Jobs')
+Assert 'workspace companion: AutoMap invoked' ($r.StubArgs -eq '--workspacejobs=D:\Docs\Jobs') $r.StubArgs
+
+# 19. A refused workspace command: CLI exit code surfaces as wrapper exit 1.
+$env:STUB_EXIT = '1'
+$r = Invoke-Wrapper @('-ExePath', $stub, '--', '--addworkspace=Docs', '--workspacejobs=D:\Other', '--workspacestaging=D:\Docs\Staging')
+$env:STUB_EXIT = '0'
+Assert 'workspace refused: exit 1' ($r.ExitCode -eq 1) $r.Output
+Assert 'workspace refused: reported with code' ($r.Output -match '\[ERROR\] Workspace command failed with exit code 1') $r.Output
+
 # --- Results ---------------------------------------------------------------
 
 Remove-Item -Recurse -Force -LiteralPath $work -ErrorAction SilentlyContinue
 Remove-Item Env:\STUB_OUT -ErrorAction SilentlyContinue
 Remove-Item Env:\STUB_EXIT -ErrorAction SilentlyContinue
+Remove-Item Env:\STUB_STDOUT -ErrorAction SilentlyContinue
 
 Write-Output ''
 Write-Output "Results: $($script:Pass) passed, $($script:Fail) failed"

@@ -27,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1
 - `[wrapper options]`: PowerShell-style options for the wrapper itself (`-NoDefaults`, `-AllTargets`, `-ExePath <path>`, `-Help`)
 - `--`: separator — everything after it is forwarded to `WebWorks.Automap.exe` verbatim. (Technically optional: the first token that is not a wrapper option also ends wrapper parsing. Always include it anyway; it makes the boundary explicit.)
 - `<automap options>`: native AutoMap CLI flags (see [Native Command Options](#native-command-options))
-- `<project-file>`: path to `.wep`, `.wrp`, `.waj`, `.wacj`, or `.wxsp` project/job file. A composition job (`.wacj`) always runs with native semantics — the wrapper injects nothing and requires no target (pass `--dryrun` to rehearse the compose).
+- `<project-file>`: path to `.wep`, `.wrp`, `.waj`, `.wacj`, or `.wxsp` project/job file. A composition job (`.wacj`) always runs with native semantics — the wrapper injects nothing and requires no target (pass `--dryrun` to rehearse the compose). A [workspace command](#workspace-commands-20261) takes no file.
 
 ## Wrapper Options
 
@@ -92,6 +92,7 @@ All options below belong after the `--` separator and are forwarded to `WebWorks
 - **Use When**: Ensuring fresh build after major changes, or when incremental state is suspect
 - **Impact**: Longer build time but guaranteed clean state
 - **Example**: `-c -t "Target" project.wep`
+- **On a `.wacj`** *(2026.1+)*: forwarded to every `build="true"` member build, which builds clean. See [composition-jobs.md](./composition-jobs.md#running).
 
 **`-n, --nodeploy`** *(injected by default — see [Safe Defaults](#safe-defaults))*
 - **Purpose**: Do not copy output to deployment location
@@ -158,11 +159,13 @@ When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary 
 - **Use When**: Directing job-file output to a known location, or isolating builds
 - **Impact**: Staged project and output go under `<dir>/<JobName>/...`. The CLI logs the folder it used (`Staging folder (--stagingdir): <dir>`), and the wrapper's post-build log scan reads it from there.
 - **Note**: See the job file guide's [Output Location](./job-file-guide.md#output-location-staging-folder).
+- **On a `.wacj`** *(2026.1+)*: forwarded to every `build="true"` member build; a Stationery-based member stages there, a member built in place ignores it. The composition's own S3 compose copy stays in `<job folder>\.compose-staging\<name>\`.
 
 ### Project Maintenance
 
 **`-u, --update`**
 - **Purpose**: Update conditions, styles, variables, references and more before building
+- **On a `.wacj`** *(2026.1+)*: forwarded to every `build="true"` member build. `-j` is not: a member that only updated would leave the compose reading output deployed earlier.
 
 **`-j, --justupdate`**
 - **Purpose**: Just update and save the project file (no generation)
@@ -175,6 +178,7 @@ When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary 
 - **Impact**: Faster builds, reduced file system output
 - **Trade-off**: No build reports generated (errors and warnings still recorded in `generate.log`)
 - **Combines with the job file**: a `.waj` can store the same intent as the **Skip reports** build option (`<Options skipReports="True"/>`). The two are ORed — *either* source skips reports. The switch never turns a job's stored option back on.
+- **On a `.wacj`** *(2026.1+)*: forwarded to every `build="true"` member build, where it ORs with that member job's stored option. The wrapper does not inject it for a `.wacj`; pass it yourself.
 
 ### Console Output
 
@@ -183,12 +187,47 @@ When AutoMap builds a Stationery-based job file (`.waj`), it stages a temporary 
 - **Use When**: Scheduled or CI runs where only milestones, warnings, and errors matter
 - **Impact**: Warnings, errors, and the CLI's own milestone messages still print. The per-target `generate.log` is a separate sink and **always keeps full detail**. A quiet run announces itself once: `Suppressing build progress messages (requested via --quiet or the job's build options)`.
 - **Combines with the job file**: a `.waj` can store the same intent as the **Verbose logging** build option (`<Options verboseLogging="False"/>`). The two are ANDed — *either* source quiets the run, so a job that leaves Verbose logging selected can still be run quietly from a script. See [job-file-guide.md](./job-file-guide.md#build-options-skip-reports--verbose-logging).
+- **On a `.wacj`**: forwarded to every `build="true"` member build, so fewer relayed member lines reach the composition log. The composition's own log lines are not affected.
 - **Relation to the wrapper**: `-q` is a *native* switch that changes what AutoMap emits; the wrapper's stdout suppression (see [Output Behavior](#output-behavior)) discards AutoMap's stdout at the wrapper boundary regardless. Under the wrapper the two overlap, and `-q` adds nothing an agent can observe — pass it when the *job log* (or a `-NoDefaults`/direct run's console) should be quiet, not to quiet the wrapper.
 
 ### Notification
 
 **`-f, --nonotify`**
 - **Purpose**: Do not send the job-result notification (job files with notification preferences)
+- **On a `.wacj`** *(2026.1+)*: the composition sends no notification, and the switch is forwarded so no `build="true"` member build sends one either.
+
+### Workspace Commands (2026.1+)
+
+These register, remove, and list the computer's named AutoMap workspaces without the Administrator, for example when a setup script prepares a build machine. A workspace command runs on its own: no project or job file, and one command per run. Run it through the wrapper like any other native option; the wrapper recognizes it, injects nothing, requires no target, and prints the CLI's output.
+
+```bash
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -- --addworkspace="Docs" --workspacejobs="D:\Docs\Jobs" --workspacestaging="D:\Docs\Staging"
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -- --listworkspaces
+powershell -ExecutionPolicy Bypass -File "<skill-dir>/scripts/Invoke-Automap.ps1" -- --removeworkspace="Docs"
+```
+
+**`--addworkspace=<name> --workspacejobs=<dir> --workspacestaging=<dir> [--replaceworkspace]`**
+- **Purpose**: Register a workspace with that jobs folder and staging folder.
+- **Checks**: The Administrator's Workspace window's checks, with its localized messages. The name can't be `Default` or a name already registered (case-insensitive). The jobs folder can't be the same as, inside, or around another workspace's jobs folder, the Default workspace's included. The staging folder can't be another workspace's.
+- **Folders**: Missing folders are created. Both are stored as full paths, so a relative path resolves against the current directory.
+- **Rerunnable**: The same name with the same folders changes nothing and exits 0: `The '<name>' workspace is already registered with these folders; nothing changed.`
+- **Name in use**: A name registered with different folders is refused with exit 1: `A workspace named '<name>' already exists.`, then `To give that workspace these folders instead, run again with --replaceworkspace.` With `--replaceworkspace`, the workspace gets the new folders.
+- **Success**: `Added the '<name>' workspace: jobs folder <dir>, staging folder <dir>` (or `Replaced the '<name>' workspace: ...`).
+
+**`--removeworkspace=<name>`**
+- **Purpose**: Take a workspace off the list. Its folders, jobs, and scheduled tasks are left alone.
+- **Rerunnable**: A name that is not registered changes nothing and exits 0: `No workspace named '<name>' is registered; nothing changed.`
+
+**`--listworkspaces`**
+- **Output**: One line per named workspace, in stored order: `name<TAB>jobs folder<TAB>staging folder`. The Default workspace (the Jobs and Staging folders in the AutoMap preferences) is not listed. Nothing else is printed, so scripts can parse the output directly.
+
+**All three:**
+- **No banner, no license refresh**: They run with no version banner and no license refresh, so they work on a computer that is not licensed yet.
+- **Usage errors** (exit 1, nothing changed): a job or project file given too (`The workspace options run on their own, without a job or project file: <args>`), two commands at once (`Give one of --addworkspace, --removeworkspace, and --listworkspaces at a time.`), or `--workspacejobs`, `--workspacestaging`, or `--replaceworkspace` without `--addworkspace`.
+- **Locking**: A change takes `Workspaces.prefs.lock` beside `Workspaces.prefs`. If another program holds it for 10 seconds, the command fails with the localized "workspace list busy" error (English: `Another program is changing the workspace list "<path>". Try again in a moment.`). An open Administrator keeps a CLI change when it saves its own, and re-reads the list when **File > Workspace** or **Manage Workspaces...** opens.
+- **Destinations are not set here.** A workspace's destinations stay in `automap-workspace.xml` in its jobs folder, edited on the Workspace tab of the Administrator's Deploy Destinations dialog or by hand. See [composition-jobs.md](./composition-jobs.md#inline-destination-definitions).
+- **Don't hand-edit `Workspaces.prefs`.** These commands and the Administrator are its two writers; both lock it and check every change.
+- **Exit codes**: 0 when the command succeeded or changed nothing; 1 when it was refused. The wrapper returns the same and adds `[ERROR] Workspace command failed with exit code 1`.
 
 ### Information
 
@@ -270,8 +309,8 @@ The wrapper provides consistent exit codes:
 
 | Exit Code | Meaning |
 |-----------|---------|
-| 0 | Build succeeded |
-| 1 | Build failed |
+| 0 | Build (or workspace command) succeeded |
+| 1 | Build (or workspace command) failed |
 | 2 | Invalid arguments / no target specified |
 | 3 | AutoMap not installed |
 | 4 | Project file not found |
@@ -451,13 +490,13 @@ Use `Find-AutomapInstallation.ps1` only for:
 
 ## Adding New CLI Options
 
-New native AutoMap options need **documentation only** — the wrapper forwards unknown flags verbatim, so no script change is required:
+Most new native AutoMap options need **documentation only** — the wrapper forwards unknown flags verbatim, so no script change is required:
 
 1. **cli-reference.md** - Add to [Native Command Options](#native-command-options) with examples
 2. **SKILL.md** - Add to the frequently-used table only if it earns the space
 
-The only script-relevant cases are flags that interact with the wrapper's defaults (deploy-intent detection, `-n`/`--skip-reports` duplication checks) — update `Invoke-Automap.ps1` and its tests when AutoMap grows a new deployment-related flag.
+The script-relevant cases are flags that interact with the wrapper's defaults (deploy-intent detection, `-n`/`--skip-reports` duplication checks) and options that run without a project or job file, as the workspace commands do (the wrapper's list of workspace options mirrors the CLI's own) — update `Invoke-Automap.ps1` and its tests when AutoMap grows either kind.
 
 ---
 
-**Target**: ePublisher AutoMap CLI, 2024.1 through 2026.1. Version-gated options are marked inline: `--skip-reports` requires 2025.1+, `--version` requires 2025.1 build 4652+, and `--deployscope` / `--deploysettings` / `--destination` / `--dryrun` / `-q` require 2026.1+. The plugin version that ships this document is in `.claude-plugin/plugin.json`.
+**Target**: ePublisher AutoMap CLI, 2024.1 through 2026.1. Version-gated options are marked inline: `--skip-reports` requires 2025.1+, `--version` requires 2025.1 build 4652+, and `--deployscope` / `--deploysettings` / `--destination` / `--dryrun` / `-q` and the workspace commands (`--addworkspace`, `--removeworkspace`, `--listworkspaces`) require 2026.1+. The plugin version that ships this document is in `.claude-plugin/plugin.json`.

@@ -420,7 +420,7 @@ When AutoMap builds a Stationery-based job file (`.waj`), it does **not** build 
 %USERPROFILE%\Documents\WebWorks ePublisher AutoMap\Staging
 ```
 
-**Workspace staging folders.** The AutoMap Administrator organizes jobs into workspaces, each with a jobs folder, a staging folder, and destinations. A job whose `.waj` is in the jobs folder of a named workspace stages into that workspace's staging folder, whichever workspace the Administrator is showing, so same-named jobs in different workspaces never share `<stagingDir>/<JobName>/`. The order is `-s`/`--stagingdir`, then the job's workspace, then the default folder, and the CLI logs which it used: `Staging folder of the '<name>' workspace: <dir>`, `Staging folder (--stagingdir): <dir>`, or `Staging folder: <dir>`.
+**Workspace staging folders.** The AutoMap Administrator organizes jobs into workspaces, each with a jobs folder, a staging folder, and destinations; the CLI's [workspace commands](./cli-reference.md#workspace-commands-20261) register them too. A job whose `.waj` is in the jobs folder of a named workspace stages into that workspace's staging folder, whichever workspace the Administrator is showing, so same-named jobs in different workspaces never share `<stagingDir>/<JobName>/`. The order is `-s`/`--stagingdir`, then the job's workspace, then the default folder, and the CLI logs which it used: `Staging folder of the '<name>' workspace: <dir>`, `Staging folder (--stagingdir): <dir>`, or `Staging folder: <dir>`.
 
 **Override per run** with `-s` / `--stagingdir` (accepted by the AutoMap executable and exposed by the wrapper):
 

@@ -39,7 +39,7 @@ job kinds (`<Job>` vs `<CompositionJob>`).
 **Command-Line Arguments:** the option surface is documented once, in
 [cli-reference.md](./cli-reference.md#native-command-options) — including the
 2026.1 additions (`-q`/`--quiet`, `--deployscope`, `--deploysettings`,
-`--destination`, `--dryrun`). It is not repeated here.
+`--destination`, `--dryrun`, and the workspace commands). It is not repeated here.
 
 ### WebWorks.Automap.Administrator.exe (UI)
 
@@ -82,6 +82,15 @@ flag. The workspace list is machine-wide, shared by every user
 (`Workspaces.prefs` in `%ProgramData%\WebWorks\ePublisher AutoMap\<version>\`). Removing a
 workspace only takes it off the list; its folders, jobs, and scheduled tasks
 remain.
+
+The list isn't Administrator-only: the CLI's `--addworkspace`,
+`--removeworkspace`, and `--listworkspaces` commands register, remove, and
+list workspaces with the same checks, for setup scripts and build machines
+(see [cli-reference.md](./cli-reference.md#workspace-commands-20261)). An open
+Administrator keeps those changes and shows them when **File > Workspace** or
+**Manage Workspaces...** opens. Don't hand-edit `Workspaces.prefs`: the
+Administrator and the CLI commands lock it and check every change. Workspace
+destinations are set only in the Administrator or in `automap-workspace.xml`.
 
 **Composition jobs are first-class.** `File > New Job` offers a third intent —
 **Compose published parcels into a website (Composition Job)** — which creates
@@ -180,6 +189,7 @@ being overridden by them — see
 ✅ Integration with other automation tools
 ✅ Headless server environments
 ✅ Script-based workflows
+✅ Registering, removing, and listing workspaces in a setup script (`--addworkspace`, `--removeworkspace`, `--listworkspaces`; 2026.1+)
 
 ### Use Administrator (WebWorks.Automap.Administrator.exe) for:
 
