@@ -130,6 +130,29 @@ A `<!--style:Name-->` comment names a style; the actual visual rendering comes f
 
 **When to add an included file to the group anyway:** if you want it to also build standalone (e.g., as a separate Reverb topic with its own URL), add it to the group separately. If it should only appear as part of a parent document's flow, leave it out of the group.
 
+### Linking to Content That Comes In by Include
+
+An included file is not a project document: only the file that holds the `<!--include:-->` is. A link that names the included file has no page to resolve to, and it fails silently:
+
+- By default, WebWorks Reverb 2.0 renders the link text with no link.
+- With **Preserve Unknown File Links** (`preserve-unknown-file-links`) enabled, the build copies the `.md` file into the group's `baggage/` folder and links to the copy, so the reader opens raw Markdown.
+
+The build log reports neither case. Link to the content through its host instead:
+
+| Link from | Write | Example |
+|-----------|-------|---------|
+| Another project document | The host file, with the target's alias | `[Landmark IDs](../reverb/_reverb.md#landmark-stability)` |
+| A file in the same host's include tree | The alias alone; it's in the same assembled document | `[Landmark IDs](#landmark-stability)` |
+| Another federated parcel, or anywhere paths are unreliable | A Landmark URL (the alias is the Landmark ID when the target's **Landmark ID Format** is **Source ID**) | `[Landmark IDs](#/landmark-stability)` |
+
+An alias in included content belongs to the host's output, so the link opens the right page and section. To audit a build, search the generated HTML for links into `baggage/` that end in `.md`:
+
+```bash
+grep -rho 'href="[^"]*baggage/[^"]*\.md[^"]*"' Output/<target>
+```
+
+Before a build, list the link targets that are files reached only through an include and aren't documents in the project (`<Document Path>` in the `.wep`/`.wrp`, or `<Files>` in a job).
+
 </includes>
 
 <markers_and_aliases>
@@ -257,6 +280,8 @@ After building, use the `reverb2` skill's browser test (`scripts/browser-test.js
 **Treating an unresolved variable as a Markdown++ syntax error.** A literal `$variable;` in output means ePublisher had no value for it at any source level (Stationery, project, target, job file). The Markdown++ syntax is correct — the integration is incomplete. Check the Variables window first.
 
 **Adding included files to source groups when the parent already includes them.** This causes them to build twice — once standalone, once as part of the parent — producing duplicate URLs and confusing TOC entries. Add a file to a group only if it should also build standalone.
+
+**Linking to an included file by its own name.** The link renders as plain text, or, with **Preserve Unknown File Links**, as a link to a raw `.md` copy in `baggage/`, and the build doesn't warn. Link to the host document with the alias instead; see [Linking to Content That Comes In by Include](#linking-to-content-that-comes-in-by-include).
 
 **Looking for Markdown++ syntax docs in this skill.** Format syntax (variables, styles, conditions, includes, markers) lives in the `markdown-plus-plus` skill from `quadralay/markdown-plus-plus`. This skill assumes that knowledge and documents the integration layer.
 
