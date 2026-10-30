@@ -1,10 +1,11 @@
 # Runtime-Rendered UI Surfaces
 
-> **Applies to ePublisher 2026.1 and later.** Both surfaces below are new or
-> reworked in 2026.1.
+> **Applies to ePublisher 2026.1 and later.** All three surfaces below are new
+> or reworked in 2026.1.
 
-Two pieces of Reverb 2.0 chrome are **not** in the published markup: the
-splash page's Groups Grid and the AI Assistant's avatar. The templates ship an
+Three pieces of Reverb 2.0 chrome are **not** in the published markup: the
+splash page's Groups Grid, the AI Assistant's avatar, and the Assistant's load
+states (the unavailable notice and the local-preview placeholder). The templates ship an
 empty container and the runtime builds the DOM into it. That inverts the usual
 debugging move — reading the `.asp` will not tell you what renders, and
 searching the published HTML for the card markup finds nothing. Read the
@@ -192,3 +193,54 @@ and color come from `$assistant_avatar_background_color` /
 - `scss-architecture.md` — the `custom.scss` layer, variable partials, cascade
 - `federation-architecture.md` — composed `#parcels` manifests that feed the grid
 - `../epublisher/references/file-resolver-guide.md` — override hierarchy for `Splash.asp` and the partials
+
+## Assistant load states (EPUB2966)
+
+What the Assistant tab shows depends on where the page is served from and on
+what the WebWorks Platform answers. `assistant.js` builds each state into the
+tab's container; none of it is in the published markup.
+
+### Served site, Assistant can't load: the unavailable notice
+
+When the Platform refuses the Assistant or can't be reached, the tab shows an
+**Assistant Unavailable** notice instead of the chat: no conversation starters,
+no input box. `Assistant_UnavailableMessage` picks the text:
+
+| Platform answer | Message shown |
+|-----------------|---------------|
+| 403 with a message | The Platform's own wording, for example that the Assistant is not in deployment or that the site's domain is not one of its Origin Domains |
+| 404 | "This assistant could not be found. The Assistant ID may be incorrect." |
+| Anything else, including a network failure | "The assistant is unavailable right now." |
+
+The browser console carries the full detail. `Assistant_ShowUnavailableState`
+builds the notice only from classes the skin already styles, so a project-level
+`assistant.js` override needs no SCSS:
+
+| Class | Role |
+|-------|------|
+| `ww_skin_assistant_loading_container` | Outer container (shared with the loading state) |
+| `ww_skin_assistant_welcome_title` | The "Assistant Unavailable" heading |
+| `ww_skin_assistant_error_message` | The message text |
+
+### Local files and loopback hosts: the Preview-only placeholder
+
+On a `file:` page or a loopback host (`localhost`, `*.localhost`, `127.x.x.x`,
+`[::1]`, `0.0.0.0`; see `Assistant_IsLocalPreview`), the tab shows a placeholder
+assistant marked **"Preview only"**. It answers every message locally with setup
+steps and sends nothing to the Platform, because the Platform serves an Assistant
+only to its Origin Domains. The placeholder also appears when the target has no
+Assistant ID.
+
+**In local browser tests this is expected, not a defect.** A test against
+`file:` or `localhost` output can't exercise the real Assistant; serve the output
+from one of the Assistant's Origin Domains to test it.
+
+### Links in answers
+
+`connect.js` routes clicks on links in the Assistant panel
+(`Connect.InitAssistantLinkInterception`), not `assistant.js`: the sanitizer
+strips `target`, so without it an answer link would load in the page iframe.
+Hash links and links into the help navigate in place through
+`Navigation.Navigate`; any other link opens in a new tab with `noopener`; a link
+that names its own target is left to the browser.
+

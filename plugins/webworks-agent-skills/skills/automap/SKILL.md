@@ -4,8 +4,9 @@ description: >
   AUTHORITATIVE REFERENCE for WebWorks AutoMap CLI. Use when working with
   .waj/.wep/.wrp/.wxsp files, executing builds, detecting installation,
   creating job files, automating CI/CD publishing workflows, or (2026.1+)
-  running .wacj composition jobs, federated parcel deploys (deploy scope,
-  inline deploy settings), and Amazon S3 / CloudFront destinations.
+  running .wacj composition jobs, registering AutoMap workspaces from the
+  command line, federated parcel deploys (deploy scope, inline deploy
+  settings), and Amazon S3 / CloudFront destinations.
 ---
 
 <objective>
@@ -38,7 +39,7 @@ Job files inherit format configuration from a **job origin** referenced by `<Pro
 
 **For job origin modes and job file details, see:** references/job-file-guide.md
 
-**Composition Jobs (new in 2026.1):** a `.wacj` (run by the same `WebWorks.Automap.exe`) assembles independently built and deployed Reverb 2.0 parcels into one site under a shared shell — recompose takes seconds, no content rebuild. Each member's `build` flag picks the archetype: **federated** (`build="false"`, the member's own job publishes it) or **derivative** (`build="true"`, the composition builds it and forwards `--destination` so it deploys to the *composition's* destination). Related 2026.1 machinery: per-target **deploy scope** (`--deployscope`), **inline destination definitions** plus the `--deploysettings` overlay, **Amazon S3 + CloudFront** destinations, and the global `--dryrun` switch. **Grammar, output-target selection, precedence, S3 behavior, and failure modes:** references/composition-jobs.md
+**Composition Jobs (new in 2026.1):** a `.wacj` (run by the same `WebWorks.Automap.exe`) assembles independently built and deployed Reverb 2.0 parcels into one site under a shared shell — recompose takes seconds, no content rebuild. Each member's `build` flag picks the archetype: **federated** (`build="false"`, the member's own job publishes it) or **derivative** (`build="true"`, the composition builds it and forwards `--destination` so it deploys to the *composition's* destination). Related 2026.1 machinery: per-target **deploy scope** (`--deployscope`), **inline destination definitions** plus the `--deploysettings` overlay and **AutoMap workspace destinations** (`automap-workspace.xml`), **Amazon S3 + CloudFront** destinations, and the global `--dryrun` switch. **Grammar, output-target selection, precedence, S3 behavior, and failure modes:** references/composition-jobs.md
 </overview>
 
 <usage>
@@ -49,7 +50,7 @@ Job files inherit format configuration from a **job origin** referenced by `<Pro
 
 1. **Executable resolution** — auto-detects the AutoMap installation; `AUTOMAP_EXE_PATH` or `-ExePath` overrides it (e.g., development builds)
 2. **Minimal output** — suppresses AutoMap's streaming stdout (banner, per-file progress); stderr passes through, so genuine errors still surface
-3. **Development-safe defaults** — injects `-n` and `--skip-reports`, and requires an explicit target, unless opted out. A composition job (`.wacj`) always runs with native semantics: no flag applies to a compose and targets belong to member builds, so nothing is injected and no target is required (`--dryrun` is the native rehearsal switch)
+3. **Development-safe defaults** — injects `-n` and `--skip-reports`, and requires an explicit target, unless opted out. A composition job (`.wacj`) always runs with native semantics: targets belong to member builds, and the run-wide switches you pass reach `build="true"` members as given, so nothing is injected and no target is required (`--dryrun` is the native rehearsal switch)
 4. **Post-build log scan** — reports per-target warning/error counts from `generate.log`, and for a `.wacj` from the composition's `<job name>-log.txt` beside the file
 
 **Every AutoMap flag is pass-through.** The wrapper never translates, renames, or owns AutoMap options. Wrapper-level options are PowerShell-style names (`-NoDefaults`, `-AllTargets`, `-ExePath`, `-Help`) given before the `--` separator; everything after `--` is forwarded to `WebWorks.Automap.exe` verbatim.
@@ -133,7 +134,7 @@ Unless `-NoDefaults` is given, the wrapper injects these **native AutoMap flags*
 
 And one requirement: **an explicit `-t`/`--target` must be present**, so a job file's full `build="True"` set (or a project's every target) never builds by accident. Waive it with `-AllTargets` (defaults still apply) or `-NoDefaults` (verbatim native behavior). On violation the wrapper exits 2 and lists the file's targets.
 
-**Composition jobs are exempt.** A `.wacj` composes already-deployed output: `-n` would fight the run's purpose, `--skip-reports` has nothing to skip, and output targets belong to the member builds. The wrapper therefore runs a `.wacj` with native semantics automatically (reported on an `[INFO]` line) — no injected flags, no target requirement. To rehearse a compose without touching the mirror, pass the native `--dryrun` switch.
+**Composition jobs are exempt.** A `.wacj` composes already-deployed output: `-n` would fight the run's purpose, and output targets belong to the member builds. The wrapper therefore runs a `.wacj` with native semantics automatically (reported on an `[INFO]` line) — no injected flags, no target requirement. The run-wide switches you pass (`-c`, `-u`, `--skip-reports`, `-q`, `-f`, `-s`) reach every `build="true"` member build (2026.1+; see references/composition-jobs.md). To rehearse a compose without touching the mirror, pass the native `--dryrun` switch.
 
 Note: a clean build (`-c`) is **not** a default — pass it explicitly when you need one.
 
@@ -271,6 +272,7 @@ All native flags pass through unchanged — in any form the AutoMap CLI itself a
 | `-s, --stagingdir <dir>` | Staging directory for job-file (`.waj`) builds; output lands at `<dir>/<JobName>/Output/<target>/` |
 | `--destination=<name>` | Deploy every built target to the named destination instead of its own. Ignored when `-d` is given. Suppresses the `-n` default. *(2026.1+)* |
 | `-q, --quiet` | Suppress the engine's progress messages in the console and job log; warnings and errors still print. Combines with a job's **Verbose logging** option. *(2026.1+)* |
+| `--addworkspace=<name>`, `--removeworkspace=<name>`, `--listworkspaces` | Register, remove, or list this computer's AutoMap workspaces. No project file; the wrapper prints the output. *(2026.1+)* |
 
 **For the complete native CLI reference with examples, see:** references/cli-reference.md
 </cli_reference>
@@ -296,7 +298,7 @@ Both PowerShell scripts run on Windows PowerShell 5.1 (preinstalled on Windows) 
 
 ## Reference Files
 
-- `cli-reference.md` - Complete CLI options and syntax
+- `cli-reference.md` - Complete CLI options and syntax, including the workspace commands
 - `cli-vs-administrator.md` - When to use CLI vs GUI; Administrator capabilities (destinations, preview, scheduling)
 - `composition-jobs.md` - `.wacj` composition jobs, federated vs. derivative members, destinations, dry run
 - `installation-detection.md` - Installation paths and detection logic
@@ -508,6 +510,18 @@ powershell -ExecutionPolicy Bypass -File "$WRAPPER" -ExePath "C:\dev\WebWorks.Au
 - **Stationery not found** — check `<Project path="..."/>` (relative to the job file); run `python scripts/validate-job.py job.waj`
 - **Format not found in Stationery** — target `format` attribute must match a Stationery format name (case-sensitive); run `python scripts/parse-stationery.py stationery.wxsp`
 - **Document not found** — document paths are relative to the job file; run `python scripts/validate-job.py --check-documents job.waj`
+
+### Warnings that mean the output may be wrong or the environment needs attention
+
+These appear in `generate.log` or the job log during an otherwise successful build:
+
+| Message (excerpt) | What it means | What to do |
+|---|---|---|
+| `Another process is holding '<file>' open: <reason> Attempt 2 of 10 failed; retrying.` | A virus scanner or indexer held a file ePublisher was writing; the step retried. | Usually harmless. If retries keep failing, the machine needs the scanning exclusions from the ePublisher IT guide. |
+| `The ePublisher conversion macros did not run in Microsoft Word.` | Security policy blocked the `wwdoc.dotm` macro template, for example the Microsoft Defender attack surface reduction rule "Block Win32 API calls from Office macros". | IT must allow the template or exclude the ePublisher programs from that rule. |
+| `Document '<document>' could not be converted. Generation continues with the document's previously converted data, if any, ...` | The output for that document is **stale**: it reflects the last successful conversion, not the current file. | Treat the output as wrong until the cause (usually the macro warning above) is fixed and the build is rerun. |
+| `The "WebWorks Rasterizer" printer is not available, so images in Microsoft Word and Adobe FrameMaker documents cannot be converted.` | The output was generated without the converted Word and FrameMaker images. | Start the Print Spooler service, then run `Rasterizer_Helper.exe` from the ePublisher program folder as an administrator. |
+| `Your contract doesn't include <product version>. Contact WebWorks to renew or request an evaluation.` (at startup) | The Contract ID's license keys don't cover the installed version. | Renew the contract; reinstalling doesn't help. |
 
 </troubleshooting>
 

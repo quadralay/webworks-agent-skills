@@ -9,12 +9,18 @@ The wrapper exists for exactly four jobs:
      a one-line result instead.
   3. Apply development-safe default flags (-n, --skip-reports) and require
      an explicit target, unless opted out. Composition jobs (.wacj) always
-     run with native semantics: no flag applies to a compose and targets
-     belong to member builds, so nothing is injected and no target is
+     run with native semantics: the compose itself generates nothing,
+     targets belong to member builds, and the run-wide switches given reach
+     build="true" members as given, so nothing is injected and no target is
      required (use --dryrun to rehearse a compose safely).
   4. Scan generate.log files (and, for a .wacj, the composition's
      <job name>-log.txt beside the file) after a successful run and report
      warning/error counts.
+
+AutoMap's workspace commands (--addworkspace, --removeworkspace,
+--listworkspaces; ePublisher 2026.1+) are not builds: the wrapper only
+resolves the executable, runs the command, and relays its stdout, which is
+the command's result.
 
 Every AutoMap flag is PASS-THROUGH. The wrapper never translates, renames,
 or owns AutoMap options; anything that is not a wrapper option below is
@@ -45,8 +51,8 @@ Default flags injected unless -NoDefaults:
 And an explicit -t/--target is required unless -NoDefaults or -AllTargets.
 
 Exit codes:
-  0 - Build succeeded
-  1 - Build failed
+  0 - Build (or workspace command) succeeded
+  1 - Build (or workspace command) failed
   2 - Invalid arguments / no target specified
   3 - AutoMap not found
   4 - Project file not found
@@ -58,6 +64,14 @@ Set-StrictMode -Version 2.0
 
 $script:ProjectExtensionPattern = '\.(wep|wrp|waj|wacj|wxsp)$'
 $script:DefaultStagingRoot = Join-Path $env:USERPROFILE 'Documents\WebWorks ePublisher AutoMap\Staging'
+
+# The options that make an AutoMap run a workspace command (2026.1+), as the
+# CLI decides it in AutomapCLI.IsWorkspaceCommand: any of these as "--name"
+# or "--name=value", matched case-sensitively.
+$script:WorkspaceOptionNames = @(
+    'addworkspace', 'workspacejobs', 'workspacestaging', 'replaceworkspace',
+    'removeworkspace', 'listworkspaces'
+)
 
 # Severity markers the product stamps on log lines. Publish Core localizes
 # them (Core/Resources/Messages.resx plus its .de/.fr/.ja satellites, keys
@@ -110,6 +124,9 @@ Defaults injected unless -NoDefaults: -n (unless deploy flags present),
 native semantics -- nothing is injected and no target is required; pass
 --dryrun to rehearse a compose without touching the mirror.
 
+Workspace commands (2026.1+) take no project file; the wrapper prints
+their output as AutoMap writes it.
+
 Examples:
   # Dev build, safe defaults applied
   Invoke-Automap.ps1 -- -t "WebWorks Reverb 2.0" project.wep
@@ -123,6 +140,10 @@ Examples:
 
   # Production: exact native semantics (deploys, generates reports)
   Invoke-Automap.ps1 -NoDefaults -- -c -t "WebWorks Reverb 2.0" project.wep
+
+  # Workspace commands: register a workspace, then list them
+  Invoke-Automap.ps1 -- --addworkspace=Docs --workspacejobs=D:\Docs\Jobs --workspacestaging=D:\Docs\Staging
+  Invoke-Automap.ps1 -- --listworkspaces
 
 Environment:
   AUTOMAP_EXE_PATH  AutoMap executable to run (e.g. a development build).
@@ -185,6 +206,42 @@ function Get-AutomapExePath {
     }
     Write-StderrLine '[ERROR] AutoMap installation not found. Install ePublisher AutoMap or set AUTOMAP_EXE_PATH.'
     return $null
+}
+
+# True when the arguments give any workspace option (see
+# $script:WorkspaceOptionNames).
+function Test-WorkspaceCommand {
+    param([string[]]$Arguments)
+
+    foreach ($token in $Arguments) {
+        foreach ($name in $script:WorkspaceOptionNames) {
+            if (($token -ceq "--$name") -or $token.StartsWith("--$name=", [System.StringComparison]::Ordinal)) {
+                return $true
+            }
+        }
+    }
+    return $false
+}
+
+# Runs the AutoMap CLI and returns @{ ExitCode; Output }, with its stdout
+# captured as lines; stderr passes through. The CLI writes redirected output
+# as UTF-8, so decode it as UTF-8. Exits 1 if the executable cannot be run.
+function Invoke-AutomapCli {
+    param([string]$ExePath, [string[]]$Arguments)
+
+    $previousEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $output = @(& $ExePath @Arguments)
+        return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $output }
+    }
+    catch {
+        Write-StderrLine "[ERROR] Failed to run AutoMap: $($_.Exception.Message)"
+        exit 1
+    }
+    finally {
+        [Console]::OutputEncoding = $previousEncoding
+    }
 }
 
 # Counts marked lines in one log file and returns @{ Warn = <n>; Error = <n> },
@@ -432,6 +489,27 @@ function Invoke-Main {
         exit 2
     }
 
+    # --- Workspace commands run on their own --------------------------------
+    # --addworkspace, --removeworkspace and --listworkspaces change or print
+    # the computer's workspace list: no project or job file, no build. So
+    # nothing is injected, no target is required, and no log is scanned.
+    # AutoMap's stdout is relayed, not suppressed, because it is the result
+    # (the tab-separated list, or a one-line confirmation); the CLI prints no
+    # banner for these commands. The CLI itself refuses a file or a second
+    # command given with one.
+    if (Test-WorkspaceCommand -Arguments $passthrough) {
+        $exePath = Get-AutomapExePath -Override $exePathOverride
+        if (-not $exePath) { exit 3 }
+
+        $run = Invoke-AutomapCli -ExePath $exePath -Arguments $passthrough
+        foreach ($line in $run.Output) { Write-Output $line }
+        if ($run.ExitCode -ne 0) {
+            Write-StderrLine "[ERROR] Workspace command failed with exit code $($run.ExitCode)"
+            exit 1
+        }
+        exit 0
+    }
+
     # --- Project file validation ------------------------------------------
     # Read-only inspection: project/job files are recognized by extension so
     # the wrapper can validate existence, enforce the target requirement,
@@ -455,9 +533,11 @@ function Invoke-Main {
 
     # --- Composition jobs run verbatim -------------------------------------
     # A .wacj composes already-deployed output: -n would fight the run's
-    # purpose, --skip-reports has nothing to skip, and output targets belong
-    # to the member builds, not the composition. So a composition implies
-    # -NoDefaults; --dryrun is the native way to rehearse a compose safely.
+    # purpose, and output targets belong to the member builds, not the
+    # composition. Run-wide switches such as --skip-reports reach
+    # build="true" members only as the caller gives them. So a composition
+    # implies -NoDefaults; --dryrun is the native way to rehearse a compose
+    # safely.
     $compositionFiles = @($projectFiles | Where-Object { $_ -match '\.wacj$' })
     if (($compositionFiles.Count -gt 0) -and (-not $noDefaults)) {
         $noDefaults = $true
@@ -521,7 +601,6 @@ function Invoke-Main {
     # AutoMap's streaming stdout (banner, per-pipeline progress) is captured
     # rather than shown, to keep output minimal; the log scan reads the
     # staging folder the CLI reports from it. stderr passes through untouched.
-    # The CLI writes redirected output as UTF-8, so decode it as UTF-8.
     # The start time is taken a minute early so a log is never mistaken for
     # a stale one because of coarse timestamps (FAT/exFAT keep 2-second
     # stamps) or a network share whose clock lags this machine's. The cost
@@ -529,21 +608,9 @@ function Invoke-Main {
     # counts, which is far rarer than a lagging share.
     $buildStart = (Get-Date).AddSeconds(-60)
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    $buildExitCode = 1
-    $cliOutput = @()
-    $previousEncoding = [Console]::OutputEncoding
-    try {
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-        $cliOutput = @(& $exePath @finalArgs)
-        $buildExitCode = $LASTEXITCODE
-    }
-    catch {
-        Write-StderrLine "[ERROR] Failed to run AutoMap: $($_.Exception.Message)"
-        exit 1
-    }
-    finally {
-        [Console]::OutputEncoding = $previousEncoding
-    }
+    $run = Invoke-AutomapCli -ExePath $exePath -Arguments $finalArgs
+    $buildExitCode = $run.ExitCode
+    $cliOutput = $run.Output
     $stopwatch.Stop()
     $duration = [int][math]::Round($stopwatch.Elapsed.TotalSeconds)
 

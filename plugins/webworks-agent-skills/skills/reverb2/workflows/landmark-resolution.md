@@ -9,10 +9,10 @@
 <process>
 ## Step 1: Identify the Input
 
-Reverb 2.0 publishes stable links of the form `<prefix>#/<id>`, for example:
+Reverb 2.0 publishes stable links of the form `<prefix>#/<id>`, for example (`xslt-extensions` is a Source ID landmark, the heading's alias):
 
 ```
-https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4
+https://static.webworks.com/docs/epublisher/latest/help/#/xslt-extensions
 ```
 
 Resolving them to a real HTML file requires reading the `_lx.js` chunks emitted alongside the help output. There is one `*_lx.js` chunk per document group. The resolver accepts three source modes:
@@ -52,7 +52,7 @@ For `rewrite` you can also just pass the stable URL — the base is inferred:
 ```bash
 # Equivalent to: rewrite ... --remote-base-url https://static.webworks.com/docs/epublisher/latest/help/
 python scripts/resolve-landmarks.py rewrite \
-    "https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4"
+    "https://static.webworks.com/docs/epublisher/latest/help/#/xslt-extensions"
 ```
 
 **Chunk discovery.** Remote mode discovers `_lx.js` chunks from the landing page in precedence order — the first non-empty source wins:
@@ -180,7 +180,7 @@ The artifact is structured, versioned (`format_version: 1`), and deterministic �
 
 The `reverse` subcommand answers the inverse of `resolve`: given a file path, return the landmark IDs that resolve to it. Two workflows drive this:
 
-- **Stable-URL minting** — you have a file path (from a search hit, a sitemap, or a direct browse) and need the stable ID to build a `<prefix>#/<id>` URL that survives future help reorganizations.
+- **Stable-URL minting** — you have a file path (from a search hit, a sitemap, or a direct browse) and need the stable ID to build a `<prefix>#/<id>` URL that keeps working as the help is rebuilt (see [How long a landmark ID lasts](#how-long-a-landmark-id-lasts)).
 - **Link audits** — you want every stable ID that points at a given page, so you can find references in skill docs or customer-facing material that would break if the page is restructured or removed.
 
 ```bash
@@ -238,7 +238,14 @@ ID=$(python scripts/resolve-landmarks.py reverse \
 echo "https://static.webworks.com/docs/epublisher/latest/help/#/$ID"
 ```
 
-The minted URL is what to drop into skill docs or customer-facing material — it survives future help reorganizations because the runtime resolves it back through `landmarks.js`.
+The minted URL is what to drop into skill docs or customer-facing material: the runtime resolves it back through the `_lx.js` chunks. How long it keeps working depends on the kind of ID:
+
+### How long a landmark ID lasts
+
+- **Source ID** (the heading's alias, such as `xslt-extensions`): survives moving or renaming the document, as long as the alias stays the same. Prefer one when the help offers it.
+- **Hashed ID** (16 or 8 hex characters): a hash of the document's path relative to its project or job and the heading's alias or ID. It survives rebuilds, but changes when the document is moved or renamed, or the alias changes.
+
+`reverse --first` returns the page-level binding; when a page has both kinds, mint the Source ID.
 
 ### Worked Example: Link Audit Against a Lookup Table
 
@@ -270,9 +277,9 @@ Each line is a self-contained JSON object — pipe through `jq` to filter, count
     "captured_at": "2026-05-21T00:00:00Z"
   },
   "landmarks": {
-    "e5d3d31c42d8d1d4": {
+    "xslt-extensions": {
       "file": "Advanced Customizations_ Overrides_ and Extensions/_xslt-extensions.04.1.html",
-      "anchor": ""
+      "anchor": "xslt-extensions"
     }
   }
 }
@@ -299,7 +306,7 @@ Schema evolution: `format_version` is a hard gate. Future schema changes ride a 
 The ePublisher XSLT extensions doc is published at the stable URL:
 
 ```
-https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4
+https://static.webworks.com/docs/epublisher/latest/help/#/xslt-extensions
 ```
 
 With no local mirror:
@@ -307,7 +314,7 @@ With no local mirror:
 ```bash
 # Auto-inferred base URL (rewrite mode reads the URL itself):
 python scripts/resolve-landmarks.py \
-    rewrite "https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4"
+    rewrite "https://static.webworks.com/docs/epublisher/latest/help/#/xslt-extensions"
 ```
 
 Expected output (the published help is a multi-parcel mirror; the exact path tracks its current build):
@@ -329,12 +336,12 @@ The same query, against a downloaded mirror:
 ```bash
 # Resolve just the ID
 python scripts/resolve-landmarks.py \
-    resolve e5d3d31c42d8d1d4 \
+    resolve xslt-extensions \
     --from ./help-mirror/
 
 # Rewrite the full URL (no percent-quoting in local mode)
 python scripts/resolve-landmarks.py \
-    rewrite "https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4" \
+    rewrite "https://static.webworks.com/docs/epublisher/latest/help/#/xslt-extensions" \
     --from ./help-mirror/
 ```
 

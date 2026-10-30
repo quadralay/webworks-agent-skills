@@ -32,7 +32,8 @@ normal output:
   TOC `<li>` fragment, **byte-identical** to the leaf in that build's own
   `index.html`. Composition splices these raw bytes, never re-serializes.
 - **`wwcomposition-shell.xml`** (output root) — shell descriptor: entry file,
-  cache-key surface, splice anchor, and compose parameters. Emitted by every
+  cache-key surface, splice anchor, and compose parameters, including the
+  sitemap settings and the shell target's Sitemap Base URL (`baseURL`). Emitted by every
   build; consumed from whichever project deployed the shell slice.
 
 These files are inert in a standalone site — their presence is normal and not
@@ -67,7 +68,12 @@ After composition, the mirror is a normal Reverb 2.0 site plus:
   composed hash while each parcel's own pages keep their build's hash. A
   mixed hash population across parcels is correct, not stale output.
 - Root `sitemap.xml` and `url_maps.xml` are recomposed aggregates over the
-  deployed parcels.
+  deployed parcels. The root `sitemap.xml` is a **sitemap index** of absolute
+  URLs under the shell's Sitemap Base URL, listing the shell's
+  `sitemap-pages.xml` and each parcel's, each with a `<lastmod>`. It is empty,
+  and the composition warns, when the shell record has no `baseURL` (the Sitemap
+  Base URL is unset, or the shell was deployed by an older build); rebuild and
+  redeploy the shell.
 
 **Linting a composed mirror:** GroupID-consistency checks must scope to a
 single parcel's slice; cross-parcel ID uniformity does not hold and is not a
@@ -169,6 +175,14 @@ level**, never a failure:
 
 A spec container that ends up holding nothing is dropped with
 `Container 'Guides' contains no groups to compose; omitted.`
+
+**Duplicate Landmark IDs.** For a folder destination, the composition warns
+when the same Landmark ID appears in more than one group: `Landmark ID '<id>'
+appears in more than one group (<groups>); links to it open the page from
+whichever group loads last. ...` That's expected when groups publish the same
+document; otherwise two documents share a path relative to their job or
+project and the same heading alias or ID. Up to 10 IDs are listed, then a
+count of the rest. The warning never fails the compose.
 
 **Placement problems never fail a compose.** Every case above degrades to flat
 (top-level) placement — exactly as if the parcel had declared nothing — and the

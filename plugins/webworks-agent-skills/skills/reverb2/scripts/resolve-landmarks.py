@@ -74,20 +74,20 @@ Exit codes:
 
 Examples:
     # Local: resolve a single ID against one chunk
-    python resolve-landmarks.py resolve e5d3d31c42d8d1d4 --from output/FAQs_lx.js
+    python resolve-landmarks.py resolve xslt-extensions --from output/FAQs_lx.js
 
     # Local: resolve against every chunk in a directory
     python resolve-landmarks.py resolve abc12345 --from output/
 
     # Local: rewrite a published stable URL into a direct URL
     python resolve-landmarks.py rewrite \\
-        https://example.com/help/#/e5d3d31c42d8d1d4 --from output/
+        https://example.com/help/#/xslt-extensions --from output/
 
     # Remote: rewrite a stable URL with no local mirror (auto-inferred base)
-    python resolve-landmarks.py rewrite https://example.com/help/#/e5d3d31c42d8d1d4
+    python resolve-landmarks.py rewrite https://example.com/help/#/xslt-extensions
 
     # Remote: resolve against a published mirror
-    python resolve-landmarks.py resolve e5d3d31c42d8d1d4 \\
+    python resolve-landmarks.py resolve xslt-extensions \\
         --remote-base-url https://example.com/help/
 
     # Local: dump the full index as structured JSON to a file
@@ -100,7 +100,7 @@ Examples:
     python resolve-landmarks.py dump --from output/ --table
 
     # Resolve from a pre-built dump artifact (no chunk parsing)
-    python resolve-landmarks.py resolve e5d3d31c42d8d1d4 --lookup-table landmarks.json
+    python resolve-landmarks.py resolve xslt-extensions --lookup-table landmarks.json
 """
 
 import sys
@@ -1419,7 +1419,7 @@ def main() -> int:
         epilog="""
 Examples:
     # Local: resolve a single ID
-    %(prog)s resolve e5d3d31c42d8d1d4 --from output/FAQs_lx.js
+    %(prog)s resolve xslt-extensions --from output/FAQs_lx.js
 
     # Local: rewrite a published stable URL into a direct URL
     %(prog)s rewrite https://example.com/help/#/abc12345 --from output/

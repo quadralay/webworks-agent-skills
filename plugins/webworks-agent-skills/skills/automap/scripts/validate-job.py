@@ -614,7 +614,8 @@ def validate_composition_destination(info: dict) -> ValidationResult:
         result.add_warning(
             f"Inline definitions are present but none is named "
             f"'{destination['name']}' - that name must resolve from the "
-            "--deploysettings overlay or deploy.prefs")
+            "--deploysettings overlay, the job's AutoMap workspace settings, "
+            "or deploy.prefs")
 
     inline = f", {len(destination['deploySettings'])} inline definition(s)" \
         if destination['deploySettings'] else ""

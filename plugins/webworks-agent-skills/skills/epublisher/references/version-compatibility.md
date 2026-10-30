@@ -20,6 +20,8 @@
 - Federated parcel composition (Reverb 2.0): `.wacj` composition jobs, per-target deploy scope (Everything / Groups / Shell; `deployScope` attribute, `--deployscope`), `wwcomposition*` output descriptors
 - Amazon S3 + CloudFront deploy destinations (named profile/role credentials, deploy-time invalidation, dry run; global `--dryrun`)
 - Inline destination definitions in `.waj`/`.wacj` (`<DeploySettings>`) and the `--deploysettings` overlay file
+- AutoMap workspaces (a jobs folder, a staging folder, and `automap-workspace.xml` destinations), managed in the Administrator or with the CLI's `--addworkspace` / `--removeworkspace` / `--listworkspaces` commands
+- A `.wacj` run passes its run-wide switches (`-s`, `-c`, `-u`, `-q`, `-f`, `--skip-reports`, `--dryrun`) to its `build="true"` member builds
 - A failed deploy is an error (reaches the exit status); earlier versions warned and exited 0
 - Designer opens, builds, synchronizes, and deploys Express `.wrp` projects, presenting the Express window experience (Document Manager, synchronization prompt, no Style Designer, no Preview). Its Open dialog offers `.wep` and `.wrp` under one **ePublisher Project Files** entry. Double-clicking a `.wrp` opens Express when installed, Designer otherwise
 - Designer **File > New Project from Stationery...** — creates a `.wrp` from a `.wxsp` *or* a `.wep`

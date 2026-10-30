@@ -6,7 +6,7 @@ Cross-cutting knowledge that applies to all WebWorks ePublisher skills. Any skil
 
 - **Windows-only**: ePublisher Designer, Express, and AutoMap run only on Windows. Shell scripts execute via Git Bash or WSL.
 - **XSLT 1.0 only**: Output generation uses .NET `XslCompiledTransform`. Never suggest XSLT 2.0/3.0 features in format transforms. DITA preprocessing is the sole exception — it uses transforms from the DITA Open Toolkit (DITA-OT) at `Adapters/xml/scripts/dita/ant/xsl/`, supporting XSLT 1.0 and 2.0. The DITA-OT version is selected via ANT template files in `Adapters/xml/scripts/dita/ant/` (e.g., `webworks-4.1.xml` corresponds to `dita-ot-4.1`).
-- **XSLT extension functions**: ePublisher provides custom XSLT extension functions callable from format `.xsl` files (e.g., `wwprojext:GetFormatSetting()`, `wwprojext:GetContextRule()`, `wwlog:Message()`). Published documentation: `https://static.webworks.com/docs/epublisher/latest/help/#/e5d3d31c42d8d1d4`. To resolve any `#/<id>` URL to a direct file path without a JavaScript runtime, use the `reverb2` skill's landmark-resolution workflow (see `../../reverb2/workflows/landmark-resolution.md`).
+- **XSLT extension functions**: ePublisher provides custom XSLT extension functions callable from format `.xsl` files (e.g., `wwprojext:GetFormatSetting()`, `wwprojext:GetContextRule()`, `wwlog:Message()`). Published documentation: `https://static.webworks.com/docs/epublisher/latest/help/#/xslt-extensions`. To resolve any `#/<id>` URL to a direct file path without a JavaScript runtime, use the `reverb2` skill's landmark-resolution workflow (see `../../reverb2/workflows/landmark-resolution.md`).
 - **.NET runtime**: The publish engine, adapters, and CLI are .NET applications.
 
 ## Product Architecture
@@ -106,7 +106,7 @@ To validate changes to XSL transforms or adapters, use a golden output compariso
 
 ## Technical Support
 
-Support cases are filed at `https://www.webworks.com/Support/`. Users must have an active Contract ID (GUID format: `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`) to submit a case. The Contract ID can be found in the product UI via **Help > License Keys... > "Register" button**.
+Support cases are filed at `https://www.webworks.com/Support/`. Users must have an active Contract ID (GUID format: `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`) to submit a case. The Contract ID is shown in the License Information window (**Help > License Keys...**) in Designer, Express, and the AutoMap Administrator.
 
 ## Available Output Formats
 

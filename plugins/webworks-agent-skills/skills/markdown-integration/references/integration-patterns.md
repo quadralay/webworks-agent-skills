@@ -119,9 +119,10 @@ How includes interact with project source document groups.
 
 Goal: a 30-chapter user guide where each chapter lives in its own file but builds as one document.
 
-1. Create `_user-guide.md` containing only includes:
+1. Create `_user-guide.md` containing a title and the includes. The marker attaches to the heading directly below it (a blank line between them would orphan it):
    ```markdown
    <!--marker:Title="User Guide"-->
+   # User Guide
 
    <!--include:01-introduction.md-->
    <!--include:02-getting-started.md-->
@@ -184,11 +185,26 @@ Multiple entries:
 ### Custom Metadata
 
 ```markdown
-<!--marker:Author="Documentation Team"-->
-<!--marker:LastReviewed="2025-Q3"-->
+<!--markers:{"Author": "Documentation Team", "LastReviewed": "2025-Q3"}-->
+## Release Process
 ```
 
+Put both markers in one comment tag directly above the element they describe. Two stacked tags would orphan the upper one.
+
 These appear as metadata in the WIF intermediate format and are available to format XSL transforms for custom output processing. Useful for tagging content for downstream tools.
+
+### Topic Metadata from Front Matter
+
+```markdown
+---
+keywords: webhooks, REST, notifications
+description: Configure outbound webhooks for build events.
+---
+
+# Webhook Configuration
+```
+
+The helper adapter turns the front matter into `Keywords` and `Description` markers on the first heading, the same as a `markers:{...}` tag above it. To override one value for this document, set it in a comment tag on that heading; the tag's value wins over the front matter.
 
 ## Alias Patterns for CSH and Cross-Document Linking
 

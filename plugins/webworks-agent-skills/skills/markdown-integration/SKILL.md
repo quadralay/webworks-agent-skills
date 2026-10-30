@@ -144,6 +144,14 @@ Markers and aliases are inert in source — their effect is entirely defined by 
 - `<!--marker:IndexMarker="primary:secondary"-->` creates entries in the generated index (Reverb index pane).
 - Marker syntax (single `marker:` vs JSON `markers:{...}`) and ordering rules are documented in the format-level skill.
 
+**How the helper adapter reads markers:**
+
+- **Values.** A simple-form value may be empty (`marker:DropDownEnd=""`) and may contain `=` and `;` inside its quotes (`marker:Hyperlink="https://example.com/page?id=42"`). A value that needs a double quote, `-->`, or a line break must use the `markers:{...}` form with JSON escapes (`\"`, `\u003e` for the `>`, `\n`).
+- **Names.** The simple form accepts the Markdown++ name rule: a letter or underscore first, then letters, digits, `_`, `-`, or spaces (`marker:Index Entry="setup"`, `marker:_Private="x"`). The JSON form accepts any key.
+- **Lists and blockquotes.** Markers in a list's or blockquote's comment tag land on the **first paragraph** inside it. A `DropDownEnd` or `IndexMarker` on a multi-paragraph quote or list therefore takes effect at that first paragraph; to mark a later paragraph, tag that paragraph.
+- **Inline markers.** A `marker:` or `markers:` command placed immediately before a bold, italic, strikethrough, or code run, or a link, attaches to it. The Markdown++ output format writes such markers back inline, unless the paragraph style's **Markdown++ markers** option is off (it's on by default); a marker on an image moves to the paragraph's directive.
+- **PassThrough fallback.** A comment command the adapter rejects or doesn't recognize becomes a `PassThrough` marker that carries the raw comment, with no build error. To find one, search the built pages for raw `<!-- marker:` or `<!-- style:` text.
+
 **Aliases and CSH:**
 
 - `<!--#alias-name-->` creates a stable URL endpoint in the generated output. In Reverb 2.0, aliases populate the `@href` and `@path` attributes in `url_maps.xml`.
@@ -155,6 +163,31 @@ Markers and aliases are inert in source — their effect is entirely defined by 
 **Bulk alias generation** for documents that lack aliases on existing headings is a format-level authoring task — load the `markdown-plus-plus` skill in the `quadralay/markdown-plus-plus` plugin for the alias-generation script (formerly `add-aliases.py` in this plugin, migrated with the rest of the format spec). If the companion plugin is not installed, alias addition becomes a manual edit per heading.
 
 </markers_and_aliases>
+
+<front_matter>
+
+## YAML Front Matter Becomes Markers
+
+The helper adapter turns YAML front matter at the top of a Markdown++ file into markers on the document's **first content element**, usually its title heading. Keep a topic's keywords and description with its other metadata:
+
+```markdown
+---
+mdpp-version: 1.0
+description: How to install ePublisher on a single computer.
+keywords: install, setup, first run
+---
+
+# Installing ePublisher
+```
+
+The heading gets a `Description` marker and a `Keywords` marker.
+
+- **Placement.** The front matter must start on the first line, between two lines that hold only `---`.
+- **Content.** Flat `key: value` lines only. A value can be plain text, quoted text, or a bracketed list (`[install, setup]`). Blank lines and `#` lines are ignored. Any other line, such as a nested value or a `- item` list, leaves the front matter in the document unchanged and logs a warning.
+- **Names.** Each key becomes a marker with the same name. `keywords` and `description` become `Keywords` and `Description` whatever their capitalization. Other keys (`mdpp-version`, `date`) become markers with those names, which do nothing unless the Stationery defines a marker style for them.
+- **Existing comment tag.** When the first element already has a comment tag, the front matter markers join it. A key that the tag also sets keeps the tag's value, in either the `marker:` or the `markers:{...}` form, so an author can override front matter in the document.
+
+</front_matter>
 
 <automap_integration>
 
@@ -170,7 +203,7 @@ Markdown++ source files build through the helper adapter without special configu
 
 **Build-time validation:**
 
-- Format-level Markdown++ syntax errors (unclosed conditions, malformed marker JSON, invalid variable names) surface in AutoMap output during the helper adapter pass.
+- Don't count on AutoMap to report Markdown++ syntax errors. A marker or style command the helper adapter rejects or doesn't recognize becomes a `PassThrough` marker carrying the raw comment, with no build error; search the built pages for raw `<!-- marker:` or `<!-- style:` text to find one.
 - ePublisher-integration errors (undefined style, unconfigured condition, unresolved variable) typically do **not** fail the build — they degrade silently to default rendering, no condition expansion, or literal `$variable;` text.
 
 **For format-level pre-build validation, use the `markdown-plus-plus` skill's validation script** (in the `quadralay/markdown-plus-plus` plugin). This catches syntax issues before AutoMap runs and avoids debugging silent fallbacks. Invocation depends on the companion plugin's installed location — load the `markdown-plus-plus` skill (e.g., `markdown-plus-plus:markdown-plus-plus` if the external plugin is installed in this Claude Code instance) for the current script path and arguments. If the companion plugin is not installed, ask the user to install it from `quadralay/markdown-plus-plus` or skip pre-build validation.
@@ -185,6 +218,7 @@ When Markdown++ sources target Reverb 2.0:
 
 - **Search behavior** depends on document content plus marker keywords. `Keywords` markers expand the indexed term set without affecting visible content.
 - **Topic URLs** depend on aliases. Documents without aliases get generated IDs that are not stable across content edits.
+- **Landmark IDs.** A hashed Landmark ID combines the document's path, relative to its project or job, with the alias or ID, so moving or renaming a Markdown++ file changes its hashed IDs. A Source ID landmark is the alias itself and survives the move.
 - **Conditional content** is resolved at build time, not runtime. A target that builds with `web` condition disabled will not include `web`-conditional content in the resulting Reverb output at all — no toggle.
 - **Style rendering** depends on the Stationery's style definitions plus the Reverb format's CSS. Use the `reverb2` skill's SCSS workflow to customize how named styles render.
 
