@@ -300,13 +300,12 @@ def generate_job_xml(config: dict) -> str:
         target.set('destination', target_config.get('destination', target_config.get('deployTarget', '')))
         target.set('cleanOutput', 'True' if target_config.get('cleanOutput', False) else 'False')
 
-        # Add Conditions if present
+        # Add Conditions if present. The Expression, UseClassicConditions and
+        # UseDocumentExpression attributes are left out: any one of them makes the
+        # job override the stationery's Boolean expression settings (2026.1+).
         conditions = target_config.get('conditions', [])
         if conditions:
             conditions_elem = SubElement(target, 'Conditions')
-            conditions_elem.set('Expression', '')
-            conditions_elem.set('UseClassicConditions', 'False')
-            conditions_elem.set('UseDocumentExpression', 'True')
             for cond in conditions:
                 cond_elem = SubElement(conditions_elem, 'Condition')
                 cond_elem.set('name', cond.get('name', ''))
