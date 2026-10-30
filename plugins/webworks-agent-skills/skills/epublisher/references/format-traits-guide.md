@@ -174,7 +174,7 @@ Trait values can be configured at two scopes inside a `.wep`. Both scopes use th
 - `<Variables>` — target-specific variable values that override the project-wide defaults.
 - `<XRefFormats>` — target-specific cross-reference format strings.
 - `<FormatSettings>` — what the UI labels "Target Settings" — target-wide trait values.
-- `<MergeSettings>` — group/document merge configuration for this target's output.
+- `<MergeSettings>` — the merged help system's table of contents: `<TOC>` containers and `<MergeGroup>` entries for top-level groups. See [Merge Settings (Merged Help)](project-parsing-guide.md#merge-settings-merged-help).
 
 Trait resolution order at build time: explicit per-target value → per-target inherit → explicit global value → prototype default.
 

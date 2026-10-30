@@ -130,6 +130,29 @@ A `<!--style:Name-->` comment names a style; the actual visual rendering comes f
 
 **When to add an included file to the group anyway:** if you want it to also build standalone (e.g., as a separate Reverb topic with its own URL), add it to the group separately. If it should only appear as part of a parent document's flow, leave it out of the group.
 
+### Linking to Content That Comes In by Include
+
+An included file is not a project document: only the file that holds the `<!--include:-->` is. A link that names the included file has no page to resolve to, and it fails silently:
+
+- By default, WebWorks Reverb 2.0 renders the link text with no link.
+- With **Preserve Unknown File Links** (`preserve-unknown-file-links`) enabled, the build copies the `.md` file into the group's `baggage/` folder and links to the copy, so the reader opens raw Markdown.
+
+The build log reports neither case. Link to the content through its host instead:
+
+| Link from | Write | Example |
+|-----------|-------|---------|
+| Another project document | The host file, with the target's alias | `[Landmark IDs](../reverb/_reverb.md#landmark-stability)` |
+| A file in the same host's include tree | The alias alone; it's in the same assembled document | `[Landmark IDs](#landmark-stability)` |
+| Another federated parcel, or anywhere paths are unreliable | A Landmark URL (the alias is the Landmark ID when the target's **Landmark ID Format** is **Source ID**) | `[Landmark IDs](#/landmark-stability)` |
+
+An alias in included content belongs to the host's output, so the link opens the right page and section. To audit a build, search the generated HTML for links into `baggage/` that end in `.md`:
+
+```bash
+grep -rho 'href="[^"]*baggage/[^"]*\.md[^"]*"' Output/<target>
+```
+
+Before a build, list the link targets that are files reached only through an include and aren't documents in the project (`<Document Path>` in the `.wep`/`.wrp`, or `<Files>` in a job).
+
 </includes>
 
 <markers_and_aliases>
@@ -150,12 +173,23 @@ Markers and aliases are inert in source — their effect is entirely defined by 
 - **Names.** The simple form accepts the Markdown++ name rule: a letter or underscore first, then letters, digits, `_`, `-`, or spaces (`marker:Index Entry="setup"`, `marker:_Private="x"`). The JSON form accepts any key.
 - **Lists and blockquotes.** Markers in a list's or blockquote's comment tag land on the **first paragraph** inside it. A `DropDownEnd` or `IndexMarker` on a multi-paragraph quote or list therefore takes effect at that first paragraph; to mark a later paragraph, tag that paragraph.
 - **Inline markers.** A `marker:` or `markers:` command placed immediately before a bold, italic, strikethrough, or code run, or a link, attaches to it. The Markdown++ output format writes such markers back inline, unless the paragraph style's **Markdown++ markers** option is off (it's on by default); a marker on an image moves to the paragraph's directive.
+- **One marker per name per element.** The adapter keeps an element's markers by name, so a tag that repeats a key, such as `markers:{"TopicAlias":"a", "TopicAlias":"b"}` or two `marker:TopicAlias` commands, keeps only the last value, with no warning. Put each value on a different element: the heading's tag, the first paragraph, and so on. In a multiline table, a block tag on its own physical row of a cell attaches to that cell's paragraph, so each row can carry its own marker:
+
+  ```markdown
+  <!-- multiline -->
+  | Message                                            | Definition              |
+  | -------------------------------------------------- | ----------------------- |
+  | <!--marker:TopicAlias="tables_without_summaries"--> |                         |
+  | Table is missing a table summary.                  | Insert a table summary. |
+  |                                                    |                         |
+  ```
+
 - **PassThrough fallback.** A comment command the adapter rejects or doesn't recognize becomes a `PassThrough` marker that carries the raw comment, with no build error. To find one, search the built pages for raw `<!-- marker:` or `<!-- style:` text.
 
 **Aliases and CSH:**
 
-- `<!--#alias-name-->` creates a stable URL endpoint in the generated output. In Reverb 2.0, aliases populate the `@href` and `@path` attributes in `url_maps.xml`.
-- For Context Sensitive Help (CSH), the alias becomes the `@topic` identifier callable from the host application.
+- `<!--#alias-name-->` creates a stable anchor in the generated output. On a heading, it is also the Landmark ID that `#/<alias>` resolves to, when the target's **Landmark ID Format** is **Source ID**. Reverb 2.0 generates Landmark IDs only for headings, so a paragraph's alias is an anchor but not a Landmark URL.
+- For Context Sensitive Help (CSH), the `@topic` identifier the host application calls comes from a `TopicAlias` marker (`<!--marker:TopicAlias="topic-id"-->`), not from the alias. Each TopicAlias needs its own element (see above). Topics and their pages are listed in the `url_maps.xml` topic map.
 - Use the `reverb2` skill's `parse-url-maps.py` to verify which aliases became CSH-addressable topics in built output.
 
 **Practical rule:** every heading that should be deep-linkable from outside the document should have an alias. Generated heading IDs from CommonMark fallback are not stable across heading text changes.
@@ -257,6 +291,8 @@ After building, use the `reverb2` skill's browser test (`scripts/browser-test.js
 **Treating an unresolved variable as a Markdown++ syntax error.** A literal `$variable;` in output means ePublisher had no value for it at any source level (Stationery, project, target, job file). The Markdown++ syntax is correct — the integration is incomplete. Check the Variables window first.
 
 **Adding included files to source groups when the parent already includes them.** This causes them to build twice — once standalone, once as part of the parent — producing duplicate URLs and confusing TOC entries. Add a file to a group only if it should also build standalone.
+
+**Linking to an included file by its own name.** The link renders as plain text, or, with **Preserve Unknown File Links**, as a link to a raw `.md` copy in `baggage/`, and the build doesn't warn. Link to the host document with the alias instead; see [Linking to Content That Comes In by Include](#linking-to-content-that-comes-in-by-include).
 
 **Looking for Markdown++ syntax docs in this skill.** Format syntax (variables, styles, conditions, includes, markers) lives in the `markdown-plus-plus` skill from `quadralay/markdown-plus-plus`. This skill assumes that knowledge and documents the integration layer.
 
