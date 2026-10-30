@@ -173,12 +173,23 @@ Markers and aliases are inert in source — their effect is entirely defined by 
 - **Names.** The simple form accepts the Markdown++ name rule: a letter or underscore first, then letters, digits, `_`, `-`, or spaces (`marker:Index Entry="setup"`, `marker:_Private="x"`). The JSON form accepts any key.
 - **Lists and blockquotes.** Markers in a list's or blockquote's comment tag land on the **first paragraph** inside it. A `DropDownEnd` or `IndexMarker` on a multi-paragraph quote or list therefore takes effect at that first paragraph; to mark a later paragraph, tag that paragraph.
 - **Inline markers.** A `marker:` or `markers:` command placed immediately before a bold, italic, strikethrough, or code run, or a link, attaches to it. The Markdown++ output format writes such markers back inline, unless the paragraph style's **Markdown++ markers** option is off (it's on by default); a marker on an image moves to the paragraph's directive.
+- **One marker per name per element.** The adapter keeps an element's markers by name, so a tag that repeats a key, such as `markers:{"TopicAlias":"a", "TopicAlias":"b"}` or two `marker:TopicAlias` commands, keeps only the last value, with no warning. Put each value on a different element: the heading's tag, the first paragraph, and so on. In a multiline table, a block tag on its own physical row of a cell attaches to that cell's paragraph, so each row can carry its own marker:
+
+  ```markdown
+  <!-- multiline -->
+  | Message                                            | Definition              |
+  | -------------------------------------------------- | ----------------------- |
+  | <!--marker:TopicAlias="tables_without_summaries"--> |                         |
+  | Table is missing a table summary.                  | Insert a table summary. |
+  |                                                    |                         |
+  ```
+
 - **PassThrough fallback.** A comment command the adapter rejects or doesn't recognize becomes a `PassThrough` marker that carries the raw comment, with no build error. To find one, search the built pages for raw `<!-- marker:` or `<!-- style:` text.
 
 **Aliases and CSH:**
 
-- `<!--#alias-name-->` creates a stable URL endpoint in the generated output. In Reverb 2.0, aliases populate the `@href` and `@path` attributes in `url_maps.xml`.
-- For Context Sensitive Help (CSH), the alias becomes the `@topic` identifier callable from the host application.
+- `<!--#alias-name-->` creates a stable anchor in the generated output. On a heading, it is also the Landmark ID that `#/<alias>` resolves to, when the target's **Landmark ID Format** is **Source ID**. Reverb 2.0 generates Landmark IDs only for headings, so a paragraph's alias is an anchor but not a Landmark URL.
+- For Context Sensitive Help (CSH), the `@topic` identifier the host application calls comes from a `TopicAlias` marker (`<!--marker:TopicAlias="topic-id"-->`), not from the alias. Each TopicAlias needs its own element (see above). Topics and their pages are listed in the `url_maps.xml` topic map.
 - Use the `reverb2` skill's `parse-url-maps.py` to verify which aliases became CSH-addressable topics in built output.
 
 **Practical rule:** every heading that should be deep-linkable from outside the document should have an alias. Generated heading IDs from CommonMark fallback are not stable across heading text changes.
