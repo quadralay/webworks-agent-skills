@@ -631,7 +631,7 @@ destinations, dry run), see:** references/composition-jobs.md
 
 ## Merge Settings (Multivolume / Merged TOC)
 
-Reverb-family formats can combine several document groups into one output with a single, multivolume table of contents. Each top-level `<Files>` group becomes a **parcel** (a volume); `<MergeSettings>` defines how those parcels are titled and arranged in the master TOC.
+Formats whose `merge-hierarchy` capability is `toc` (WebWorks Reverb 2.0 and WebWorks Reverb, plus WebWorks Help 5.0, Microsoft HTML Help 1.x and Eclipse Help) can combine several document groups into one output with a single, multivolume table of contents; formats with `order` honor the group order but not containers (see `../../epublisher/references/project-parsing-guide.md`, Merge Settings). Each top-level `<Files>` group becomes a **parcel** (a volume); `<MergeSettings>` defines how those parcels are titled and arranged in the master TOC.
 
 `<MergeSettings>` is an optional child of `<Target>`. The AutoMap Administrator's Merge Settings dialog generates it, and it can be authored by hand.
 

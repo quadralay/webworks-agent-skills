@@ -8,6 +8,7 @@ Comprehensive guide to parsing ePublisher project files (`.wep`, `.wrp`, `.wxsp`
 - [Origin and Synchronization](#origin-and-synchronization)
 - [Parsing Targets and Formats](#parsing-targets-and-formats)
 - [Managing Source Documents](#managing-source-documents)
+- [Merge Settings (Merged Help)](#merge-settings-merged-help)
 - [Common Parsing Operations](#common-parsing-operations)
 - [Helper Scripts](#helper-scripts)
 
@@ -457,6 +458,54 @@ grep -c '<Document ' project.wep
 ```bash
 grep -oP '<Group Name="\K[^"]+' project.wep
 ```
+
+## Merge Settings (Merged Help)
+
+Each target's `<FormatConfiguration>` can hold a `<MergeSettings>` element: the table of contents of the merged, or multivolume, help system that combines the project's top-level groups. In the UI it's **Target > Merge Settings** in Designer, and the **Merge Settings** tab of a job target's Target Configuration in the AutoMap Administrator.
+
+```xml
+<FormatConfiguration TargetID="Lf3DjZlhl_A" ChangeID="...">
+  <MergeSettings Title="Product Help">
+    <TOC Name="Guides">
+      <MergeGroup GroupID="QeGxWoyPnS0" Title="Getting Started" />
+      <TOC Name="Administration">
+        <MergeGroup GroupID="pKmeHzi4O3c" Context="admin" />
+      </TOC>
+    </TOC>
+    <MergeGroup GroupID="MNhYFGRoDsU" />
+  </MergeSettings>
+</FormatConfiguration>
+```
+
+| Element | Attributes | Meaning |
+|---------|------------|---------|
+| `<MergeSettings>` | `Title` | The merged help system's title (UI: **Merge Title**). Empty means the target name. |
+| `<TOC>` | `Name` | A **container**: a named folder in the merged table of contents. Containers nest and hold groups or other containers. A container has no content and is not a group. |
+| `<MergeGroup>` | `GroupID`, optional `Title`, `Context` | Places a **top-level** Document Manager group, by its `GroupID`. `Title` is the **Table of contents title**, which changes the label only; the group's output folder keeps the group name. `Context` is the **Group context** for context-sensitive help. |
+
+Document order in the merged table of contents is the element order.
+
+### Which formats offer what
+
+The format's capabilities in its `format.wwfmt` decide what the Merge Settings window enables:
+
+| `merge-hierarchy` | Formats | What works |
+|-------------------|---------|-----------|
+| `toc` | WebWorks Reverb 2.0, WebWorks Reverb, WebWorks Help 5.0, Microsoft HTML Help 1.x, Eclipse Help | Reorder groups and use containers |
+| `order` | eBook - ePUB 2.0, Oracle Help, PDF - XSL-FO, Sun JavaHelp 2.0 | Reorder groups only; the container buttons are disabled |
+| `none` | Every other format | No hierarchy |
+
+`merge-title` and `merge-context` (`true`/`false`) gate the **Merge Title** and **Group context** fields.
+
+### Subgroups can't be placed
+
+The hierarchy lists only top-level groups; subgroups never appear in it, and `<MergeGroup>` names only a top-level group. To show a subgroup as its own entry in the merged table of contents, make it a top-level group (create a top-level group, move the subgroup's documents into it, remove the empty subgroup), then put it in a `<TOC>`. Its output folder moves from `Parent/Subgroup/` to `Subgroup/`, because each document's output folder follows its Document Manager group path.
+
+### UI behavior (for steering users)
+
+- **Add new container** adds a container named "Untitled Topic"; select it and click its name to rename it. Drag groups or other containers onto a container to nest them.
+- **Delete selected container** removes the selected container and any containers inside it, and moves every group they held up to the deleted container's level. Groups are never deleted.
+- A job target's `<MergeSettings>` in a `.waj` uses the same structure with group *names*: `<TOC name>` and `<Group name title>`, which AutoMap resolves to GroupIDs at staging. See `../../automap/references/job-file-guide.md`.
 
 ## Common Parsing Operations
 
