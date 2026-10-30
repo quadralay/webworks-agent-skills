@@ -211,7 +211,7 @@ On each build AutoMap re-reads `design.wep`, stages a stationery from its curren
             destination="Production Help"
             cleanOutput="False">
 
-      <Conditions Expression="" UseClassicConditions="False" UseDocumentExpression="True">
+      <Conditions>
         <Condition name="OnlineOnly" value="True" Passthrough="False" UseDocumentValue="False" />
         <Condition name="PrintOnly" value="False" Passthrough="False" UseDocumentValue="False" />
       </Conditions>
@@ -319,11 +319,15 @@ Container for build targets. Contains one or more `<Target>` elements.
 
 ### `<Conditions>` Element
 
+Container for condition overrides. A job sets only what it lists: a condition the target does not list keeps the Stationery's value.
+
 | Attribute | Description |
 |-----------|-------------|
 | `Expression` | Condition expression (if using expressions) |
 | `UseClassicConditions` | Use legacy condition syntax |
 | `UseDocumentExpression` | Inherit expression from document |
+
+All three attributes are optional, and together they are the target's Boolean expression settings. When the element has none of them, the target keeps the Stationery's settings (2026.1+). When it has any of them, the job's settings replace the Stationery's, and an attribute left out takes its default: `Expression=""`, `UseClassicConditions="False"`, `UseDocumentExpression="True"`. Earlier versions of the AutoMap Administrator wrote all three attributes on every target, so a job file saved by one keeps overriding the Stationery until you remove them.
 
 ### `<Condition>` Element
 
@@ -336,7 +340,7 @@ Container for build targets. Contains one or more `<Target>` elements.
 
 ### `<Variables>` Element
 
-Container for variable overrides.
+Container for variable overrides. A variable the target does not list keeps the Stationery's value.
 
 ### `<Variable>` Element
 
@@ -463,6 +467,8 @@ The wrapper never injects `-q`. Its own stdout suppression is a separate mechani
 
 ## Creating Job Files
 
+Editing a hand-authored job in the AutoMap Administrator keeps it lean *(2026.1+)*. The job editor lists the Stationery's other targets with **Build** cleared and adds one to the job only when you select it. It saves a condition, variable, or Boolean expression setting only when you change it; the others keep following the Stationery.
+
 ### Using Scripts
 
 ```bash
@@ -534,11 +540,13 @@ When using `create-job.py` with `--config`, use this JSON format:
 Conditions control conditional content processing:
 
 ```xml
-<Conditions Expression="" UseClassicConditions="False" UseDocumentExpression="True">
+<Conditions>
   <Condition name="OnlineOnly" value="True" Passthrough="False" UseDocumentValue="False" />
   <Condition name="PrintOnly" value="False" Passthrough="False" UseDocumentValue="False" />
 </Conditions>
 ```
+
+List only the conditions the target changes; the others keep the Stationery's values. Add `Expression`, `UseClassicConditions`, or `UseDocumentExpression` only to override the Stationery's Boolean expression settings (see [`<Conditions>` Element](#conditions-element)).
 
 **Common Conditions**:
 - `OnlineOnly` / `PrintOnly` - Output-specific content
