@@ -750,6 +750,9 @@
   <data name="document-last-modified-date" xml:space="preserve">
     <value>Document last modified date</value>
   </data>
+  <data name="documents-per-word-session" xml:space="preserve">
+    <value>Documents per Word session</value>
+  </data>
   <data name="dominant-baseline" xml:space="preserve">
     <value>Dominant Baseline</value>
   </data>
@@ -3828,6 +3831,15 @@
   <data name="pdf-job-settings" xml:space="preserve">
     <value>PDF job settings</value>
   </data>
+  <data name="pdf-link-viewer-acrobat" xml:space="preserve">
+    <value>Adobe Acrobat</value>
+  </data>
+  <data name="pdf-link-viewer-web-browser" xml:space="preserve">
+    <value>Web browsers</value>
+  </data>
+  <data name="pdf-links-between-files" xml:space="preserve">
+    <value>Links between PDF files open in</value>
+  </data>
   <data name="pdf-per-document" xml:space="preserve">
     <value>Generate a PDF per document</value>
   </data>
@@ -5021,6 +5033,9 @@
   </data>
   <data name="unordered-list" xml:space="preserve">
     <value>Unordered List</value>
+  </data>
+  <data name="update-external-references" xml:space="preserve">
+    <value>Update external references</value>
   </data>
   <data name="uppercase" xml:space="preserve">
     <value>Upper case</value>
