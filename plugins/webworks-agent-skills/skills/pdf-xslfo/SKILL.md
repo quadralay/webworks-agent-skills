@@ -42,16 +42,19 @@ The installation ships **two distinct PDF formats**. Confirm which one the targe
 
 ## How a PDF Is Made
 
-The format source is small: `format.wwfmt` (pipeline), `Pages/` (five XSL-FO slot templates: `Page.asp` skeleton + `Title.asp`, `TOC.asp`, `Body.asp`, `Index.asp`), and `Transforms/` (`content.xsl` does the WIF→FO content conversion at ~5,200 lines; `stitch*.xsl` assemble; `compile*.xsl` run FOP).
+The format source is small: `format.wwfmt` (pipeline), `Pages/` (five XSL-FO slot templates: `Page.asp` skeleton + `Title.asp`, `TOC.asp`, `Body.asp`, `Index.asp`), and `Transforms/` (`content.xsl` does the WIF→FO content conversion at ~5,200 lines; `stitch*.xsl` assemble; `compile*.xsl` run FOP; `links.xsl`, 2026.1.4788+, deploys per-document/per-group PDFs with cross-PDF links restored).
 
-After the common content pipelines, four format-specific phases run per enabled result mode:
+After the common content pipelines, the format-specific phases run per enabled result mode:
 
 1. **Pages** — content splits render to `.fo` fragments
 2. **Flows** — flows are enumerated/named; `Page.asp` preprocessed into the assembly skeleton
-3. **Stitch** — title page + TOC + body + index assemble into one complete `.fo` per result
-4. **Compile** — Apache FOP turns each stitched `.fo` into the deployed `.pdf`
+3. **Stitch** — title page + TOC + body + index assemble into one complete `.fo` per result; on 2026.1.4788+, per-document results in a multi-document project and per-group results in a multi-group project also get a named destination (`fox:destination`) per paragraph ID, ~300 bytes per paragraph (EPUB3087)
+4. **Compile** — Apache FOP turns each stitched `.fo` into the `.pdf`. The merged project PDF deploys straight to Output; on 2026.1.4788+, per-document and per-group PDFs compile into the Data directory instead (`ParameterOutputLocation` = `data`)
+5. **PDFLinks** (2026.1.4788+) — `Transforms/links.xsl` writes each per-document/per-group PDF to Output, restoring the `.pd_#nameddest=` cross-PDF link placeholders `content.xsl` emitted to `.pdf#nameddest=` (same length, so no offset in the PDF moves). Warns when links cannot be restored — for example an xconf that encrypts the PDF or compresses its objects — and reports an error when the PDF cannot be written (EPUB3087)
 
 Three independently switchable result modes: per-document (`generate-per-document-result`, default off), per-group (`generate-group-result`, default **on** — the only default), and merged project PDF (`generate-project-result`, default off). No PDF for something you expected? Check these settings first.
+
+Links between per-document PDFs and between per-group PDFs honor the **Links between PDF files open in** Result Option (`pdf-links-between-files`, 2026.1.4788+): **Web browsers** (default) writes URI actions that Chrome/Edge follow to the linked location; **Adobe Acrobat** writes `#dest=` remote go-to actions that only Acrobat/Reader follow. One viewer kind works fully per target; the other opens the destination PDF at its first page. Links inside a single PDF are unaffected (EPUB3088).
 
 **Debugging pivot:** the stitched `.fo` intermediates stay under the target's Data directory (find them via `files.info`). If the `.fo` is already wrong, the problem is upstream (styles, content.xsl, source); if the `.fo` is right, it is FOP-side (fonts, xconf, FO feature support). Reproduce compiles directly against the `.fo` — recipe in `references/fop-engine.md` § Manual Re-run.
 
@@ -107,6 +110,10 @@ XSLT 1.0 only — never XSLT 2.0 in overrides.
 ### PDF missing from Output
 1. Check the three `generate-*-result` settings (only the group result defaults on).
 2. Search `Logs/<target>/generate.log` for `[ERROR]` / `SEVERE` / `Exception` — pre-2026.1 builds report success over a FOP failure (EPUB2926). The first such line is the real failure.
+3. 2026.1.4788+, document/group results: FOP compiles into Data and the PDFLinks stage deploys. A compiled PDF present in Data but absent from Output means the `links.xsl` write failed — its error is in generate.log.
+
+### Links between PDFs dead or pointing at a missing file
+Pre-4788 defect (EPUB3087): links between per-document/per-group PDFs named files that were never written and opened at the first page. On 4788+, match the viewer to the `pdf-links-between-files` setting (EPUB3088), and check generate.log for PDFLinks warnings — an xconf that encrypts the PDF or compresses its objects blocks link restoration.
 
 ### FOP validation error
 Usually an override emitting structurally incomplete FO for an edge case (classic: an empty `fo:table-cell` from an empty source paragraph — solved-cases § Case 3). Reproduce against the stitched `.fo`, fix the emitting template, never the `.fo` itself.
