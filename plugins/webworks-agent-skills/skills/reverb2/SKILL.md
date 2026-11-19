@@ -53,7 +53,7 @@ When investigating a runtime issue — a theme override that didn't apply, a bro
 |---------|---------------------------|----------|
 | Splash **Groups Grid** (EPUB2907) | `Splash.asp` → `<nav id="splash_groups" class="ww_skin_splash_groups">` | `connect.js` collects card data from the master TOC → `page.js` builds the DOM |
 | Assistant **avatar** (EPUB2911) | — (every assistant slot) | `assistant.js` `Assistant_RenderAvatar` |
-| Assistant **load states** (EPUB2966): the *Assistant Unavailable* notice and the *Preview only* placeholder | the Assistant tab's container | `assistant.js` `Assistant_ShowUnavailableState`, `Assistant_IsLocalPreview` |
+| Assistant **load states** (EPUB2966; storage notice EPUB3084, 2026.1.4787+): the *Assistant Unavailable* notice, the *Preview only* placeholder, and the *conversations not saved* storage notice | the Assistant tab's container | `assistant.js` `Assistant_ShowUnavailableState`, `Assistant_IsLocalPreview` |
 
 Reading the template or grepping the published HTML for the card markup finds nothing; read the JavaScript instead. `splash.png` is **no longer referenced by any template** — a project that overrode it must now override `Splash.asp`. Full treatment, including the `$splash_groups_*` variables and the `ww_skin_*` hooks: `references/runtime-rendered-ui.md`.
 
